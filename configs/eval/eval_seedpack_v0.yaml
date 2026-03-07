@@ -1,0 +1,5 @@
+config_id: eval_seedpack_v0
+seed_pack: bootstrap_smoke
+reward_config: reward_sparse_v0
+curriculum_config: curriculum_disabled_v0
+

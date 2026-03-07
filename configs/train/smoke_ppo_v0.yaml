@@ -1,0 +1,7 @@
+config_id: smoke_ppo_v0
+trainer: pufferlib
+policy: mlp
+reward_config: reward_sparse_v0
+curriculum_config: curriculum_disabled_v0
+num_envs: 1
+

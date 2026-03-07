@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fight-caves-rl-training"
+version = "0.1.0"
+description = "RL, analytics, and training module for the Fight Caves workspace."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "numpy>=1.26.4,<2.0",
+  "orjson>=3.11.3",
+  "msgpack>=1.1.1",
+  "pyarrow>=21.0.0",
+  "PyYAML>=6.0.2",
+  "rich>=14.1.0",
+  "wandb>=0.22.0",
+]
+
+[dependency-groups]
+dev = [
+  "hypothesis>=6.139.2",
+  "pytest>=8.4.2",
+  "pytest-cov>=7.0.0",
+]
+train = [
+  "ninja>=1.13.0",
+  "pufferlib==3.0.0",
+  "torch>=2.8.0",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["fight_caves_rl"]
+
+[tool.pytest.ini_options]
+testpaths = ["fight_caves_rl/tests"]
+addopts = "-q"

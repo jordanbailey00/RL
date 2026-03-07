@@ -1,0 +1,54 @@
+# changelog.md
+
+## 2026-03-07
+
+- Adopted canonical RL root filenames: `RLspec.md` and `RLplan.md`.
+- Added PR1 bootstrap scaffolding:
+  - `pyproject.toml`
+  - `uv.lock`
+  - `.env.example`
+  - `README.md`
+  - baseline configs
+  - `docs/run_manifest.md`
+  - package skeleton under `fight_caves_rl/`
+  - baseline CI workflow
+- Installed workspace-local `uv` and workspace-local Python `3.11`.
+- Verified the default dev bootstrap path with:
+  - `uv lock --python 3.11`
+  - `uv sync --group dev --python 3.11`
+  - `uv run pytest fight_caves_rl/tests/unit`
+- Added baseline unit tests for config loading and bootstrap run-manifest generation.
+- Discovered and documented that `pufferlib==3.0.0` requires `numpy<2.0`; bootstrap pin adjusted to `numpy>=1.26.4,<2.0`.
+- Discovered and documented that `pufferlib==3.0.0` builds from source in this WSL environment and currently requires a C++ build toolchain.
+- Kept `pufferlib==3.0.0` pinned in the lockfile under the `train` dependency group while leaving the default dev bootstrap path usable without the missing compiler.
+- Added a workspace-local LLVM/Clang toolchain and exported `CC`, `CXX`, `AR`, and `RANLIB` through `/home/jordan/code/.workspace-env.sh`.
+- Chose the CPU-only `torch` wheel index for the RL bootstrap path so Linux does not resolve the CUDA-heavy default wheels during PR 1 setup.
+- Verified that the reduced `NO_OCEAN=1` install path currently fails because the published `pufferlib==3.0.0` `setup.py` references `c_extension_paths` outside the `NO_OCEAN` guard.
+- Added a workspace-local GCC 13 sysroot path in WSL, including wrapper binaries under `/home/jordan/code/.workspace-tools/bin` and sysroot libraries under `/home/jordan/code/.workspace-tools/sysroot`.
+- Updated `/home/jordan/code/.workspace-env.sh` so the shared workspace shell exports the sysroot include/library paths, `LD_LIBRARY_PATH`, and `TMPDIR` required by the native build path.
+- Verified the full train bootstrap path with:
+  - `uv sync --group dev --group train --python 3.11`
+  - `uv run pytest fight_caves_rl/tests/unit`
+  - `uv run python -c "import pufferlib, torch, fight_caves_rl"`
+- Added `scripts/bootstrap_wsl_toolchain.sh` so the current WSL-native toolchain path is repo-owned and repeatable.
+- Researched an upstream long-term alternative to the source-only `pufferlib==3.0.0` package:
+  - `pufferlib-core==3.0.18` ships manylinux wheels for Python `3.11`/`3.12`
+  - the wheel provides the same `pufferlib` import namespace and includes `pufferlib.pufferl`, `pufferlib.vector`, `pufferlib.emulation`, and the compiled `_C` extension
+  - official docs at `https://puffer.ai/docs.html` still recommend `pip install pufferlib`
+  - the imported `pufferlib.__version__` from the `3.0.18` wheel currently reports `3.0.17`
+  - core module sources differ from the current `pufferlib==3.0.0` install, so migration needs targeted validation before changing the repo pin
+- Documented the exact next resume chunk in `RLplan.md` and updated `RLspec.md` / `README.md` so the current state is explicit:
+  - current live baseline remains `pufferlib==3.0.0`
+  - `pufferlib-core==3.0.18` is the leading permanent replacement candidate
+  - the next chunk is to validate that migration and either adopt it cleanly or reject it explicitly
+- Documented that `/home/jordan/code/RL` is not yet a Git-backed repository in this workspace, so RL-side branch hygiene, pushes, and manifest commit-SHA capture remain blocked until repo initialization/remote setup is done.
+- Reviewed current PufferLib surfaces and recorded that later PRs should reuse:
+  - `pufferlib.pufferl.PuffeRL`
+  - `pufferlib.pufferl.WandbLogger`
+  - `pufferlib.vector.make`
+  - `pufferlib.emulation`
+  - PufferLib dashboard printing
+- Created the canonical GitHub repo for RL at `https://github.com/jordanbailey00/RL`.
+- Initialized `/home/jordan/code/RL` as a Git-backed repository and tied `origin` to `git@github.com:jordanbailey00/RL.git`.
+- Updated `RLspec.md` and `RLplan.md` so the repo-initialization gap is marked resolved and later work can assume RL commit-SHA capture is infrastructure-ready.
+- Replaced an environment-local `resources` symlink into `.venv` with a repo-owned placeholder directory so the RL tree stays portable when committed.

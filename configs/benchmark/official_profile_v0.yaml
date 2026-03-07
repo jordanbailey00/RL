@@ -1,0 +1,13 @@
+profile_id: official_profile_v0
+reward_config: reward_sparse_v0
+curriculum_config: curriculum_disabled_v0
+logging_mode: standard
+replay_mode: disabled
+dashboard_mode: disabled
+env_counts:
+  - 1
+  - 16
+  - 64
+  - 256
+  - 1024
+
