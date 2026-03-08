@@ -2,6 +2,14 @@
 
 ## 2026-03-08
 
+- Added a repo-owned post-PR13 workspace refactor audit in:
+  - `docs/workspace_refactor_audit.md`
+- Recorded current cross-repo maintainability findings without changing runtime behavior:
+  - stale RL benchmark wording in `docs/run_manifest.md`
+  - duplicated RL compatibility/CLI entrypoint patterns
+  - stale active-doc wording in `fight-caves-RL`
+  - `RSPS` README still presenting only inherited upstream Void identity despite the new oracle/reference module docs
+  - duplicated inherited release workflows in `fight-caves-RL` and `RSPS`
 - Started and completed PR 13 MVP acceptance work in RL.
 - Added the repo-owned acceptance surfaces:
   - `scripts/run_acceptance_gate.py`
