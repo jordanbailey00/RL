@@ -32,6 +32,31 @@
 - Updated downstream RL planning so later PRs build on the new baseline correctly:
   - PR 2 now extends the existing `fight_caves_rl/manifests/versions.py` and treats PufferLib distribution metadata as canonical
   - PR 6 now explicitly records the PufferLib distribution/version pair in manifests and W&B config instead of trusting `pufferlib.__version__`
+- Completed PR 2 contract freeze work against the verified sim sources in `/home/jordan/code/fight-caves-RL`:
+  - added `docs/rl_integration_contract.md`
+  - added `docs/bridge_contract.md`
+  - added `docs/observation_mapping.md`
+  - added `docs/action_mapping.md`
+  - added `docs/hotpath_map.md`
+  - added `docs/performance_plan.md`
+  - added `fight_caves_rl/envs/schema.py`
+- Froze the canonical sim artifact policy for RL:
+  - default artifact task `:game:headlessDistZip`
+  - fallback/validation task `:game:packageHeadless`
+  - default artifact path `fight-caves-RL/game/build/distributions/fight-caves-headless.zip`
+- Froze the PR 3 Mode A bridge direction around the current direct-runtime surface:
+  - embedded JVM direct-runtime bridge
+  - `HeadlessMain.bootstrap(...)` entrypoint
+  - player provisioning aligned to the sim's headless test-support setup/spawn/viewport path
+- Froze the provisional Mode B/C direction around a dedicated batched subprocess bridge and lower-copy vector backend path.
+- Expanded `configs/benchmark/official_profile_v0.yaml` into a real benchmark contract with env-count ladder and required manifest fields.
+- Updated `docs/run_manifest.md` so PR 2 contract/version fields are now part of the documented future manifest surface.
+- Added PR 2 unit coverage:
+  - `test_contract_version_registry.py`
+  - `test_required_docs_exist.py`
+  - `test_episode_start_contract_registry.py`
+  - `test_official_benchmark_profile_registry.py`
+- Verified PR 2 with `uv run pytest fight_caves_rl/tests/unit`: `13 passed`.
 - Re-ran the RL acceptance set after the baseline decision:
   - `uv lock --python 3.11`
   - `uv sync --group dev --python 3.11`

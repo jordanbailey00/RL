@@ -271,14 +271,16 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 2 and freeze the RL/sim integration contract in repo-owned docs before any wrapper code starts drifting.
-2. Lock the episode-start-state contract to the headless sim implementation, not to RL-local assumptions.
-3. Freeze the bridge strategy, official sim artifact consumption strategy, and official benchmark profile v0.
-4. Add the version/schema registry files and tests that PR 3 will rely on.
+1. Start PR 3 and build the first correctness-first Python wrapper around the headless sim.
+2. Implement the PR 2-selected Mode A bridge path around the current direct-runtime surface.
+3. Mirror the sim's player provisioning flow exactly before reset/step/observe calls.
+4. Keep wrapper behavior semantically transparent while adding reset/step/close integration tests and smoke scripts.
 
-Stopping condition for the completed chunk:
+Stopping condition for the completed PR 2 chunk:
 
-- RL formally adopts `pufferlib-core==3.0.17` as the new baseline, the docs/pins are updated together, and CI begins validating the train-group package path.
+- RL freezes the sim-aligned integration contract in repo-owned docs.
+- RL defines the action/observation/episode-start/bridge/benchmark identities in one place.
+- RL documents the selected artifact strategy and Mode A bridge path early enough to steer PR 3.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -356,6 +358,26 @@ Risks / likely failure modes:
 - Leaving version constants scattered across modules.
 - Freezing the wrong episode-start-state contract or letting it drift from the headless sim initializer.
 - Deferring bridge/artifact/benchmark decisions too long and forcing PR 3 onto a dead-end path.
+
+PR 2 execution status (2026-03-08):
+
+- [x] Read the current sim-side Step 5, Step 6, Step 7, and Step 10 artifacts directly from `/home/jordan/code/fight-caves-RL`.
+- [x] Added RL-side integration/bridge/action/observation/hot-path/performance docs rooted in the verified sim contract.
+- [x] Added `fight_caves_rl/envs/schema.py` as the single RL-side registry for observation schema, action schema, episode-start contract, bridge protocol, and official benchmark profile identities.
+- [x] Froze the default sim artifact boundary to the packaged headless distribution from `:game:headlessDistZip`, with `:game:packageHeadless` as the documented build/validation fallback.
+- [x] Selected a concrete PR 3 Mode A direction:
+  - embedded JVM direct-runtime bridge
+  - packaged headless distribution as the input artifact
+  - `HeadlessMain.bootstrap(...)` as the runtime entrypoint
+  - player provisioning aligned to the sim's headless test-support path
+- [x] Froze the provisional Mode B/C direction around a dedicated batched subprocess bridge and lower-copy vector backend path.
+- [x] Expanded `configs/benchmark/official_profile_v0.yaml` into a real benchmark profile contract with env ladder and required manifest fields.
+- [x] Added PR 2 unit coverage for:
+  - contract version registry
+  - required docs presence
+  - episode-start contract registry
+  - official benchmark profile registry/config consistency
+- [x] Re-ran RL unit tests after PR 2 contract work: `13 passed`.
 
 ### PR 3 - Correctness Wrapper Bring-Up
 
@@ -1055,18 +1077,22 @@ Mandatory benchmark breakdowns across the stages:
    - RL standardizes on Python `3.11` via workspace-local `uv` provisioning and locked dependencies.
 
 4. Sim artifact consumption strategy
-   - Planning now assumes the packaged headless distribution from `/home/jordan/code/fight-caves-RL` is the default dev/test artifact boundary.
-   - PR 2 must confirm that assumption, document any jar/local-build fallback, and freeze the official artifact policy before PR 3 starts.
+   - Resolved in PR 2.
+   - RL now treats the packaged headless distribution from `/home/jordan/code/fight-caves-RL` as the canonical dev/test artifact boundary.
+   - `:game:headlessDistZip` is the default artifact task, with `:game:packageHeadless` as the documented build/validation fallback.
 
 5. Final bridge transport mechanism
-   - Planning now assumes PR 2 will lock a concrete Mode A bridge path and a scored provisional Mode B/C direction.
-   - The exact production transport may still evolve after empirical testing, but it must stay inside the coarse-grained, low-copy, non-JSON hot-path constraints frozen early.
+   - Partially resolved in PR 2.
+   - PR 2 froze Mode A to the embedded-JVM direct-runtime path and froze the provisional Mode B/C direction around a batched subprocess bridge with lower-copy payloads.
+   - The exact production transport implementation may still evolve after empirical testing, but it must stay inside the coarse-grained, low-copy, non-JSON hot-path constraints now frozen by PR 2.
 
 6. Sim-side batching surface
    - The current sim repo already exposes runtime reset/action/observe APIs and a batch stepping helper, but the exact multi-episode interface needed by RL may require explicit sim-side support. Any such dependency must be tracked as an external prerequisite on the sim repo, not hidden inside RL.
 
 7. Action-space encoding
-   - The sim action contract is authoritative, but the exact PufferLib-facing encoding for parameterized actions like `WalkToTile` and `AttackVisibleNpc` still needs to be frozen in `docs/action_mapping.md` before coding.
+   - Partially resolved in PR 2.
+   - `docs/action_mapping.md` now freezes the sim-aligned action ids, parameters, and rejection reasons.
+   - The final PufferLib/Gymnasium space encoding still needs implementation in PR 3/PR 5, but it must stay inside the PR 2 contract.
 
 8. Reward shaping details
    - `reward_sparse_v0` and `reward_shaped_v0` are required, but the exact shaped terms, coefficients, and default curriculum behavior are not fully specified. These need to be explicitly documented before training comparisons begin.
@@ -1078,7 +1104,8 @@ Mandatory benchmark breakdowns across the stages:
    - Project name, entity/team, artifact retention policy, and default online/offline behavior are operational details that should be fixed before PR 6 lands.
 
 11. Official benchmark hardware/profile
-   - The benchmark profile v0 itself should be frozen in PR 2.
+   - Partially resolved in PR 2.
+   - Benchmark profile v0 is now frozen in RL config/docs.
    - If a permanent benchmark host is not yet selected, benchmark manifests must still record the exact machine profile so `>= 1,000,000 env steps/sec` claims remain comparable and auditable.
 
 12. WSL toolchain baseline

@@ -1,13 +1,39 @@
 profile_id: official_profile_v0
+profile_version: 0
+benchmark_mode: staged_gate_matrix
+bridge_mode: recorded_per_run
 reward_config: reward_sparse_v0
 curriculum_config: curriculum_disabled_v0
 logging_mode: standard
 replay_mode: disabled
 dashboard_mode: disabled
-env_counts:
+env_count_ladder:
   - 1
   - 16
   - 64
   - 256
   - 1024
-
+required_manifest_fields:
+  - benchmark_profile_id
+  - benchmark_profile_version
+  - hardware_profile
+  - rl_commit_sha
+  - sim_commit_sha
+  - sim_artifact_task
+  - sim_artifact_path
+  - bridge_protocol_id
+  - bridge_protocol_version
+  - observation_schema_id
+  - observation_schema_version
+  - action_schema_id
+  - action_schema_version
+  - episode_start_contract_id
+  - episode_start_contract_version
+  - pufferlib_distribution
+  - pufferlib_version
+  - reward_config_id
+  - curriculum_config_id
+  - replay_mode
+  - logging_mode
+  - dashboard_mode
+  - env_count
