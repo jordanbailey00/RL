@@ -74,7 +74,9 @@ Manual or scheduled validation owns:
 - `fight_caves_rl/tests/performance`
 - `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/fc_vecenv_bench.json`
 - `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench.json`
+- `uv run python scripts/run_acceptance_gate.py --output-dir /tmp/rl-acceptance`
 - `.github/workflows/benchmarks.yml` on a self-hosted Linux runner with the sibling workspace repos present
+- `.github/workflows/acceptance.yml` on a self-hosted Linux runner with the sibling workspace repos present
 
 ## PR3 Runtime Prerequisites
 
@@ -288,3 +290,15 @@ Current PR12 facts:
 - each scenario compares wrapper trace, raw sim trace, and the trace-pack-driven scripted replay path in fresh subprocesses
 - parity reports are inspectable JSON outputs with per-scenario digests, final ticks, and pass/fail status
 - checkpoint replay-eval determinism still lives under the PR10 replay contract; PR12 replay-to-trace equivalence refers to the scripted trace-pack path, not checkpoint eval replay
+
+## PR13 MVP Acceptance Gate
+
+PR13 closes the implementation roadmap with a repo-owned acceptance harness.
+
+Current PR13 facts:
+
+- `scripts/run_acceptance_gate.py` is the canonical local/manual acceptance entrypoint
+- `.github/workflows/acceptance.yml` is the repo-owned manual self-hosted acceptance workflow
+- the acceptance gate runs the full RL suite split, a real train run, deterministic replay-eval on the produced checkpoint, the parity matrix, and the bridge/env/train benchmark entrypoints
+- the acceptance gate writes a single `acceptance_report.json` plus per-command logs and output artifacts
+- acceptance runs use offline W&B directories under the acceptance output root so the gate is reproducible and does not depend on user-global W&B state

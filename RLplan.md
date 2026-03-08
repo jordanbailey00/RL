@@ -273,33 +273,15 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 13 and execute the MVP acceptance gate on top of the now-live PR12 parity/oracle validation layer.
-2. Keep the PR7/PR8/PR10/PR11/PR12 runtime contracts stable while the acceptance pass runs:
-   - `fight_caves_bridge_v1`
-   - deterministic slot seeding
-   - `puffer_policy_observation_v0`
-   - `puffer_policy_action_v0`
-   - replay artifact ids and seed-pack/trace-pack registries
-   - benchmark-context metadata attached to repo-owned benchmark reports
-   - parity canary scenario matrix in `configs/eval/parity_canary_v0.yaml`
-3. Preserve the official benchmark profile v0 path and the current benchmark entrypoints while acceptance work runs:
-   - `scripts/benchmark_bridge.py`
-   - `scripts/benchmark_env.py`
-   - `scripts/benchmark_train.py`
-   - `scripts/run_parity_canary.py`
-4. Carry forward the resolved subprocess-stability guardrails:
-   - TTY-aware dashboard rendering
-   - quiet embedded-JVM logging
-   - subprocess timeouts and child trace hooks for future diagnostics
-   - subprocess-isolated vecenv/env-benchmark coverage for fresh embedded-JVM bring-up
-   - fresh child `train.py` processes per logging-mode benchmark measurement
-   - subprocess-isolated parity and scripted-trace checks for fresh embedded-JVM bring-up
+Implementation roadmap complete through PR13.
+
+Next work should come from an approved post-MVP backlog, audit-driven refactor set, or new scoped feature plan rather than another in-flight MVP PR.
 
 Stopping condition for the current stop point:
 
-- RL has a clean pushed `main` branch with PR12 merged and the parity/oracle validation layer verified.
-- RL docs and changelog reflect the current verified state and the next PR13 resume point.
-- The workspace is ready to begin the MVP acceptance gate without reopening PR7/PR8/PR10/PR11/PR12 stability issues.
+- RL has a clean pushed `main` branch with PR13 merged and the acceptance gate verified.
+- RL docs and changelog reflect the current verified MVP-complete implementation state.
+- The workspace is ready to move from implementation into audit/refactor or new approved feature work.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -1151,6 +1133,26 @@ Risks / likely failure modes:
 - Last-minute contract mismatches between manifests, bridge versions, and schema versions.
 - Acceptance running on hardware that differs from the documented benchmark profile.
 - Treating benchmark progress as sufficient without proving correctness and reproducibility.
+
+PR 13 execution status (2026-03-08):
+
+- [x] Added `scripts/run_acceptance_gate.py` as the repo-owned PR13 acceptance entrypoint.
+- [x] Added `.github/workflows/acceptance.yml` as the manual self-hosted acceptance workflow.
+- [x] Added `docs/mvp_acceptance.md` to freeze the current acceptance surface and output contract.
+- [x] Ran the full RL suite split inside the acceptance gate:
+  - `fight_caves_rl/tests/unit`
+  - `fight_caves_rl/tests/train`
+  - `fight_caves_rl/tests/integration`
+  - `fight_caves_rl/tests/determinism`
+  - `fight_caves_rl/tests/parity`
+  - `fight_caves_rl/tests/smoke`
+  - `fight_caves_rl/tests/performance`
+- [x] Verified a real train/eval/checkpoint/replay flow inside the acceptance gate.
+- [x] Verified deterministic replay-eval equivalence on the produced checkpoint.
+- [x] Verified the PR12 parity matrix inside the acceptance gate.
+- [x] Verified the bridge/env/train benchmark entrypoints inside the acceptance gate.
+- [x] Wrote a single acceptance report plus per-command logs and outputs under the acceptance output directory.
+- [x] Kept PR CI lightweight; the full acceptance gate remains a manual/self-hosted workflow rather than a normal PR workflow.
 
 ## 4. Bridge / Integration Plan
 

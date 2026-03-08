@@ -1,0 +1,35 @@
+name: Acceptance
+
+on:
+  workflow_dispatch:
+
+jobs:
+  acceptance-manual:
+    runs-on:
+      - self-hosted
+      - linux
+    steps:
+      - name: Verify workspace layout
+        run: |
+          test -f /home/jordan/code/.workspace-env.sh
+          test -d /home/jordan/code/RL
+          test -d /home/jordan/code/fight-caves-RL
+          test -d /home/jordan/code/RSPS
+      - name: Sync train dependencies
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv sync --group dev --group train --python 3.11
+      - name: Run acceptance gate
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv run python scripts/run_acceptance_gate.py \
+            --output-dir /tmp/rl-acceptance-${{ github.run_id }}
+      - name: Upload acceptance artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rl-acceptance-${{ github.run_id }}
+          path: /tmp/rl-acceptance-${{ github.run_id }}

@@ -1427,6 +1427,17 @@ Required action items:
 Exit criteria:
 - RL module is functional, reproducible, instrumented, and integration-correct.
 
+Current implementation note:
+- `scripts/run_acceptance_gate.py` is the repo-owned PR13 acceptance entrypoint
+- `.github/workflows/acceptance.yml` is the manual self-hosted acceptance workflow
+- the current gate executes:
+  - the full RL suite split
+  - a real train run through `scripts/train.py`
+  - deterministic replay-eval on the produced checkpoint through `scripts/replay_eval.py`
+  - the PR12 parity matrix through `scripts/run_parity_canary.py`
+  - the PR11 bridge/env/train benchmark entrypoints
+- the acceptance gate writes a single `acceptance_report.json` and validates train/eval artifact categories, deterministic replay-eval equivalence, parity status, and benchmark output presence
+
 ---
 
 ## 20) Required Acceptance Criteria

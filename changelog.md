@@ -2,6 +2,23 @@
 
 ## 2026-03-08
 
+- Started and completed PR 13 MVP acceptance work in RL.
+- Added the repo-owned acceptance surfaces:
+  - `scripts/run_acceptance_gate.py`
+  - `.github/workflows/acceptance.yml`
+  - `docs/mvp_acceptance.md`
+- Standardized the PR13 acceptance gate to run:
+  - the full RL suite split
+  - a real train run through `scripts/train.py`
+  - deterministic replay-eval on the produced checkpoint through `scripts/replay_eval.py`
+  - the PR12 parity matrix through `scripts/run_parity_canary.py`
+  - the PR11 bridge/env/train benchmark entrypoints
+- Found and fixed one real PR13 acceptance-runner bug:
+  - the first version leaked acceptance-specific W&B env vars into the dev-only unit suite
+  - `scripts/run_acceptance_gate.py` now runs pytest with the normal environment and reserves offline W&B overrides for the runtime/benchmark commands only
+- Verified the passing PR13 acceptance gate:
+  - `uv run python scripts/run_acceptance_gate.py --output-dir /tmp/rl-pr13-acceptance-rerun`
+  - `acceptance_report.json` recorded `all_passed = true`
 - Started and completed PR 12 parity/oracle validation work in RL.
 - Added the config-driven PR12 parity runner:
   - `fight_caves_rl/replay/parity_canaries.py`
