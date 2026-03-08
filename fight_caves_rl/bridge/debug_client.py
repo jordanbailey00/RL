@@ -120,10 +120,8 @@ class HeadlessDebugClient:
 
     def observe(self, player: Any, include_future_leakage: bool = False) -> dict[str, Any]:
         self._ensure_runtime_open()
-        observation = self._runtime.observeFightCave(player, include_future_leakage)
-        mapped = _pythonize(observation.toOrderedMap())
-        validate_observation_contract(mapped)
-        return mapped
+        observation = self.observe_jvm(player, include_future_leakage=include_future_leakage)
+        return pythonize_observation(observation)
 
     def visible_targets(self, player: Any) -> list[dict[str, Any]]:
         self._ensure_runtime_open()
@@ -143,17 +141,8 @@ class HeadlessDebugClient:
 
     def apply_action(self, player: Any, action: int | str | dict[str, object] | NormalizedAction) -> dict[str, Any]:
         self._ensure_runtime_open()
-        jvm_action = self._build_jvm_action(normalize_action(action))
-        result = self._runtime.applyFightCaveAction(player, jvm_action)
-        return {
-            "action_type": str(result.getActionType().name()),
-            "action_id": int(result.getActionId()),
-            "action_applied": bool(result.getActionApplied()),
-            "rejection_reason": None
-            if result.getRejectionReason() is None
-            else str(result.getRejectionReason().name()),
-            "metadata": _pythonize(result.getMetadata()),
-        }
+        result = self.apply_action_jvm(player, action)
+        return pythonize_action_result(result)
 
     def step_once(
         self,
@@ -171,6 +160,72 @@ class HeadlessDebugClient:
             action_result=action_result,
             visible_targets=self.visible_targets(player),
         )
+
+    def tick(self, times: int = 1) -> None:
+        self._ensure_runtime_open()
+        if int(times) < 0:
+            raise BridgeError(f"tick times must be >= 0, got {times}.")
+        if int(times) == 0:
+            return
+        self._runtime.tick(int(times))
+
+    def build_action(self, action: int | str | dict[str, object] | NormalizedAction) -> Any:
+        self._ensure_runtime_open()
+        return self._build_jvm_action(normalize_action(action))
+
+    def apply_action_jvm(
+        self,
+        player: Any,
+        action: int | str | dict[str, object] | NormalizedAction,
+    ) -> Any:
+        self._ensure_runtime_open()
+        return self._runtime.applyFightCaveAction(player, self.build_action(action))
+
+    def observe_jvm(self, player: Any, include_future_leakage: bool = False) -> Any:
+        self._ensure_runtime_open()
+        return self._runtime.observeFightCave(player, include_future_leakage)
+
+    def run_action_trace(
+        self,
+        player: Any,
+        actions: list[int | str | dict[str, object] | NormalizedAction],
+        *,
+        ticks_after: int = 1,
+        observe_every: int = 0,
+        include_future_leakage: bool = False,
+    ) -> dict[str, Any]:
+        self._ensure_runtime_open()
+        if int(ticks_after) < 0:
+            raise BridgeError(f"ticks_after must be >= 0, got {ticks_after}.")
+        if int(observe_every) < 0:
+            raise BridgeError(f"observe_every must be >= 0, got {observe_every}.")
+
+        replay_steps = self._jvm["ArrayList"]()
+        for action in actions:
+            replay_steps.add(
+                self._jvm["HeadlessReplayStep"](
+                    self.build_action(action),
+                    int(ticks_after),
+                )
+            )
+
+        batch = self._jvm["HeadlessBatchSteppingKt"].runFightCaveBatch(
+            self._runtime,
+            player,
+            replay_steps,
+            int(observe_every),
+            bool(include_future_leakage),
+        )
+        final_observation = pythonize_observation(batch.getFinalObservation())
+        return {
+            "steps": int(batch.getSteps()),
+            "ticks_advanced": int(batch.getTicksAdvanced()),
+            "action_applied_count": int(batch.getActionAppliedCount()),
+            "elapsed_nanos": int(batch.getElapsedNanos()),
+            "steps_per_second": float(batch.getStepsPerSecond()),
+            "ticks_per_second": float(batch.getTicksPerSecond()),
+            "final_observation": final_observation,
+        }
 
     def close(self) -> None:
         if self._runtime is not None:
@@ -303,9 +358,11 @@ def _ensure_jvm(headless_jar: Path, launch_cwd: Path) -> dict[str, Any]:
         "FightCaveEpisodeConfig": jpype.JClass("FightCaveEpisodeConfig"),
         "HashMap": jpype.JClass("java.util.HashMap"),
         "HeadlessAttackVisibleNpc": jpype.JClass("HeadlessAction$AttackVisibleNpc"),
+        "HeadlessBatchSteppingKt": jpype.JClass("HeadlessBatchSteppingKt"),
         "HeadlessDrinkPrayerPotion": jpype.JClass("HeadlessAction$DrinkPrayerPotion"),
         "HeadlessEatShark": jpype.JClass("HeadlessAction$EatShark"),
         "HeadlessMain": jpype.JClass("HeadlessMain"),
+        "HeadlessReplayStep": jpype.JClass("HeadlessReplayStep"),
         "HeadlessToggleProtectionPrayer": jpype.JClass(
             "HeadlessAction$ToggleProtectionPrayer"
         ),
@@ -378,3 +435,21 @@ def _pythonize(value: Any) -> Any:
     if hasattr(value, "name") and callable(value.name):
         return str(value.name())
     return value
+
+
+def pythonize_action_result(result: Any) -> dict[str, Any]:
+    return {
+        "action_type": str(result.getActionType().name()),
+        "action_id": int(result.getActionId()),
+        "action_applied": bool(result.getActionApplied()),
+        "rejection_reason": None
+        if result.getRejectionReason() is None
+        else str(result.getRejectionReason().name()),
+        "metadata": _pythonize(result.getMetadata()),
+    }
+
+
+def pythonize_observation(observation: Any) -> dict[str, Any]:
+    mapped = _pythonize(observation.toOrderedMap())
+    validate_observation_contract(mapped)
+    return mapped

@@ -21,8 +21,8 @@ def test_contract_registry_exports_expected_core_versions():
     assert HEADLESS_ACTION_SCHEMA.version == 1
     assert FIGHT_CAVE_EPISODE_START_CONTRACT.identity.contract_id == "fight_cave_episode_start_v1"
     assert FIGHT_CAVE_EPISODE_START_CONTRACT.identity.version == 1
-    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.contract_id == "fight_caves_bridge_v0"
-    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.version == 0
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.contract_id == "fight_caves_bridge_v1"
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.version == 1
     assert OFFICIAL_BENCHMARK_PROFILE.identity.contract_id == "official_profile_v0"
     assert OFFICIAL_BENCHMARK_PROFILE.identity.version == 0
 

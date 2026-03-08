@@ -1252,8 +1252,9 @@ Exit criteria:
 Required action items:
 1. Implement batched action submission.
 2. Implement batched observation/result retrieval.
-3. Replace verbose hot-path payloads with compact transport.
-4. Add benchmark harness for bridge throughput.
+3. Freeze the versioned batch protocol and slot-lockstep semantics before any later transport swap.
+4. Replace verbose hot-path payloads with compact transport where it does not change the frozen semantics.
+5. Add benchmark harness for bridge throughput.
 
 Required tests:
 1. batch vs sequential equivalence
@@ -1262,6 +1263,10 @@ Required tests:
 
 Exit criteria:
 - batched bridge works correctly and outperforms correctness wrapper path.
+
+Implementation note:
+- the first shipped PR7 bridge may remain in-process on the embedded JVM runtime if that is the shortest correct path to freezing batch semantics against the golden sim
+- a later subprocess/shared-buffer transport is acceptable only if it preserves the PR7 protocol/semantics and bumps the bridge version when needed
 
 ---
 

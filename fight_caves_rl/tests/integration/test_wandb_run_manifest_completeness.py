@@ -49,7 +49,7 @@ def test_train_and_eval_manifests_record_required_contracts(tmp_path: Path):
     assert train_manifest["run_kind"] == "train"
     assert train_manifest["config_id"] == "smoke_ppo_v0"
     assert train_manifest["benchmark_profile_id"] == "official_profile_v0"
-    assert train_manifest["bridge_protocol_id"] == "fight_caves_bridge_v0"
+    assert train_manifest["bridge_protocol_id"] == "fight_caves_bridge_v1"
     assert train_manifest["episode_start_contract_id"] == "fight_cave_episode_start_v1"
     assert train_manifest["observation_schema_id"] == "headless_observation_v1"
     assert train_manifest["action_schema_id"] == "headless_action_v1"

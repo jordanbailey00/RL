@@ -86,26 +86,55 @@ Mode A guarantees:
 - raw JVM exceptions and contract mismatches are surfaced directly to Python
 - no wrapper-local reinterpretation of action or observation semantics
 
-## Provisional Mode B - Batched Production Bridge
+## Mode B - PR7 Batched Bridge Baseline
 
-Mode B direction:
+PR7 landed the first real batched bridge baseline.
 
-- dedicated JVM subprocess per Python worker
-- coarse-grained batch reset/step boundaries
+Current PR7 direction:
+
+- same embedded JVM runtime family as Mode A
+- many player slots inside one runtime
+- coarse-grained lockstep batch reset/step boundaries
 - explicit schema/version handshake before env creation
-- binary/control channel preferred over ad hoc text transport
+- transport-agnostic protocol/buffer layer so later transport changes do not redefine the env contract
 
-Target topology:
+Current topology:
 
-- one Python worker controls one JVM runtime process
-- one JVM runtime process owns many active episode/player slots
-- one Python bridge call submits/receives a batch for many slots
+- one Python worker controls one embedded JVM runtime
+- one runtime owns many active fight-cave player slots
+- each slot runs in its own dynamic fight-cave instance
+- one bridge step submits actions for many slots, advances one shared runtime tick, then collects all observations/results
+
+Why PR7 stays in-process:
+
+- the existing sim surface already supports the runtime/player-slot behavior needed for lockstep batching
+- the sim does not yet expose a dedicated external bridge server entrypoint
+- PR7’s goal is to freeze batch semantics, slot failure handling, and benchmarkable behavior before a later transport swap
+- this keeps PR7 aligned with the sim as golden runtime instead of inventing a speculative subprocess server API
+
+Current PR7 guarantees:
+
+- bridge protocol incremented to `fight_caves_bridge_v1`
+- per-slot resets still call `resetFightCaveEpisode(...)` directly
+- per-step semantics are:
+  - apply slot actions
+  - tick shared runtime once
+  - observe all slots
+- schema/version drift fails fast before batch stepping
+- single-slot trace benchmarking reuses the sim-side `runFightCaveBatch(...)` helper directly
+
+Not landed yet in PR7:
+
+- dedicated subprocess transport
+- binary IPC
+- shared-memory/zero-copy payload transport
 
 ## Provisional Mode C - High-Throughput Vector Backend
 
 Mode C direction:
 
-- keep the batched subprocess topology from Mode B
+- keep the PR7 batch protocol and slot semantics from Mode B
+- transport may move from the embedded runtime to a dedicated subprocess/shared-buffer path if benchmarking justifies it
 - move payloads toward flat numeric buffers with minimal Python/JVM crossings
 - use a lightweight control channel plus low-copy batch payloads
 - optimize for the staged path to `>= 1,000,000 env steps/sec`, not just correctness-mode convenience
@@ -142,5 +171,6 @@ The bridge must validate these before stepping:
 
 ## Versioning Rule
 
-- PR 3 correctness mode records `bridge_protocol_v0`
+- PR 3 correctness mode recorded `fight_caves_bridge_v0`
+- PR 7 increments the bridge contract to `fight_caves_bridge_v1` because the batch envelope and lockstep semantics are now part of the explicit bridge contract
 - if PR 7 changes the batch envelope, transport semantics, or handshake surface materially, the bridge protocol version must increment rather than drifting silently

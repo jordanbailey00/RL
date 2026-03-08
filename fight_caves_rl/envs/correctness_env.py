@@ -93,7 +93,7 @@ class FightCavesCorrectnessEnv:
         )
         self._episode_steps += 1
 
-        terminated, truncated, terminal_reason = _infer_terminal_state(
+        terminated, truncated, terminal_reason = infer_terminal_state(
             observation=snapshot.observation,
             episode_start_tick=self._episode_start_tick,
             tick_cap=self.config.tick_cap,
@@ -126,7 +126,7 @@ class FightCavesCorrectnessEnv:
             raise RuntimeError("FightCavesCorrectnessEnv is already closed.")
 
 
-def _infer_terminal_state(
+def infer_terminal_state(
     observation: Mapping[str, Any],
     episode_start_tick: int | None,
     tick_cap: int,

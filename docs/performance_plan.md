@@ -50,8 +50,18 @@ Every benchmark manifest must record:
 
 - measure raw bridge throughput
 - compare batch vs sequential equivalence on the same hardware/config
-- profiles: `16 envs`, `64 envs`
+- current PR7 benchmark configs:
+  - `bridge_1env_v0`
+  - `bridge_64env_v0`
+- profiles: `1 env` for wrapper-vs-trace comparison, `64 envs` for lockstep multi-slot bridge throughput
 - exit condition: batched bridge is faster than correctness mode and semantically equivalent
+
+Current PR7 benchmark split:
+
+- `bridge_1env_v0`
+  - compares the current correctness wrapper path against the sim-side `runFightCaveBatch(...)` helper on one slot
+- `bridge_64env_v0`
+  - measures the lockstep multi-slot bridge against a higher-overhead reference path on the same runtime
 
 ## Stage Gate C - Vectorized Env Baseline
 

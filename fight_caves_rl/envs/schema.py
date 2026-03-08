@@ -176,8 +176,8 @@ FIGHT_CAVE_EPISODE_START_CONTRACT = EpisodeStartContract(
 
 FIGHT_CAVES_BRIDGE_CONTRACT = BridgeContract(
     identity=VersionedContract(
-        contract_id="fight_caves_bridge_v0",
-        version=0,
+        contract_id="fight_caves_bridge_v1",
+        version=1,
         compatibility_policy="bump_on_transport_or_handshake_change",
     ),
     mode_a_transport="embedded_jvm_direct_runtime",

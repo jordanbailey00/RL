@@ -110,6 +110,22 @@ def flatten_observation(observation: Mapping[str, Any]) -> tuple[Any, ...]:
     return tuple(flattened)
 
 
+def visible_targets_from_observation(observation: Mapping[str, Any]) -> list[dict[str, Any]]:
+    validate_observation_contract(observation)
+    targets: list[dict[str, Any]] = []
+    for npc in _sequence(observation["npcs"]):
+        npc_mapping = _mapping(npc)
+        targets.append(
+            {
+                "visible_index": int(npc_mapping["visible_index"]),
+                "npc_index": int(npc_mapping["npc_index"]),
+                "id": str(npc_mapping["id"]),
+                "tile": dict(_mapping(npc_mapping["tile"])),
+            }
+        )
+    return targets
+
+
 def _mapping(value: Any) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise TypeError(f"Expected mapping, got {type(value)!r}")

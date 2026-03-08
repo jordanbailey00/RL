@@ -728,6 +728,39 @@ Risks / likely failure modes:
 - Batch layout hides per-env failures instead of classifying them explicitly.
 - Sim-side batching assumptions require upstream changes in `fight-caves-RL`.
 
+Status:
+
+- [x] Added the PR7 batch bridge core:
+  - `fight_caves_rl/bridge/protocol.py`
+  - `fight_caves_rl/bridge/buffers.py`
+  - `fight_caves_rl/bridge/batch_client.py`
+- [x] Kept the PR7 transport inside the embedded-JVM runtime for now, but formalized a transport-agnostic batch protocol and incremented the bridge contract to `fight_caves_bridge_v1` because the batch envelope/semantics are now explicit.
+- [x] Landed the current PR7 lockstep semantics:
+  - many player slots inside one runtime
+  - per-slot fight-cave instance isolation
+  - apply all slot actions
+  - advance one shared runtime tick
+  - observe all slots
+- [x] Reused the existing sim-side batch helper `runFightCaveBatch(...)` for the single-slot trace benchmark path instead of recreating that trace runner in Python.
+- [x] Added PR7 benchmark/config entrypoints:
+  - `fight_caves_rl/benchmarks/bridge_bench.py`
+  - `configs/benchmark/bridge_1env_v0.yaml`
+  - `configs/benchmark/bridge_64env_v0.yaml`
+  - `scripts/benchmark_bridge.py`
+- [x] Added PR7 live coverage:
+  - `test_bridge_batch_step_parity.py`
+  - `test_bridge_schema_fail_fast.py`
+  - `test_bridge_benchmark_smoke.py`
+- [x] Verified the PR7 targeted suite:
+  - `uv run pytest fight_caves_rl/tests/integration/test_bridge_schema_fail_fast.py fight_caves_rl/tests/integration/test_bridge_batch_step_parity.py fight_caves_rl/tests/performance/test_bridge_benchmark_smoke.py -q`
+- [x] Re-verified the PR6 targeted suite after the bridge contract/version change:
+  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q`
+
+Carry-forward notes:
+
+- The current PR7 batch bridge is transport-agnostic but not yet the final lower-copy subprocess/shared-buffer transport originally sketched in PR2 docs; PR8/later performance work can preserve the PR7 protocol while replacing the transport.
+- A repo-wide aggregate pytest run was re-attempted after PR7, but the monolithic combined run stalled in the existing PR6 manifest smoke even though the targeted PR6 and PR7 suites passed independently. Keep targeted suite verification explicit until that aggregate flake is isolated.
+
 ### PR 8 - Vectorized PufferLib Backend
 
 Goal:

@@ -2,6 +2,44 @@
 
 ## 2026-03-08
 
+- Started and completed PR 7 batched-bridge baseline work in RL.
+- Incremented the bridge contract from `fight_caves_bridge_v0` to `fight_caves_bridge_v1` because PR7 makes the batch envelope and lockstep slot semantics explicit.
+- Added the PR7 batch bridge core:
+  - `fight_caves_rl/bridge/protocol.py`
+  - `fight_caves_rl/bridge/buffers.py`
+  - `fight_caves_rl/bridge/batch_client.py`
+- Added the PR7 bridge benchmark harness:
+  - `fight_caves_rl/benchmarks/bridge_bench.py`
+  - `configs/benchmark/bridge_1env_v0.yaml`
+  - `configs/benchmark/bridge_64env_v0.yaml`
+  - `scripts/benchmark_bridge.py`
+- Added the subprocess-isolated PR7 parity collector:
+  - `scripts/collect_batch_trace.py`
+- Chose the first concrete PR7 batch topology:
+  - embedded JVM runtime
+  - many player slots per runtime
+  - apply all slot actions
+  - tick the runtime once
+  - observe all slots
+- Reused the upstream sim helper `runFightCaveBatch(...)` for the single-slot trace benchmark path instead of recreating that trace runner in Python.
+- Added PR7 live coverage:
+  - `fight_caves_rl/tests/integration/test_bridge_batch_step_parity.py`
+  - `fight_caves_rl/tests/integration/test_bridge_schema_fail_fast.py`
+  - `fight_caves_rl/tests/performance/test_bridge_benchmark_smoke.py`
+- Updated the core bridge docs:
+  - `docs/bridge_contract.md`
+  - `docs/hotpath_map.md`
+  - `docs/performance_plan.md`
+- Verified the PR7 targeted suite:
+  - `uv run pytest fight_caves_rl/tests/integration/test_bridge_schema_fail_fast.py fight_caves_rl/tests/integration/test_bridge_batch_step_parity.py fight_caves_rl/tests/performance/test_bridge_benchmark_smoke.py -q` -> passed
+- Re-verified the PR6 targeted suite after the bridge-version change:
+  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q` -> passed
+- Re-verified the updated contract registry/unit subset:
+  - `uv run pytest fight_caves_rl/tests/unit/test_contract_version_registry.py fight_caves_rl/tests/unit/test_config_loader.py fight_caves_rl/tests/unit/test_run_manifest_basics.py -q` -> passed
+- Discovered one remaining verification gap:
+  - a monolithic aggregate pytest run across unit/integration/determinism/parity/smoke/performance stalled in the existing PR6 manifest smoke
+  - targeted PR6 and PR7 suites passed independently, so the current unresolved issue is in aggregate-suite stability, not in the new PR7 bridge code path
+
 - Started and completed PR 6 W&B integration and run-manifest wiring in RL.
 - Added the PR6 logging package:
   - `fight_caves_rl/logging/wandb_client.py`

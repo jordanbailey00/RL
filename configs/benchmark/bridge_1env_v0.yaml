@@ -1,0 +1,10 @@
+config_id: bridge_1env_v0
+env_count: 1
+rounds: 512
+warmup_rounds: 32
+action_id: 0
+tick_cap: 4096
+start_world: false
+include_future_leakage: false
+start_wave: 1
+seed_base: 51000

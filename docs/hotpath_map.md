@@ -21,20 +21,28 @@ Primary costs to measure, not optimize away semantically:
 - observation packing
 - per-step Python object churn
 
-## Mode B - Batched Bridge Target
+## Mode B - PR7 Batched Bridge
 
 1. policy produces batch of actions
 2. vector env batches env slots
-3. batch client sends one coarse-grained request
-4. JVM runtime steps many player slots
-5. bridge returns packed batch results
+3. batch client normalizes actions and validates the versioned batch protocol
+4. JVM runtime applies actions for many player slots
+5. bridge advances one shared runtime tick
+6. bridge returns packed batch results
 6. vector env scatters results back to slots
 
 Primary costs:
 
-- batch envelope serialization
+- action normalization/building
+- per-slot apply cost before the shared tick
 - per-slot error classification
 - observation/result packing
+
+Current PR7 implementation notes:
+
+- transport stays in-process for now
+- visible targets are derived from `observation.npcs` in the batch path instead of requiring a second runtime query
+- single-slot trace benchmarking can bypass per-step Python loops by reusing the sim-side `runFightCaveBatch(...)` helper
 
 ## Mode C - High-Throughput Vector Target
 
@@ -58,7 +66,7 @@ Optimize in this order:
 1. semantic correctness and fail-fast handshake
 2. boundary crossing count
 3. observation/action packing
-4. worker/JVM topology
+4. worker/JVM topology / transport swap
 5. logging cadence and replay cadence
 6. policy/trainer overhead
 

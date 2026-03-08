@@ -19,3 +19,12 @@ class SimPrerequisiteError(BridgeError):
 
 class BridgeJVMStateError(BridgeError):
     """Raised when the embedded JVM is in an unusable state."""
+
+
+class BatchSlotExecutionError(BridgeError):
+    """Raised when one slot in a bridge batch fails."""
+
+    def __init__(self, slot_index: int, operation: str, message: str) -> None:
+        super().__init__(f"Batch slot {slot_index} failed during {operation}: {message}")
+        self.slot_index = int(slot_index)
+        self.operation = str(operation)

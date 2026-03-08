@@ -155,3 +155,38 @@ Current PR6 implementation note:
   - explicit artifact naming/versioning
   - local-manifest and W&B config synchronization
   - W&B startup settings that suppress console/stat-monitor side effects in WSL smoke tests
+
+## PR7 Batched Bridge
+
+PR7 adds the first versioned batched bridge baseline:
+
+- bridge contract: `fight_caves_bridge_v1`
+- current transport: embedded-JVM lockstep batch
+- current slot semantics:
+  - one runtime
+  - many player slots
+  - one shared tick per batch step
+  - each slot remains isolated inside its own fight-cave instance
+
+Key files:
+
+- `fight_caves_rl/bridge/protocol.py`
+- `fight_caves_rl/bridge/buffers.py`
+- `fight_caves_rl/bridge/batch_client.py`
+- `fight_caves_rl/benchmarks/bridge_bench.py`
+
+Quick benchmark:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/benchmark_bridge.py \
+  --config configs/benchmark/bridge_1env_v0.yaml \
+  --output /tmp/fc_bridge_bench.json
+```
+
+Current PR7 note:
+
+- the batch protocol and slot semantics are now explicit
+- the final lower-copy subprocess/shared-buffer transport is still future work
+- PR8 should build on the PR7 protocol rather than replacing it

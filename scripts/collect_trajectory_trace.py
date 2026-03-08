@@ -7,7 +7,11 @@ from typing import Any
 
 from fight_caves_rl.bridge.contracts import HeadlessEpisodeConfig, HeadlessPlayerConfig
 from fight_caves_rl.bridge.debug_client import HeadlessDebugClient
-from fight_caves_rl.envs.correctness_env import CorrectnessEnvConfig, FightCavesCorrectnessEnv, _infer_terminal_state
+from fight_caves_rl.envs.correctness_env import (
+    CorrectnessEnvConfig,
+    FightCavesCorrectnessEnv,
+    infer_terminal_state,
+)
 from fight_caves_rl.replay.trace_packs import (
     TracePack,
     project_episode_state_for_determinism,
@@ -106,7 +110,7 @@ def collect_raw_trajectory(trace_pack: TracePack, seed: int) -> dict[str, Any]:
 
         for index, trace_step in enumerate(trace_pack.steps):
             snapshot = client.step_once(player, trace_step.action)
-            terminated, truncated, terminal_reason = _infer_terminal_state(
+            terminated, truncated, terminal_reason = infer_terminal_state(
                 observation=snapshot.observation,
                 episode_start_tick=episode_start_tick,
                 tick_cap=20_000,
