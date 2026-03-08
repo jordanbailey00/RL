@@ -585,10 +585,11 @@ Required capabilities:
 - deterministic seeding policy across vectorized env slots
 - worker-aware env indexing
 
-PR5 implementation note:
-- the correctness/smoke path may use a single-env compatibility shim if an upstream vecenv backend constructs the Mode A env more than once during bootstrap
-- this does not satisfy the final production vector path
-- PR8 must replace any such shim with a true batched/vector backend
+Current implementation note:
+- the shipped vector path is a thin PufferLib-compatible wrapper around the PR7 batch bridge
+- it preserves one embedded JVM runtime per Python process and many isolated fight-cave slots per runtime
+- deterministic slot seeding is handled in the RL vecenv layer so resets and autoresets stay stable across slot indices
+- the stock `pufferlib.vector.Serial` backend remains unsuitable for the selected Mode A lifecycle because it double-constructs envs during bootstrap
 
 ### 8.4 Policy contract
 
@@ -1307,6 +1308,9 @@ Required tests:
 
 Exit criteria:
 - vectorized training path is stable and benchmarkable.
+
+Implementation note:
+- PR8 now satisfies this step with a repo-owned thin vecenv wrapper around the PR7 batch bridge, plus benchmark and smoke entrypoints for multi-env train bring-up
 
 ---
 

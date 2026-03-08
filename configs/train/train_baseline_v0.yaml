@@ -1,0 +1,52 @@
+config_id: train_baseline_v0
+trainer: pufferlib
+policy:
+  id: mlp_v0
+  hidden_size: 128
+reward_config: reward_sparse_v0
+curriculum_config: curriculum_disabled_v0
+num_envs: 4
+env:
+  start_wave: 1
+  ammo: 1000
+  prayer_potions: 8
+  sharks: 20
+  tick_cap: 128
+  include_future_leakage: false
+  account_name_prefix: rl_puffer_train
+train:
+  seed: 22001
+  torch_deterministic: true
+  device: cpu
+  cpu_offload: false
+  compile: false
+  compile_mode: default
+  compile_fullgraph: false
+  optimizer: adam
+  learning_rate: 0.0003
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 0.00001
+  precision: float32
+  bptt_horizon: 4
+  batch_size: 16
+  minibatch_size: 16
+  max_minibatch_size: 16
+  total_timesteps: 16
+  update_epochs: 1
+  gamma: 0.99
+  gae_lambda: 0.95
+  vtrace_rho_clip: 1.0
+  vtrace_c_clip: 1.0
+  clip_coef: 0.2
+  vf_clip_coef: 0.2
+  vf_coef: 0.5
+  ent_coef: 0.01
+  max_grad_norm: 0.5
+  prio_alpha: 0.0
+  prio_beta0: 1.0
+  anneal_lr: false
+  checkpoint_interval: 1
+  use_rnn: false
+logging:
+  dashboard: true

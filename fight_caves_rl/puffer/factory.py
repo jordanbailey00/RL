@@ -18,6 +18,7 @@ from fight_caves_rl.envs.puffer_encoding import (
     encode_observation_for_policy,
 )
 from fight_caves_rl.envs.schema import HEADLESS_ACTION_REJECT_REASONS
+from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
 from fight_caves_rl.utils.paths import repo_root
 
 DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
@@ -188,63 +189,12 @@ class FightCavesPufferGymEnv(gym.Env[np.ndarray, np.ndarray]):
         self._env.close()
 
 
-class SingleEnvModeAVecEnv:
-    """Single-env vecenv shim for PR5 Mode A.
-
-    PufferLib's Serial backend constructs the driver env and the first worker env
-    separately. That double-bootstrap is incompatible with the embedded-JVM
-    runtime used by the current correctness bridge, so PR5 keeps the stock
-    GymnasiumPufferEnv but wraps a single instance directly.
-    """
-
-    def __init__(self, env: pufferlib.emulation.GymnasiumPufferEnv) -> None:
-        self.env = env
-        self.driver_env = env
-        self.agents_per_batch = env.num_agents
-        self.num_agents = env.num_agents
-        self.single_observation_space = env.single_observation_space
-        self.single_action_space = env.single_action_space
-        self.action_space = env.action_space
-        self.observation_space = env.observation_space
-        self.emulated = env.emulated
-        self.agent_ids = np.arange(self.num_agents)
-        self.infos: list[dict[str, float]] = []
-
-    def async_reset(self, seed: int | None = None) -> None:
-        _observation, info = self.env.reset(seed=seed)
-        self.infos = [info]
-
-    def send(self, actions: np.ndarray) -> None:
-        if self.env.done:
-            _observation, info = self.env.reset()
-        else:
-            _observation, _reward, _done, _truncated, info = self.env.step(actions)
-        self.infos = [info]
-
-    def recv(self):
-        return (
-            self.env.observations,
-            self.env.rewards,
-            self.env.terminals,
-            self.env.truncations,
-            self.env.teacher_actions,
-            self.infos,
-            self.agent_ids,
-            self.env.masks,
-        )
-
-    def close(self) -> None:
-        self.env.close()
-
-
 def load_smoke_train_config(path: str | Path | None = None) -> dict[str, Any]:
     config = deepcopy(DEFAULT_SMOKE_TRAIN_CONFIG)
     if path is not None:
         loaded = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         if loaded:
             config = _deep_merge(config, loaded)
-    if int(config["num_envs"]) != 1:
-        raise ValueError("PR5 Mode A smoke path supports num_envs=1 only; PR8 owns multi-env batching.")
     return config
 
 
@@ -258,26 +208,30 @@ def load_replay_eval_config(path: str | Path | None = None) -> dict[str, Any]:
 
 
 def make_vecenv(config: Mapping[str, Any]):
-    if int(config["num_envs"]) != 1:
-        raise ValueError("PR5 Mode A smoke path supports num_envs=1 only; PR8 owns multi-env batching.")
     env_config = dict(config.get("env", {}))
     reward_config_id = str(config["reward_config"])
-    env = pufferlib.emulation.GymnasiumPufferEnv(
-        env_creator=FightCavesPufferGymEnv,
-        env_kwargs={
-            "env_config": env_config,
-            "reward_config_id": reward_config_id,
-            "env_index": 0,
-        },
-        seed=int(config["train"]["seed"]),
+    return HeadlessBatchVecEnv(
+        HeadlessBatchVecEnvConfig(
+            env_count=int(config["num_envs"]),
+            account_name_prefix=str(env_config.get("account_name_prefix", "rl_vecenv")),
+            start_wave=int(env_config.get("start_wave", 1)),
+            ammo=int(env_config.get("ammo", 1000)),
+            prayer_potions=int(env_config.get("prayer_potions", 8)),
+            sharks=int(env_config.get("sharks", 20)),
+            tick_cap=int(env_config.get("tick_cap", 20_000)),
+            include_future_leakage=bool(env_config.get("include_future_leakage", False)),
+        ),
+        reward_fn=resolve_reward_fn(reward_config_id),
     )
-    return SingleEnvModeAVecEnv(env)
 
 
-def build_train_output_dir(data_dir: str | Path | None = None) -> Path:
+def build_train_output_dir(
+    config_id: str,
+    data_dir: str | Path | None = None,
+) -> Path:
     if data_dir is not None:
         return Path(data_dir)
-    return repo_root() / "artifacts" / "train" / "smoke_ppo_v0"
+    return repo_root() / "artifacts" / "train" / str(config_id)
 
 
 def build_puffer_train_config(
@@ -304,7 +258,7 @@ def build_policy_episode_env(env_config: Mapping[str, Any], reward_config_id: st
 
 def resolve_reward_fn(reward_config_id: str):
     if reward_config_id != "reward_sparse_v0":
-        raise ValueError(f"Unsupported PR5 reward config: {reward_config_id!r}")
+        raise ValueError(f"Unsupported reward config: {reward_config_id!r}")
 
     def reward_fn(
         previous_observation: dict[str, Any] | None,

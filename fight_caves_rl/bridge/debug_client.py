@@ -282,7 +282,7 @@ class HeadlessDebugClient:
         if action.action_id == 1:
             if action.tile is None:
                 raise BridgeError("walk_to_tile requires tile coordinates.")
-            return self._jvm["HeadlessWalkToTile"](self._tile_id(action.tile))
+            return self._jvm["HeadlessWalkToTileCtor"].newInstance(self._tile_id(action.tile))
         if action.action_id == 2:
             return self._jvm["HeadlessAttackVisibleNpc"](int(action.visible_npc_index))
         if action.action_id == 3:
@@ -389,6 +389,9 @@ def _ensure_jvm(headless_jar: Path, launch_cwd: Path) -> dict[str, Any]:
     classes["TileGetY"] = getattr(classes["Tile"], "getY-impl")
     classes["TileGetLevel"] = getattr(classes["Tile"], "getLevel-impl")
     classes["PlayerCtor"] = _select_player_constructor(classes["Player"])
+    classes["HeadlessWalkToTileCtor"] = _select_private_inline_constructor(
+        classes["HeadlessWalkToTile"]
+    )
     classes["ProtectionPrayerById"] = {
         str(classes["ProtectionPrayer"].ProtectFromMagic.getPrayerId()): classes["ProtectionPrayer"].ProtectFromMagic,
         str(classes["ProtectionPrayer"].ProtectFromMissiles.getPrayerId()): classes["ProtectionPrayer"].ProtectFromMissiles,
@@ -410,6 +413,18 @@ def _select_player_constructor(player_class: Any) -> Any:
         if len(constructor.getParameterTypes()) == 17:
             return constructor
     raise BridgeJVMStateError("Unable to locate the Player synthetic constructor.")
+
+
+def _select_private_inline_constructor(action_class: Any) -> Any:
+    constructors = list(action_class.class_.getDeclaredConstructors())
+    for constructor in constructors:
+        parameter_types = tuple(str(parameter.getName()) for parameter in constructor.getParameterTypes())
+        if parameter_types == ("int",):
+            constructor.setAccessible(True)
+            return constructor
+    raise BridgeJVMStateError(
+        f"Unable to locate the private inline-value constructor for {action_class}."
+    )
 
 
 def _pythonize(value: Any) -> Any:

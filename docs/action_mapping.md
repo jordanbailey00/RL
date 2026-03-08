@@ -126,4 +126,5 @@ Guardrails:
 - inactive parameter heads are ignored, not reinterpreted
 
 This PR5 encoding is correctness-first and preserves full absolute-tile action semantics for smoke bring-up.
-It is not the final production hot-path action transport; PR8 owns the later batched/vector replacement and must bump the RL-local policy-action schema if the head layout changes.
+PR8 now uses this same RL-local action schema through the shipped batch-backed vector env.
+Any later hot-path transport change must bump the RL-local policy-action schema if the head layout changes.

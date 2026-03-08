@@ -2,6 +2,34 @@
 
 ## 2026-03-08
 
+- Started and completed PR 8 vectorized backend work in RL.
+- Replaced the temporary PR5 single-env vecenv shim with the shipped batch-backed vector env:
+  - `fight_caves_rl/envs/vector_env.py`
+  - deterministic slot seeding now lives in the vecenv layer
+  - the production train path now steps the PR7 batched bridge instead of one Python env call per slot per tick
+- Added the PR8 benchmark/config surfaces:
+  - `configs/train/train_baseline_v0.yaml`
+  - `configs/benchmark/vecenv_256env_v0.yaml`
+  - `scripts/benchmark_env.py`
+  - `fight_caves_rl/benchmarks/vector_env_bench.py`
+- Added the PR8 vecenv smoke harness:
+  - `scripts/run_vecenv_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_vecenv_reset_step_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_multi_worker_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_long_run_vector_stability.py`
+  - `fight_caves_rl/tests/performance/test_vecenv_benchmark_smoke.py`
+- Found and fixed one real PR8 bridge regression:
+  - the vectorized trainer path can emit `walk_to_tile`, and the JVM hot path was constructing `HeadlessAction.WalkToTile` incorrectly for the Kotlin inline `Tile` value type
+  - `fight_caves_rl/bridge/debug_client.py` now selects the private inline-value constructor reflectively and uses it for `WalkToTile`
+- Found and fixed one PR8 smoke-harness stability issue:
+  - running the live vecenv smokes in the same pytest process as the other subprocess-heavy smoke tests was still fragile because the embedded JVM lifecycle is process-global
+  - `test_vecenv_reset_step_smoke.py` and `test_long_run_vector_stability.py` now run through `scripts/run_vecenv_smoke.py` so each smoke gets a fresh child process
+- Verified the post-PR8 suite split:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/integration -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/smoke -q` -> passed
+  - `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/vecenv_benchmark_smoke.json` -> passed
 - Aligned the RL episode-start source-of-truth docs to the current sim-side contract without changing the RL contract id/version:
   - removed the stale `Defence: 50` / `Amulet of glory` wording from `RLspec.md`
   - normalized the episode-start loadout and stat block to the current headless reset contract

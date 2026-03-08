@@ -105,7 +105,7 @@ def run_smoke_training(
     trace_stage("run_smoke_training:bootstrap_config_loaded")
     config = load_smoke_train_config(config_path)
     trace_stage("run_smoke_training:config_loaded")
-    output_dir = build_train_output_dir(data_dir)
+    output_dir = build_train_output_dir(str(config["config_id"]), data_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     trace_stage("run_smoke_training:before_make_vecenv")

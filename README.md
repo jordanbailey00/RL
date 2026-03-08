@@ -72,6 +72,7 @@ Local pre-merge validation owns the live runtime suites:
 Manual or scheduled validation owns:
 
 - `fight_caves_rl/tests/performance`
+- `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/fc_vecenv_bench.json`
 
 ## PR3 Runtime Prerequisites
 
@@ -115,9 +116,9 @@ The RL repo should lean on PufferLib rather than reimplementing surfaces it alre
 
 Anything simulator-semantic, replay-semantic, or parity-semantic still stays in the sim/oracle boundary and must not be recreated in Python.
 
-## PR5 Smoke Path
+## PR5/PR8 Training Path
 
-PR5 now provides the first end-to-end PufferLib smoke path on top of the correctness wrapper:
+PR5 established the first end-to-end PufferLib smoke loop on top of the correctness wrapper, and PR8 replaced the temporary single-env shim with the current batch-backed vectorized env path.
 
 ```bash
 source /home/jordan/code/.workspace-env.sh
@@ -127,15 +128,17 @@ uv run python scripts/eval.py --checkpoint "$(python - <<'PY'\nimport json\nprin
 uv run pytest fight_caves_rl/tests/smoke -q
 ```
 
-Current PR5 constraints:
+Current training-path facts:
 
-- the smoke trainer path is single-env only on Mode A
-- PR5 keeps the raw sim semantics and uses a documented RL-local policy encoding:
+- RL keeps the raw sim semantics and uses the documented RL-local policy encoding:
   - `puffer_policy_observation_v0`
   - `puffer_policy_action_v0`
-- PR5 uses a repo-local single-env vecenv shim instead of `pufferlib.vector.Serial` because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
+- the shipped vecenv lives in `fight_caves_rl/envs/vector_env.py` and is a thin PufferLib-compatible wrapper around the PR7 batched bridge
+- `pufferlib.vector.Serial` is still not used because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
+- `configs/train/train_baseline_v0.yaml` is the first repo-owned multi-env baseline config
+- `configs/benchmark/vecenv_256env_v0.yaml` plus `scripts/benchmark_env.py` are the current PR8 benchmark entrypoints
 - local dashboard rendering is TTY-aware; smoke and CI subprocesses suppress terminal painting automatically while still preserving the manifest/logging contract
-- true batched/vector training remains PR8 scope
+- live vecenv-only smoke checks use `scripts/run_vecenv_smoke.py` so each smoke run gets a fresh embedded-JVM process
 
 ## PR6 Run Logging
 

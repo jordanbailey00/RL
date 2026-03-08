@@ -273,19 +273,24 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 8 and replace the PR5 single-env Mode A vecenv shim with the real batched/vectorized training path.
-2. Connect the PR7 batch bridge to a production-facing vector env that preserves deterministic slot indexing and manifest/replay identities.
-3. Keep the official benchmark profile v0 executable end-to-end through the vectorized path before adding reward/curriculum expansion.
+1. Start PR 9 and add versioned reward/curriculum scaffolding on top of the now-live PR8 vectorized backend.
+2. Keep the PR8 vector env contract stable while reward/curriculum work lands:
+   - deterministic slot seeding
+   - `fight_caves_bridge_v1`
+   - `puffer_policy_observation_v0`
+   - `puffer_policy_action_v0`
+3. Preserve the official benchmark profile v0 path and the new `benchmark_env.py` entrypoint while reward/curriculum expansion is added.
 4. Carry forward the resolved subprocess-stability guardrails:
    - TTY-aware dashboard rendering
    - quiet embedded-JVM logging
    - subprocess timeouts and child trace hooks for future diagnostics
+   - subprocess-isolated vecenv smoke coverage for fresh embedded-JVM bring-up
 
 Stopping condition for the current stop point:
 
-- RL has a clean pushed `main` branch with the aggregate-suite subprocess stall resolved.
-- RL docs and changelog reflect the current verified state and tomorrow's PR8 resume point.
-- The workspace is ready to begin PR8 vectorized backend work without reopening PR6/PR7 stability issues.
+- RL has a clean pushed `main` branch with PR8 merged and the vecenv smoke/integration regressions resolved.
+- RL docs and changelog reflect the current verified state and the next PR9 resume point.
+- The workspace is ready to begin reward/curriculum work without reopening PR6/PR7/PR8 stability issues.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -770,7 +775,7 @@ Status:
 Carry-forward notes:
 
 - The current PR7 batch bridge is transport-agnostic but not yet the final lower-copy subprocess/shared-buffer transport originally sketched in PR2 docs; PR8/later performance work can preserve the PR7 protocol while replacing the transport.
-- The old aggregate-suite PR6 subprocess stall is resolved. The RL harness now uses TTY-aware dashboard gating, quiet embedded-JVM logging, and subprocess timeouts, and the repo-wide aggregate pytest sweep is part of normal verification again.
+- The old aggregate-suite PR6 subprocess stall is resolved. The RL harness now uses TTY-aware dashboard gating, quiet embedded-JVM logging, subprocess timeouts, and subprocess-isolated vecenv smoke helpers; split-by-suite verification remains the clearest normal acceptance path for the live-runtime test matrix.
 
 ### PR 8 - Vectorized PufferLib Backend
 
@@ -814,6 +819,30 @@ Risks / likely failure modes:
 - Worker topology amplifies JVM startup or transport overhead.
 - Async collection creates determinism ambiguity.
 - Env slot indexing drifts from replay and artifact indexing.
+
+Completion notes:
+
+- [x] Replaced the PR5 single-env shim with a real batch-backed vecenv in `fight_caves_rl/envs/vector_env.py`.
+- [x] Kept the vector path as a thin PufferLib-compatible wrapper around the PR7 batch bridge rather than inventing a separate rollout framework.
+- [x] Added PR8 train and benchmark configs:
+  - `configs/train/train_baseline_v0.yaml`
+  - `configs/benchmark/vecenv_256env_v0.yaml`
+- [x] Added the PR8 benchmark entrypoint:
+  - `scripts/benchmark_env.py`
+- [x] Added the PR8 vecenv smoke harness:
+  - `scripts/run_vecenv_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_vecenv_reset_step_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_multi_worker_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_long_run_vector_stability.py`
+  - `fight_caves_rl/tests/performance/test_vecenv_benchmark_smoke.py`
+- [x] Implemented deterministic slot seeding for the vector env and preserved slot-index order in the recv/send path.
+- [x] Fixed the PR8 walk-action regression in the JVM hot path by selecting the private inline-value constructor for `HeadlessAction.WalkToTile`.
+- [x] Moved the two live vecenv-only smoke checks behind subprocess entrypoints so each run gets a fresh embedded-JVM process and the suite stays stable.
+- [x] Verified the current post-PR8 suite split:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train -q`
+  - `uv run pytest fight_caves_rl/tests/integration -q`
+  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q`
+  - `uv run pytest fight_caves_rl/tests/smoke -q`
 
 ### PR 9 - Reward and Curriculum System
 
@@ -1253,12 +1282,12 @@ Mandatory benchmark breakdowns across the stages:
    - Resolved for the PR5 smoke baseline.
    - `docs/action_mapping.md` now freezes the sim-aligned action ids, parameters, and rejection reasons.
    - PR5 now freezes the first RL-local policy-action encoding as `puffer_policy_action_v0`.
-   - Production hot-path/vector action transport remains open for PR8 and must version-bump the RL-local policy-action schema if the head layout changes.
+   - PR8 kept the shipped vector path on `puffer_policy_action_v0`; any later hot-path transport change must version-bump the RL-local policy-action schema if the head layout changes.
 
 8. Observation-space encoding
    - Resolved for the PR5 smoke baseline.
    - PR5 now freezes the first RL-local policy-observation encoding as `puffer_policy_observation_v0`, including the current categorical dictionaries and `max_visible_npcs = 8`.
-   - Production hot-path/vector observation transport remains open for PR8 and must version-bump the RL-local policy-observation schema if the layout changes.
+   - PR8 kept the shipped vector path on `puffer_policy_observation_v0`; any later hot-path transport change must version-bump the RL-local policy-observation schema if the layout changes.
 
 9. Reward shaping details
    - `reward_sparse_v0` and `reward_shaped_v0` are required, but the exact shaped terms, coefficients, and default curriculum behavior are not fully specified. These need to be explicitly documented before training comparisons begin.

@@ -66,6 +66,9 @@ Current PR7 benchmark split:
 ## Stage Gate C - Vectorized Env Baseline
 
 - measure VecEnv throughput and stability
+- current PR8 benchmark/config surfaces:
+  - `configs/benchmark/vecenv_256env_v0.yaml`
+  - `scripts/benchmark_env.py`
 - profiles: `64 envs`, `256 envs`
 - exit condition: vectorized execution is stable and clearly better than the non-vectorized path
 
