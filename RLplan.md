@@ -399,6 +399,7 @@ Expected files/directories:
 - `/home/jordan/code/RL/fight_caves_rl/tests/unit/test_action_schema_version_compatibility.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/unit/test_observation_flattening_determinism.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/unit/test_bridge_launcher_preflight.py`
+- `/home/jordan/code/RL/scripts/collect_step_trace.py`
 - `/home/jordan/code/RL/scripts/smoke_random.py`
 
 Dependencies:
@@ -431,7 +432,7 @@ Risks / likely failure modes:
 - Accidentally reinterpreting action semantics in the wrapper.
 - Observation flattening drift between debug and train modes.
 - Wrapper reset behavior drifting from the frozen episode-start-state contract.
-- The packaged headless artifact still depends on the checked-out sim workspace plus `data/cache/main_file_cache.dat2`, so live PR 3 acceptance can remain blocked by missing workspace prerequisites even when the Python bridge code is correct.
+- The packaged headless artifact still depends on the checked-out sim workspace plus `data/cache/main_file_cache.dat2`, so future machines can still fail PR 3 live acceptance if that workspace prerequisite is missing even though the current workspace is unblocked.
 
 PR 3 execution status (2026-03-08):
 
@@ -443,12 +444,13 @@ PR 3 execution status (2026-03-08):
 - [x] Implemented `fight_caves_rl/envs/observation_mapping.py`.
 - [x] Implemented `fight_caves_rl/envs/correctness_env.py`.
 - [x] Added PR3 unit coverage for action normalization, observation flattening determinism, and bridge launcher preflight.
-- [x] Added PR3 integration tests for reset/step contract alignment; they currently skip cleanly until the sim cache prerequisite is restored in the workspace.
+- [x] Added `scripts/collect_step_trace.py` so wrapper-vs-raw single-step traces can be collected from isolated fresh Python/JVM processes.
+- [x] Added PR3 integration tests for reset/step contract alignment and validated them live against the restored sim cache.
 - [x] Added `scripts/smoke_random.py` with fail-fast runtime preflight.
 - [x] Corrected the sim artifact assumption from a single fixed zip path to the verified `fight-caves-headless*.zip` distribution glob.
-- [ ] Restore `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2` and rerun PR3 live integration acceptance.
-- [ ] Verify live terminal-reason handling against the real sim runtime and remove the provisional inferred-only note if the selected Mode A surface is sufficient.
-- [ ] Run a full random-policy episode through `scripts/smoke_random.py` after the sim cache is restored.
+- [x] Restored `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2` and reran PR3 live integration acceptance.
+- [x] Verified live terminal-reason handling against the real sim runtime; the selected Mode A surface still requires the documented inferred-only note, so that note remains in force.
+- [x] Ran a full random-policy episode through `scripts/smoke_random.py` after the sim cache was restored and confirmed clean truncation at `max_tick_cap`.
 
 ### PR 4 - Determinism, Equivalence Validation, and Early Parity Canaries
 

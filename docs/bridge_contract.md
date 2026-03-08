@@ -68,6 +68,7 @@ Mode A launch shape:
 
 - one Python worker owns one embedded JVM runtime
 - PR3 launches the JVM with the jar extracted from the packaged dist while setting the process cwd inside the checked-out sim workspace so the current repo-root discovery code succeeds
+- JPype/JVM startup is process-global for correctness mode, so independent fresh-runtime equivalence checks must use separate Python processes rather than multiple bootstraps inside one process
 - the wrapper provisions player slots using the same setup path as the sim's headless tests
 - correctness bring-up should default to `loadContentScripts = true`
 - correctness bring-up should default to `startWorld = true` for full reset/step/observation parity, while `startWorld = false` remains valid for narrower bootstrap/perf micro-cases explicitly validated by the sim tests

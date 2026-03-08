@@ -64,13 +64,18 @@ The packaged distribution alone is not sufficient today because the current sim 
 Current workspace status:
 
 - the packaged dist exists
-- the checked-out sim cache does not currently exist under `/home/jordan/code/fight-caves-RL/data/cache`
+- the checked-out sim cache is restored under `/home/jordan/code/fight-caves-RL/data/cache`
 
 That means:
 
 - PR3 unit tests run
-- PR3 live integration tests skip cleanly
-- `uv run python scripts/smoke_random.py` exits early with a precise prerequisite error until the cache is restored
+- PR3 live integration tests pass against the real sim workspace
+- `uv run python scripts/smoke_random.py --max-steps 20000` reaches a full wrapper-managed episode truncation at `max_tick_cap`
+
+Mode A validation note:
+
+- wrapper-vs-raw reset/step equivalence should be validated in separate Python processes
+- the embedded-JVM bridge owns one runtime per process, and separate player slots inside one runtime are not a valid proof of identical absolute reset state because each episode gets its own dynamic instance
 
 ## PufferLib Reuse
 

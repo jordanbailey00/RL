@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from os import chdir, getcwd
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +27,7 @@ from fight_caves_rl.envs.observation_mapping import validate_observation_contrac
 class _JVMContext:
     jpype: Any
     classpath: Path
+    user_dir: Path
     classes: dict[str, Any]
 
 
@@ -43,7 +43,7 @@ class HeadlessDebugClient:
         self.paths = paths
         self.bootstrap = bootstrap or HeadlessBootstrapConfig()
         self.handshake: BridgeHandshake = build_bridge_handshake(paths)
-        self._jvm = _ensure_jvm(paths.headless_jar)
+        self._jvm = _ensure_jvm(paths.headless_jar, paths.launch_cwd)
         self._runtime: Any | None = None
         self._closed = False
 
@@ -67,17 +67,12 @@ class HeadlessDebugClient:
         for key, value in overrides.items():
             override_map.put(key, value)
 
-        previous_cwd = getcwd()
-        try:
-            chdir(self.paths.launch_cwd)
-            self._runtime = self._jvm["HeadlessMain"].INSTANCE.bootstrap(
-                self.bootstrap.load_content_scripts,
-                self.bootstrap.start_world,
-                self.bootstrap.install_shutdown_hook,
-                override_map,
-            )
-        finally:
-            chdir(previous_cwd)
+        self._runtime = self._jvm["HeadlessMain"].INSTANCE.bootstrap(
+            self.bootstrap.load_content_scripts,
+            self.bootstrap.start_world,
+            self.bootstrap.install_shutdown_hook,
+            override_map,
+        )
 
     def create_player_slot(self, config: HeadlessPlayerConfig) -> Any:
         self._ensure_runtime_open()
@@ -260,7 +255,7 @@ class HeadlessDebugClient:
             self.bootstrap_runtime()
 
 
-def _ensure_jvm(headless_jar: Path) -> dict[str, Any]:
+def _ensure_jvm(headless_jar: Path, launch_cwd: Path) -> dict[str, Any]:
     global _JVM_CONTEXT
     if _JVM_CONTEXT is not None:
         expected = headless_jar.resolve()
@@ -268,6 +263,11 @@ def _ensure_jvm(headless_jar: Path) -> dict[str, Any]:
             raise BridgeJVMStateError(
                 "Embedded JVM is already pinned to a different classpath: "
                 f"{_JVM_CONTEXT.classpath} != {expected}"
+            )
+        if _JVM_CONTEXT.user_dir != launch_cwd.resolve():
+            raise BridgeJVMStateError(
+                "Embedded JVM is already pinned to a different user.dir: "
+                f"{_JVM_CONTEXT.user_dir} != {launch_cwd.resolve()}"
             )
         return _JVM_CONTEXT.classes
 
@@ -280,7 +280,10 @@ def _ensure_jvm(headless_jar: Path) -> dict[str, Any]:
         ) from exc
 
     if not jpype.isJVMStarted():
-        jpype.startJVM(classpath=[str(headless_jar.resolve())])
+        jpype.startJVM(
+            f"-Duser.dir={launch_cwd.resolve()}",
+            classpath=[str(headless_jar.resolve())],
+        )
 
     classes = {
         "JInt": JInt,
@@ -334,6 +337,7 @@ def _ensure_jvm(headless_jar: Path) -> dict[str, Any]:
     _JVM_CONTEXT = _JVMContext(
         jpype=jpype,
         classpath=headless_jar.resolve(),
+        user_dir=launch_cwd.resolve(),
         classes=classes,
     )
     return classes
@@ -350,6 +354,18 @@ def _select_player_constructor(player_class: Any) -> Any:
 def _pythonize(value: Any) -> Any:
     if value is None:
         return None
+    if hasattr(value, "getClass"):
+        class_name = str(value.getClass().getName())
+        if class_name == "java.lang.Boolean":
+            return bool(value.booleanValue())
+        if class_name in {"java.lang.Byte", "java.lang.Short", "java.lang.Integer"}:
+            return int(value.intValue())
+        if class_name == "java.lang.Long":
+            return int(value.longValue())
+        if class_name in {"java.lang.Float", "java.lang.Double"}:
+            return float(value.doubleValue())
+        if class_name == "java.lang.String":
+            return str(value)
     if isinstance(value, (bool, int, float, str)):
         return value
     if hasattr(value, "entrySet"):

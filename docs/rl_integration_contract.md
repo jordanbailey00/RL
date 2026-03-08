@@ -54,6 +54,7 @@ Current runtime invariant verified during PR 3 bring-up:
   - `fight-caves-RL/config/headless_manifest.toml`
   - `fight-caves-RL/config/headless_scripts.txt`
   - `fight-caves-RL/data/cache/main_file_cache.dat2`
+- the current workspace now satisfies those prerequisites, and PR3 live reset/step/smoke validation has run successfully against them
 
 ## Episode Start Contract
 
@@ -122,6 +123,11 @@ Player provisioning precondition:
   - `player["skip_level_up"] = true`
   - `player.viewport?.loaded = true`
 - RL must not treat a raw uninitialized `Player` object as a valid episode slot.
+
+Fresh-runtime comparison note:
+
+- PR3 wrapper-vs-raw equivalence tests must use separate Python processes for fresh-runtime comparisons
+- Mode A owns one embedded JVM runtime per process, and different player slots inside one runtime are not expected to share identical absolute reset tiles because each reset creates a new Fight Caves dynamic instance
 
 ## Action and Observation Authority
 

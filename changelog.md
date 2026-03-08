@@ -47,6 +47,20 @@
 - Recorded the current termination-handling constraint:
   - the selected Mode A sim runtime surface does not yet expose a dedicated terminal-reason envelope
   - the correctness env currently labels only provisional inferred outcomes for `player_death`, `cave_complete`, and `max_tick_cap`
+- Restored the missing sim cache into the active WSL workspace:
+  - `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2`
+  - sibling `main_file_cache.idx*` files under the same cache root
+- Fixed embedded JVM startup for PR3 live bring-up by pinning `user.dir` at JVM startup instead of relying on Python-side `chdir()` after JVM initialization.
+- Fixed Java boxed primitive coercion in `fight_caves_rl/bridge/debug_client.py` so live observations normalize boxed booleans/numbers into Python-native scalars.
+- Added `scripts/collect_step_trace.py` and updated the step-equivalence integration path to compare wrapper-vs-raw traces from separate Python processes with fresh embedded JVM runtimes.
+- Verified the unblocked PR3 live acceptance set:
+  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
+  - `uv run pytest fight_caves_rl/tests/integration` -> `2 passed`
+  - `uv run python scripts/smoke_random.py --max-steps 256` -> live smoke passes
+  - `uv run python scripts/smoke_random.py --max-steps 20000` -> reaches `truncated=True` with `terminal_reason='max_tick_cap'`
+- Closed the original PR3 workspace blocker:
+  - live reset/step validation is no longer blocked by the missing cache in the active workspace
+  - the remaining PR3 gap is semantic, not bootstrap-related: Mode A still does not receive a dedicated terminal-reason envelope from the sim runtime
 
 - Verified current upstream package state for the RL baseline decision:
   - `pufferlib` remains `3.0.0` on PyPI and is still the source-only package path
