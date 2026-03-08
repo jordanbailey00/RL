@@ -879,6 +879,11 @@ Replay generation must be deterministic for fixed:
 - action policy
 - schema versions
 
+Current implementation note:
+- the shipped replay/eval path now writes `eval_summary.json`, `replay_pack.json`, `replay_index.json`, and `run_manifest.json`
+- `scripts/replay_eval.py` is the canonical replay/eval entrypoint and `scripts/eval.py` is retained as a compatibility alias
+- `replay_step_cadence` is the current repo-owned control for replay payload density and must not change eval semantics
+
 ---
 
 ## 15) Weights & Biases Logging Contract

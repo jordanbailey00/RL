@@ -101,12 +101,14 @@ Each manifest embeds a `hardware_profile` object with:
 
 ## Artifact Records
 
-Each manifest records artifact records produced by the run. PR6 currently supports:
+Each manifest records artifact records produced by the run. The current artifact set supports:
 
 - checkpoint
 - checkpoint metadata
 - run manifest
 - eval summary
+- replay pack
+- replay index
 
 Artifact names are repo-owned and versioned in `fight_caves_rl/logging/artifact_naming.py`.
 

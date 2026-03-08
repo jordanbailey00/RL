@@ -4,3 +4,4 @@ reward_config: use_checkpoint
 curriculum_config: curriculum_disabled_v0
 policy_mode: greedy
 max_steps: 64
+replay_step_cadence: 1

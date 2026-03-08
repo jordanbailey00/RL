@@ -11,6 +11,8 @@ ARTIFACT_TYPE_BY_CATEGORY = {
     "checkpoint_metadata": "metadata",
     "run_manifest": "run-manifest",
     "eval_summary": "eval-summary",
+    "replay_pack": "replay-pack",
+    "replay_index": "replay-index",
 }
 
 _TOKEN_PATTERN = re.compile(r"[^a-z0-9._-]+")

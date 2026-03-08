@@ -8,7 +8,7 @@ from fight_caves_rl.replay.eval_runner import run_replay_eval
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compatibility entrypoint for replay_eval.py.")
+    parser = argparse.ArgumentParser(description="Run deterministic checkpoint eval with replay artifact export.")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument(
         "--config",

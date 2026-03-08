@@ -2,6 +2,28 @@
 
 ## 2026-03-08
 
+- Started and completed PR 10 replay/eval artifact work in RL.
+- Added the PR10 replay package:
+  - `fight_caves_rl/replay/replay_export.py`
+  - `fight_caves_rl/replay/replay_index.py`
+  - `fight_caves_rl/replay/eval_runner.py`
+- Added the canonical PR10 replay entrypoint:
+  - `scripts/replay_eval.py`
+  - retained `scripts/eval.py` as a compatibility alias to the same eval runner
+- Expanded eval output from summary-only to replay-grade artifacts:
+  - `eval_summary.json`
+  - `replay_pack.json`
+  - `replay_index.json`
+  - `run_manifest.json`
+- Added replay artifact categories and manifest documentation for:
+  - `replay_pack`
+  - `replay_index`
+- Added the PR10 replay tests:
+  - `fight_caves_rl/tests/integration/test_replay_generation_smoke.py`
+  - `fight_caves_rl/tests/integration/test_replay_manifest_integrity.py`
+  - `fight_caves_rl/tests/determinism/test_replay_eval_equivalence.py`
+- Froze the initial replay export density control as `replay_step_cadence` in `configs/eval/replay_eval_v0.yaml`.
+- Kept the PR4 thin canary utilities and trace/seed pack contract intact while moving the real checkpoint eval path onto replay-grade artifacts.
 - Started and completed PR 9 reward/curriculum scaffolding in RL.
 - Added config-backed reward and curriculum registries:
   - `fight_caves_rl/rewards/registry.py`

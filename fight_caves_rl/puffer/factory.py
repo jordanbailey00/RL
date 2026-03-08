@@ -89,6 +89,7 @@ DEFAULT_REPLAY_EVAL_CONFIG: dict[str, Any] = {
     "curriculum_config": "curriculum_disabled_v0",
     "policy_mode": "greedy",
     "max_steps": 64,
+    "replay_step_cadence": 1,
 }
 
 TERMINAL_REASON_TO_CODE = {

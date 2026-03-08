@@ -124,7 +124,7 @@ PR5 established the first end-to-end PufferLib smoke loop on top of the correctn
 source /home/jordan/code/.workspace-env.sh
 cd /home/jordan/code/RL
 uv run python scripts/train.py --output /tmp/fc_train.json
-uv run python scripts/eval.py --checkpoint "$(python - <<'PY'\nimport json\nprint(json.load(open('/tmp/fc_train.json'))['checkpoint_path'])\nPY)" --output /tmp/fc_eval.json
+uv run python scripts/replay_eval.py --checkpoint "$(python - <<'PY'\nimport json\nprint(json.load(open('/tmp/fc_train.json'))['checkpoint_path'])\nPY)" --output /tmp/fc_eval.json
 uv run pytest fight_caves_rl/tests/smoke -q
 ```
 
@@ -149,10 +149,14 @@ PR6 adds repo-owned W&B and manifest wiring on top of the PR5 smoke path.
   - checkpoint metadata
   - a local `run_manifest.json`
   - a `wandb_run_id`
-- every `eval.py` run now writes:
+- every `replay_eval.py` run now writes:
   - an `eval_summary.json`
+  - a `replay_pack.json`
+  - a `replay_index.json`
   - a local `run_manifest.json`
   - a `wandb_run_id`
+
+`scripts/eval.py` is still retained as a compatibility alias, but `scripts/replay_eval.py` is now the canonical replay/eval entrypoint.
 
 The bootstrap config now owns the local W&B directories:
 
@@ -238,3 +242,21 @@ Current defaults remain the parity-safe path:
 - replay/eval defaults to the checkpoint reward config plus `curriculum_disabled_v0`
 
 See [reward_configs.md](/home/jordan/code/RL/docs/reward_configs.md) for the frozen reward terms and curriculum schedule rules.
+
+## PR10 Replay and Eval Artifacts
+
+PR10 extends eval from summary-only output into replay-grade artifact generation.
+
+Current shipped replay/eval facts:
+
+- `scripts/replay_eval.py` is the canonical entrypoint
+- every replay eval writes:
+  - `eval_summary.json`
+  - `replay_pack.json`
+  - `replay_index.json`
+  - `run_manifest.json`
+- replay artifacts are generated from the same fixed-seed eval path that already drives summary digests
+- `replay_step_cadence` controls how densely step payloads are captured in `replay_pack.json`
+- the thin PR4 canary utilities still exist for scripted-policy determinism checks and parity trace comparisons
+
+See [eval_and_replay.md](/home/jordan/code/RL/docs/eval_and_replay.md) for the frozen replay artifact contract.

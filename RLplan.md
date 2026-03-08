@@ -970,6 +970,18 @@ Risks / likely failure modes:
 - Divergence between eval manifests and replay artifact metadata.
 - Confusion between training-time logs and replay-grade artifacts.
 
+PR 10 execution status (2026-03-08):
+
+- [x] Added the replay/eval contract docs in `docs/eval_and_replay.md`.
+- [x] Added `fight_caves_rl/replay/replay_export.py`.
+- [x] Added `fight_caves_rl/replay/replay_index.py`.
+- [x] Added `fight_caves_rl/replay/eval_runner.py`.
+- [x] Added `scripts/replay_eval.py` and kept `scripts/eval.py` as a compatibility alias.
+- [x] Expanded `configs/eval/replay_eval_v0.yaml` with `replay_step_cadence`.
+- [x] Added replay generation and manifest integrity integration tests.
+- [x] Added deterministic replay-eval equivalence coverage.
+- [x] Kept the PR4 thin canary path intact while moving the real checkpoint eval path onto replay artifacts.
+
 ### PR 11 - Performance Hardening
 
 Goal:
