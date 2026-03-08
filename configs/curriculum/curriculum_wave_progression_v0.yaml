@@ -1,0 +1,10 @@
+config_id: curriculum_wave_progression_v0
+enabled: true
+mode: wave_progression
+schedule:
+  - until_episode: 8
+    start_wave: 1
+  - until_episode: 16
+    start_wave: 8
+  - until_episode:
+    start_wave: 31

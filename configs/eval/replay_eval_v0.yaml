@@ -1,4 +1,6 @@
 config_id: replay_eval_v0
 seed_pack: bootstrap_smoke
+reward_config: use_checkpoint
+curriculum_config: curriculum_disabled_v0
 policy_mode: greedy
 max_steps: 64

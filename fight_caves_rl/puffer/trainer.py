@@ -36,6 +36,7 @@ from fight_caves_rl.puffer.factory import (
 from fight_caves_rl.replay.seed_packs import resolve_seed_pack
 from fight_caves_rl.replay.trace_packs import project_observation_for_determinism, semantic_digest
 from fight_caves_rl.utils.config import load_bootstrap_config
+from fight_caves_rl.envs.puffer_encoding import build_policy_action_space, build_policy_observation_space
 
 
 class ConfigurablePuffeRL(pufferlib.pufferl.PuffeRL):
@@ -257,8 +258,6 @@ def evaluate_checkpoint(
 ) -> dict[str, Any]:
     bootstrap_config = load_bootstrap_config()
     config = load_replay_eval_config(config_path)
-    reward_config_id = "reward_sparse_v0"
-    env = build_policy_episode_env({"tick_cap": int(config["max_steps"])}, reward_config_id)
     logger = WandbRunLogger(
         config=bootstrap_config,
         run_kind="eval",
@@ -267,11 +266,22 @@ def evaluate_checkpoint(
     )
     try:
         policy = MultiDiscreteMLPPolicy.from_spaces(
-            env.observation_space,
-            env.action_space,
+            build_policy_observation_space(),
+            build_policy_action_space(),
             hidden_size=128,
         )
         metadata = load_policy_checkpoint(Path(checkpoint_path), policy)
+        reward_config_id = (
+            metadata.reward_config_id
+            if str(config.get("reward_config", "use_checkpoint")) == "use_checkpoint"
+            else str(config["reward_config"])
+        )
+        curriculum_config_id = str(config.get("curriculum_config", "curriculum_disabled_v0"))
+        env = build_policy_episode_env(
+            {"tick_cap": int(config["max_steps"])},
+            reward_config_id,
+            curriculum_config_id,
+        )
         policy.eval()
         seed_pack = resolve_seed_pack(str(config["seed_pack"]))
         per_seed: list[dict[str, Any]] = []
@@ -366,7 +376,7 @@ def evaluate_checkpoint(
             run_id=str(logger.run_id),
             run_output_dir=run_artifact_dir,
             reward_config_id=reward_config_id,
-            curriculum_config_id="curriculum_disabled_v0",
+            curriculum_config_id=curriculum_config_id,
             policy_id=metadata.policy_id,
             env_count=1,
             wandb_tags=logger.effective_tags,
@@ -404,7 +414,8 @@ def evaluate_checkpoint(
         payload["artifacts"] = [record.to_dict() for record in logger.artifact_records]
         return payload
     finally:
-        env.close()
+        if "env" in locals():
+            env.close()
         logger.finish()
 
 

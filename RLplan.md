@@ -273,13 +273,14 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 9 and add versioned reward/curriculum scaffolding on top of the now-live PR8 vectorized backend.
-2. Keep the PR8 vector env contract stable while reward/curriculum work lands:
+1. Start PR 10 and expand deterministic replay/eval artifacts on top of the now-live PR9 reward/curriculum registry layer.
+2. Keep the PR8/PR9 runtime contracts stable while replay/export work lands:
    - deterministic slot seeding
    - `fight_caves_bridge_v1`
    - `puffer_policy_observation_v0`
    - `puffer_policy_action_v0`
-3. Preserve the official benchmark profile v0 path and the new `benchmark_env.py` entrypoint while reward/curriculum expansion is added.
+   - reward/curriculum config ids recorded in manifests and checkpoint metadata
+3. Preserve the official benchmark profile v0 path and the new `benchmark_env.py` entrypoint while replay/export surfaces are added.
 4. Carry forward the resolved subprocess-stability guardrails:
    - TTY-aware dashboard rendering
    - quiet embedded-JVM logging
@@ -288,9 +289,9 @@ Immediate next chunk to resume:
 
 Stopping condition for the current stop point:
 
-- RL has a clean pushed `main` branch with PR8 merged and the vecenv smoke/integration regressions resolved.
-- RL docs and changelog reflect the current verified state and the next PR9 resume point.
-- The workspace is ready to begin reward/curriculum work without reopening PR6/PR7/PR8 stability issues.
+- RL has a clean pushed `main` branch with PR9 merged and the reward/curriculum registry layer verified.
+- RL docs and changelog reflect the current verified state and the next PR10 resume point.
+- The workspace is ready to begin replay/eval artifact work without reopening PR6/PR7/PR8/PR9 stability issues.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -890,6 +891,40 @@ Risks / likely failure modes:
 - Reward shaping sneaking in fields that are unavailable in strict equivalence mode.
 - Reward implementations depending on debug-only diagnostics.
 - Curriculum introducing hidden distribution shift into deterministic eval.
+
+Completion notes:
+
+- [x] Added versioned reward configs and curriculum configs:
+  - `configs/reward/reward_sparse_v0.yaml`
+  - `configs/reward/reward_shaped_v0.yaml`
+  - `configs/curriculum/curriculum_disabled_v0.yaml`
+  - `configs/curriculum/curriculum_wave_progression_v0.yaml`
+- [x] Added the PR9 reward registry and implementations:
+  - `fight_caves_rl/rewards/registry.py`
+  - `fight_caves_rl/rewards/reward_sparse_v0.py`
+  - `fight_caves_rl/rewards/reward_shaped_v0.py`
+- [x] Added the PR9 curriculum registry and implementations:
+  - `fight_caves_rl/curriculum/registry.py`
+  - `fight_caves_rl/curriculum/curriculum_disabled_v0.py`
+  - `fight_caves_rl/curriculum/curriculum_wave_progression_v0.py`
+- [x] Kept reward/curriculum selection config-driven in the existing train/eval path:
+  - `fight_caves_rl/puffer/factory.py`
+  - `fight_caves_rl/puffer/trainer.py`
+  - `fight_caves_rl/envs/vector_env.py`
+- [x] Kept the benchmark/parity-safe defaults on:
+  - `reward_sparse_v0`
+  - `curriculum_disabled_v0`
+- [x] Added PR9 docs and unit coverage:
+  - `docs/reward_configs.md`
+  - `fight_caves_rl/tests/unit/test_reward_reproducibility.py`
+  - `fight_caves_rl/tests/unit/test_reward_no_future_leakage.py`
+  - `fight_caves_rl/tests/unit/test_curriculum_config_loading.py`
+- [x] Verified the post-PR9 suite split:
+  - `uv run pytest fight_caves_rl/tests/unit -q`
+  - `uv run pytest fight_caves_rl/tests/train -q`
+  - `uv run pytest fight_caves_rl/tests/integration -q`
+  - `uv run pytest fight_caves_rl/tests/smoke -q`
+  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q`
 
 ### PR 10 - Replay and Eval Artifacts
 

@@ -18,6 +18,7 @@ from fight_caves_rl.envs.puffer_encoding import (
 )
 
 RewardFn = Callable[[dict[str, Any] | None, dict[str, Any], dict[str, Any], bool, bool], float]
+ResetOptionsProvider = Callable[[int, int], Mapping[str, object] | None]
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class HeadlessBatchVecEnvConfig:
     tick_cap: int = 20_000
     include_future_leakage: bool = False
     bootstrap: HeadlessBootstrapConfig = field(default_factory=HeadlessBootstrapConfig)
+    reset_options_provider: ResetOptionsProvider | None = None
 
 
 class HeadlessBatchVecEnv:
@@ -84,7 +86,7 @@ class HeadlessBatchVecEnv:
         self.flag = pufferlib.vector.RESET
         self.infos: list[dict[str, Any]] = []
         self._seed_base: int | None = None
-        self._episode_counts = np.zeros(self.num_agents, dtype=np.int64)
+        self._episodes_started = np.zeros(self.num_agents, dtype=np.int64)
 
     @property
     def num_envs(self) -> int:
@@ -92,16 +94,19 @@ class HeadlessBatchVecEnv:
 
     @property
     def episode_counts(self) -> np.ndarray:
-        return self._episode_counts.copy()
+        return self._episodes_started.copy()
 
     def async_reset(self, seed: int | None = None) -> None:
         self.flag = pufferlib.vector.RECV
         self._seed_base = None if seed is None else int(seed)
-        self._episode_counts.fill(0)
+        self._episodes_started.fill(0)
+        slot_indices = tuple(range(self.num_agents))
         response = self.client.reset_batch(
-            seeds=self._allocate_seeds(tuple(range(self.num_agents))),
+            seeds=self._allocate_seeds(slot_indices),
+            options=self._build_reset_options(slot_indices),
         )
         self._apply_reset_response(response.results)
+        self._record_episode_starts(slot_indices)
         self.infos = [
             self._build_reset_info(result)
             for result in sorted(response.results, key=lambda result: int(result.slot_index))
@@ -121,8 +126,10 @@ class HeadlessBatchVecEnv:
             reset_response = self.client.reset_batch(
                 slot_indices=done_indices,
                 seeds=self._allocate_seeds(done_indices),
+                options=self._build_reset_options(done_indices),
             )
             self._apply_reset_response(reset_response.results)
+            self._record_episode_starts(done_indices)
             for result in reset_response.results:
                 ordered_infos[int(result.slot_index)] = self._build_reset_info(result)
 
@@ -167,10 +174,28 @@ class HeadlessBatchVecEnv:
         seeds: list[int] = []
         stride = self.num_agents
         for slot_index in slot_indices:
-            seed = int(self._seed_base) + int(slot_index) + int(self._episode_counts[int(slot_index)]) * stride
+            seed = int(self._seed_base) + int(slot_index) + int(self._episodes_started[int(slot_index)]) * stride
             seeds.append(seed)
-            self._episode_counts[int(slot_index)] += 1
         return seeds
+
+    def _build_reset_options(
+        self,
+        slot_indices: Sequence[int],
+    ) -> list[Mapping[str, object] | None] | None:
+        provider = self.config.reset_options_provider
+        if provider is None:
+            return None
+        return [
+            provider(
+                slot_index=int(slot_index),
+                episode_index=int(self._episodes_started[int(slot_index)]),
+            )
+            for slot_index in slot_indices
+        ]
+
+    def _record_episode_starts(self, slot_indices: Sequence[int]) -> None:
+        for slot_index in slot_indices:
+            self._episodes_started[int(slot_index)] += 1
 
     def _apply_reset_response(self, results: Sequence[Any]) -> None:
         buffers = build_reset_buffers(results)

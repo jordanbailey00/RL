@@ -9,6 +9,7 @@ import numpy as np
 import yaml
 
 import pufferlib.emulation
+from fight_caves_rl.curriculum.registry import build_curriculum
 from fight_caves_rl.envs.correctness_env import CorrectnessEnvConfig, FightCavesCorrectnessEnv
 from fight_caves_rl.envs.puffer_encoding import (
     POLICY_MAX_VISIBLE_NPCS,
@@ -19,6 +20,7 @@ from fight_caves_rl.envs.puffer_encoding import (
 )
 from fight_caves_rl.envs.schema import HEADLESS_ACTION_REJECT_REASONS
 from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
+from fight_caves_rl.rewards.registry import resolve_reward_fn
 from fight_caves_rl.utils.paths import repo_root
 
 DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
@@ -83,6 +85,8 @@ DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
 DEFAULT_REPLAY_EVAL_CONFIG: dict[str, Any] = {
     "config_id": "replay_eval_v0",
     "seed_pack": "bootstrap_smoke",
+    "reward_config": "use_checkpoint",
+    "curriculum_config": "curriculum_disabled_v0",
     "policy_mode": "greedy",
     "max_steps": 64,
 }
@@ -107,6 +111,7 @@ class FightCavesPufferGymEnv(gym.Env[np.ndarray, np.ndarray]):
         *,
         env_config: Mapping[str, Any] | None = None,
         reward_config_id: str = "reward_sparse_v0",
+        curriculum_config_id: str = "curriculum_disabled_v0",
         env_index: int = 0,
     ) -> None:
         super().__init__()
@@ -122,6 +127,9 @@ class FightCavesPufferGymEnv(gym.Env[np.ndarray, np.ndarray]):
             include_future_leakage=bool(env_settings.get("include_future_leakage", False)),
         )
         self._reward_config_id = reward_config_id
+        self._curriculum = build_curriculum(curriculum_config_id)
+        self._env_index = int(env_index)
+        self._episodes_started = 0
         self._env = FightCavesCorrectnessEnv(
             config=correctness_config,
             reward_fn=resolve_reward_fn(reward_config_id),
@@ -141,7 +149,16 @@ class FightCavesPufferGymEnv(gym.Env[np.ndarray, np.ndarray]):
         options: dict[str, Any] | None = None,
     ) -> tuple[np.ndarray, dict[str, float]]:
         super().reset(seed=seed)
-        observation, info = self._env.reset(seed=seed, options=options)
+        reset_options = dict(
+            self._curriculum.reset_overrides(
+                slot_index=self._env_index,
+                episode_index=self._episodes_started,
+            )
+        )
+        if options:
+            reset_options.update(dict(options))
+        observation, info = self._env.reset(seed=seed, options=reset_options)
+        self._episodes_started += 1
         self.last_raw_observation = observation
         self.last_reset_info = info
         self.last_step_info = None
@@ -210,6 +227,7 @@ def load_replay_eval_config(path: str | Path | None = None) -> dict[str, Any]:
 def make_vecenv(config: Mapping[str, Any]):
     env_config = dict(config.get("env", {}))
     reward_config_id = str(config["reward_config"])
+    curriculum = build_curriculum(str(config["curriculum_config"]))
     return HeadlessBatchVecEnv(
         HeadlessBatchVecEnvConfig(
             env_count=int(config["num_envs"]),
@@ -220,6 +238,7 @@ def make_vecenv(config: Mapping[str, Any]):
             sharks=int(env_config.get("sharks", 20)),
             tick_cap=int(env_config.get("tick_cap", 20_000)),
             include_future_leakage=bool(env_config.get("include_future_leakage", False)),
+            reset_options_provider=curriculum.reset_overrides,
         ),
         reward_fn=resolve_reward_fn(reward_config_id),
     )
@@ -248,38 +267,17 @@ def build_puffer_train_config(
     return train_config
 
 
-def build_policy_episode_env(env_config: Mapping[str, Any], reward_config_id: str) -> FightCavesPufferGymEnv:
+def build_policy_episode_env(
+    env_config: Mapping[str, Any],
+    reward_config_id: str,
+    curriculum_config_id: str = "curriculum_disabled_v0",
+) -> FightCavesPufferGymEnv:
     return FightCavesPufferGymEnv(
         env_config=env_config,
         reward_config_id=reward_config_id,
+        curriculum_config_id=curriculum_config_id,
         env_index=0,
     )
-
-
-def resolve_reward_fn(reward_config_id: str):
-    if reward_config_id != "reward_sparse_v0":
-        raise ValueError(f"Unsupported reward config: {reward_config_id!r}")
-
-    def reward_fn(
-        previous_observation: dict[str, Any] | None,
-        action_result: dict[str, Any],
-        observation: dict[str, Any],
-        terminated: bool,
-        truncated: bool,
-    ) -> float:
-        reward = 0.0
-        if previous_observation is not None:
-            reward += float(
-                int(observation["wave"]["wave"]) - int(previous_observation["wave"]["wave"])
-            )
-        if terminated:
-            if int(observation["player"]["hitpoints_current"]) <= 0:
-                reward -= 1.0
-            elif int(observation["wave"]["wave"]) == 63 and int(observation["wave"]["remaining"]) == 0:
-                reward += 10.0
-        return reward
-
-    return reward_fn
 
 
 def scripted_action_space_shape() -> tuple[int, ...]:

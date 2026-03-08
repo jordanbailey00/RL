@@ -791,6 +791,11 @@ Required curriculum support surfaces:
 - curriculum version recording in run manifests
 - deterministic eval that can disable curriculum entirely
 
+Current implementation note:
+- the shipped defaults are `reward_sparse_v0` plus `curriculum_disabled_v0`
+- `reward_shaped_v0` and `curriculum_wave_progression_v0` now exist as config-backed alternatives
+- deterministic replay/eval defaults to the checkpoint reward config plus `curriculum_disabled_v0` unless an eval config explicitly overrides that choice
+
 ---
 
 ## 13) Training Pipeline Contract

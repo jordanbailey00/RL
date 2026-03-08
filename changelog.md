@@ -2,6 +2,36 @@
 
 ## 2026-03-08
 
+- Started and completed PR 9 reward/curriculum scaffolding in RL.
+- Added config-backed reward and curriculum registries:
+  - `fight_caves_rl/rewards/registry.py`
+  - `fight_caves_rl/rewards/reward_sparse_v0.py`
+  - `fight_caves_rl/rewards/reward_shaped_v0.py`
+  - `fight_caves_rl/curriculum/registry.py`
+  - `fight_caves_rl/curriculum/curriculum_disabled_v0.py`
+  - `fight_caves_rl/curriculum/curriculum_wave_progression_v0.py`
+- Expanded the repo-owned config surfaces:
+  - `configs/reward/reward_sparse_v0.yaml`
+  - `configs/reward/reward_shaped_v0.yaml`
+  - `configs/curriculum/curriculum_disabled_v0.yaml`
+  - `configs/curriculum/curriculum_wave_progression_v0.yaml`
+  - `configs/eval/replay_eval_v0.yaml`
+- Kept reward/curriculum selection config-driven in the existing train/eval path without changing simulator semantics:
+  - `fight_caves_rl/puffer/factory.py`
+  - `fight_caves_rl/puffer/trainer.py`
+  - `fight_caves_rl/envs/vector_env.py`
+- Kept the current benchmark/parity-safe defaults on `reward_sparse_v0` plus `curriculum_disabled_v0`.
+- Added PR9 docs and unit coverage:
+  - `docs/reward_configs.md`
+  - `fight_caves_rl/tests/unit/test_reward_reproducibility.py`
+  - `fight_caves_rl/tests/unit/test_reward_no_future_leakage.py`
+  - `fight_caves_rl/tests/unit/test_curriculum_config_loading.py`
+- Verified the post-PR9 suite split:
+  - `uv run pytest fight_caves_rl/tests/unit -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/train -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/integration -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/smoke -q` -> passed
+  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q` -> passed
 - Started and completed PR 8 vectorized backend work in RL.
 - Replaced the temporary PR5 single-env vecenv shim with the shipped batch-backed vector env:
   - `fight_caves_rl/envs/vector_env.py`

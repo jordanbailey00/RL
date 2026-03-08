@@ -1,0 +1,12 @@
+config_id: reward_shaped_v0
+mode: shaped
+coefficients:
+  wave_progress: 1.0
+  cave_complete: 10.0
+  player_death: -1.0
+  npc_damage: 0.02
+  player_damage: -0.02
+  shark_use: -0.05
+  prayer_potion_use: -0.05
+  ammo_use: -0.001
+  step_penalty: -0.0005

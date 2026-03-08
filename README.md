@@ -219,3 +219,22 @@ Current PR7 note:
 - the batch protocol and slot semantics are now explicit
 - the final lower-copy subprocess/shared-buffer transport is still future work
 - PR8 should build on the PR7 protocol rather than replacing it
+
+## PR9 Reward and Curriculum
+
+PR9 adds the first versioned reward/curriculum registry layer:
+
+- rewards:
+  - `reward_sparse_v0`
+  - `reward_shaped_v0`
+- curriculum:
+  - `curriculum_disabled_v0`
+  - `curriculum_wave_progression_v0`
+
+Current defaults remain the parity-safe path:
+
+- train configs default to `reward_sparse_v0`
+- train configs default to `curriculum_disabled_v0`
+- replay/eval defaults to the checkpoint reward config plus `curriculum_disabled_v0`
+
+See [reward_configs.md](/home/jordan/code/RL/docs/reward_configs.md) for the frozen reward terms and curriculum schedule rules.
