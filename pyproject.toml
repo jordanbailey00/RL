@@ -9,6 +9,7 @@ description = "RL, analytics, and training module for the Fight Caves workspace.
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+  "jpype1>=1.6.0",
   "numpy>=1.26.4,<2.0",
   "orjson>=3.11.3",
   "msgpack>=1.1.1",

@@ -32,7 +32,8 @@ RL treats the packaged headless distribution as the default runtime dependency.
 
 - Default build task: `:game:headlessDistZip`
 - Validation/build aggregator: `:game:packageHeadless`
-- Default relative artifact path: `fight-caves-RL/game/build/distributions/fight-caves-headless.zip`
+- Distribution glob: `fight-caves-RL/game/build/distributions/fight-caves-headless*.zip`
+- Current verified dev artifact: `fight-caves-RL/game/build/distributions/fight-caves-headless-dev.zip`
 - Expected runtime jar inside the extracted distribution: `fight-caves-headless.jar`
 - Headless JVM entrypoint class: `HeadlessMain`
 
@@ -42,6 +43,17 @@ Fallback rules:
 - Second choice: build `:game:headlessDistZip` from the sibling sim repo.
 - Third choice: build `:game:packageHeadless` when packaging validation or deletion-candidate generation is also desired.
 - Local jar/classpath launch is a manual-debug fallback only. It is not the canonical dev/test artifact boundary for RL.
+
+Current runtime invariant verified during PR 3 bring-up:
+
+- the current headless bootstrap still locates the checked-out sim repository root dynamically
+- RL therefore needs both the packaged headless distribution and the checked-out sibling sim workspace
+- the current workspace-required files are:
+  - `fight-caves-RL/FCspec.md`
+  - `fight-caves-RL/config/headless_data_allowlist.toml`
+  - `fight-caves-RL/config/headless_manifest.toml`
+  - `fight-caves-RL/config/headless_scripts.txt`
+  - `fight-caves-RL/data/cache/main_file_cache.dat2`
 
 ## Episode Start Contract
 
@@ -156,3 +168,12 @@ RL does not redefine simulator episode outcomes.
 
 - terminal and truncation reasons must be surfaced from the simulator/runtime policy
 - wrapper logic may annotate outcomes, but it must not translate simulator failures into fake gameplay outcomes
+
+PR 3 implementation note:
+
+- the current sim runtime does not yet expose a dedicated terminal-reason envelope through the selected Mode A surface
+- the correctness env currently records explicit inferred labels only for:
+  - `player_death`
+  - `cave_complete`
+  - `max_tick_cap`
+- this is tracked as a follow-up validation point before PR 3 can be considered fully complete

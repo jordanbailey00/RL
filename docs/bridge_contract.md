@@ -16,7 +16,8 @@ Default dev/test artifact:
 - packaged headless distribution from `fight-caves-RL`
 - build task: `:game:headlessDistZip`
 - validation/aggregator task: `:game:packageHeadless`
-- default relative artifact path: `game/build/distributions/fight-caves-headless.zip`
+- distribution glob: `game/build/distributions/fight-caves-headless*.zip`
+- current verified dev output: `game/build/distributions/fight-caves-headless-dev.zip`
 
 Expected extracted contents:
 
@@ -28,6 +29,18 @@ Expected extracted contents:
 - allowlisted headless `data/*.toml`
 - `run-headless.sh`
 - `run-headless.bat`
+
+Current runtime invariant:
+
+- the packaged distribution is the classpath/artifact boundary for RL
+- the current sim bootstrap still requires the checked-out `fight-caves-RL` workspace root at runtime
+- specifically, PR3 correctness mode requires:
+  - `FCspec.md`
+  - `config/headless_data_allowlist.toml`
+  - `config/headless_manifest.toml`
+  - `config/headless_scripts.txt`
+  - populated `data/cache/main_file_cache.dat2`
+- packaged dist alone is therefore not sufficient today
 
 Fallback order:
 
@@ -54,6 +67,7 @@ Why Mode A is selected:
 Mode A launch shape:
 
 - one Python worker owns one embedded JVM runtime
+- PR3 launches the JVM with the jar extracted from the packaged dist while setting the process cwd inside the checked-out sim workspace so the current repo-root discovery code succeeds
 - the wrapper provisions player slots using the same setup path as the sim's headless tests
 - correctness bring-up should default to `loadContentScripts = true`
 - correctness bring-up should default to `startWorld = true` for full reset/step/observation parity, while `startWorld = false` remains valid for narrower bootstrap/perf micro-cases explicitly validated by the sim tests

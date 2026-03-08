@@ -47,8 +47,10 @@ class BridgeContract:
     mode_c_transport_target: str
     sim_artifact_task: str
     sim_artifact_fallback_task: str
-    sim_distribution_relative_path: str
+    sim_distribution_glob: str
     sim_headless_jar_name: str
+    requires_sim_workspace_checkout: bool
+    required_sim_workspace_paths: tuple[str, ...]
     required_handshake_fields: tuple[str, ...]
 
 
@@ -71,6 +73,7 @@ HEADLESS_OBSERVATION_SCHEMA = VersionedContract(
     version=1,
     compatibility_policy="v1_additive_only",
 )
+HEADLESS_OBSERVATION_COMPATIBILITY_POLICY = HEADLESS_OBSERVATION_SCHEMA.compatibility_policy
 
 HEADLESS_OBSERVATION_TOP_LEVEL_FIELDS = (
     "schema_id",
@@ -88,6 +91,7 @@ HEADLESS_ACTION_SCHEMA = VersionedContract(
     version=1,
     compatibility_policy="append_only_ids",
 )
+HEADLESS_ACTION_COMPATIBILITY_POLICY = HEADLESS_ACTION_SCHEMA.compatibility_policy
 
 HEADLESS_ACTION_DEFINITIONS = (
     ActionDefinition(0, "wait", "Wait", ()),
@@ -189,8 +193,16 @@ FIGHT_CAVES_BRIDGE_CONTRACT = BridgeContract(
     mode_c_transport_target="shared_buffer_vector_backend",
     sim_artifact_task=":game:headlessDistZip",
     sim_artifact_fallback_task=":game:packageHeadless",
-    sim_distribution_relative_path="game/build/distributions/fight-caves-headless.zip",
+    sim_distribution_glob="game/build/distributions/fight-caves-headless*.zip",
     sim_headless_jar_name="fight-caves-headless.jar",
+    requires_sim_workspace_checkout=True,
+    required_sim_workspace_paths=(
+        "FCspec.md",
+        "config/headless_data_allowlist.toml",
+        "config/headless_manifest.toml",
+        "config/headless_scripts.txt",
+        "data/cache/main_file_cache.dat2",
+    ),
     required_handshake_fields=(
         "observation_schema_id",
         "observation_schema_version",

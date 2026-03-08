@@ -357,6 +357,7 @@ Characteristics:
 - may be slower
 - favors clarity and debuggability
 - used for deterministic equivalence tests and early bring-up
+- uses an embedded JVM bridge from Python, with `jpype1` as the baseline candidate
 
 #### Mode B: batched bridge
 Purpose:
@@ -403,6 +404,11 @@ The bridge must optimize for:
 - easy benchmark instrumentation
 
 The bridge must not optimize for human readability in the hot path.
+
+Current verified runtime note:
+- the packaged headless distribution remains the canonical RL artifact input
+- the current sim bootstrap still requires the checked-out sibling `fight-caves-RL` workspace root plus `data/cache/main_file_cache.dat2`
+- the RL bridge must therefore preflight both the packaged artifact and the checked-out sim workspace before attempting correctness-mode bring-up
 
 Human-readable artifacts belong in:
 - debug mode
@@ -1124,6 +1130,10 @@ Required action items:
 2. Support reset/step/close.
 3. Map observations/actions exactly to the headless sim contract.
 4. Surface terminal reasons and rejection metadata.
+
+Current implementation note:
+- if the selected Mode A sim surface does not expose a dedicated terminal-reason envelope, the RL wrapper may record clearly-labeled provisional inferences for death/completion/truncation only until a more direct sim surface is available
+- this does not relax the requirement to preserve simulator outcomes; it only documents the bring-up constraint that must be closed before PR3 is fully accepted
 
 Required tests:
 1. wrapper reset correctness

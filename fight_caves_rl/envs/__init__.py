@@ -1,2 +1,1 @@
-"""Environment contract registry for the RL wrapper."""
-
+"""Environment contract registry and wrapper modules."""

@@ -32,6 +32,7 @@ uv run python -c "import pufferlib, torch, fight_caves_rl"
 The RL baseline now pins the wheel-backed `pufferlib-core==3.0.17` distribution, which imports as `pufferlib`.
 That removes the standard WSL train-bootstrap dependency on the workspace-local GCC sysroot and avoids the broad Ocean/source-build baggage from `pufferlib==3.0.0`.
 The RL repo is also configured to resolve `torch` from the CPU wheel index during bootstrap so Linux does not silently pull the CUDA-heavy default wheel set.
+The correctness-mode bridge also depends on `jpype1`, which is now part of the default RL dependency set because PR3 uses it for the embedded JVM path.
 The legacy `./scripts/bootstrap_wsl_toolchain.sh` path is retained for source-build comparisons and future native dependencies, but it is no longer part of the standard RL bootstrap flow.
 One upstream inconsistency remains: the installed `pufferlib-core==3.0.17` distribution currently imports with `pufferlib.__version__ == "3.0.3"`, so RL manifest/version code must use distribution metadata rather than trusting the import version string.
 Official upstream docs still say `pip install pufferlib`; RL intentionally standardizes on `pufferlib-core` because it preserves the RL-facing APIs we need without the import-time `resources` symlink side effect or the source-build footprint.
@@ -45,6 +46,31 @@ The default sibling-repo layout is:
 - `/home/jordan/code/RL`
 
 Override these with `.env` values that match `.env.example` if needed.
+
+## PR3 Runtime Prerequisites
+
+The correctness wrapper currently needs both:
+
+- a packaged headless sim artifact under `/home/jordan/code/fight-caves-RL/game/build/distributions/fight-caves-headless*.zip`
+- the checked-out sim workspace root with:
+  - `/home/jordan/code/fight-caves-RL/FCspec.md`
+  - `/home/jordan/code/fight-caves-RL/config/headless_data_allowlist.toml`
+  - `/home/jordan/code/fight-caves-RL/config/headless_manifest.toml`
+  - `/home/jordan/code/fight-caves-RL/config/headless_scripts.txt`
+  - `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2`
+
+The packaged distribution alone is not sufficient today because the current sim bootstrap still resolves the checked-out repository root and reads the real cache/config workspace.
+
+Current workspace status:
+
+- the packaged dist exists
+- the checked-out sim cache does not currently exist under `/home/jordan/code/fight-caves-RL/data/cache`
+
+That means:
+
+- PR3 unit tests run
+- PR3 live integration tests skip cleanly
+- `uv run python scripts/smoke_random.py` exits early with a precise prerequisite error until the cache is restored
 
 ## PufferLib Reuse
 

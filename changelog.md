@@ -2,6 +2,52 @@
 
 ## 2026-03-08
 
+- Started PR 3 correctness-wrapper implementation in RL.
+- Added `jpype1>=1.6.0` to the RL baseline dependencies so the embedded JVM bridge is part of the normal repo bootstrap path.
+- Corrected the frozen sim artifact assumption from a single fixed path to the verified distribution glob:
+  - `game/build/distributions/fight-caves-headless*.zip`
+  - current verified dev artifact: `fight-caves-headless-dev.zip`
+- Verified that the current packaged headless artifact still requires the checked-out sibling sim workspace root at runtime:
+  - `FCspec.md`
+  - `config/headless_data_allowlist.toml`
+  - `config/headless_manifest.toml`
+  - `config/headless_scripts.txt`
+  - `data/cache/main_file_cache.dat2`
+- Implemented the PR3 bridge/env code:
+  - `fight_caves_rl/bridge/contracts.py`
+  - `fight_caves_rl/bridge/errors.py`
+  - `fight_caves_rl/bridge/launcher.py`
+  - `fight_caves_rl/bridge/debug_client.py`
+  - `fight_caves_rl/envs/action_mapping.py`
+  - `fight_caves_rl/envs/observation_mapping.py`
+  - `fight_caves_rl/envs/correctness_env.py`
+  - `scripts/smoke_random.py`
+- Implemented PR3 unit and integration coverage:
+  - `test_action_schema_version_compatibility.py`
+  - `test_observation_flattening_determinism.py`
+  - `test_bridge_launcher_preflight.py`
+  - `test_wrapper_reset_matches_sim_contract.py`
+  - `test_wrapper_step_matches_sim_trace.py`
+- Verified Kotlin/JVM interop details for the selected Mode A bridge:
+  - embedded JVM startup via `jpype1`
+  - Kotlin value-class `Tile` creation via synthetic `constructor-impl` / `box-impl`
+  - synthetic `Player` construction via reflection
+  - Koin-backed `AccountManager` resolution via the engine `get(...)` helper
+  - action-object construction for the frozen headless action surface
+- Added launcher/runtime preflight behavior so missing sim prerequisites fail fast with explicit errors instead of raw bootstrap exceptions.
+- Verified current PR3 execution subset:
+  - `uv lock --python 3.11`
+  - `uv sync --group dev --group train --python 3.11`
+  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
+  - `uv run pytest fight_caves_rl/tests/integration/test_wrapper_reset_matches_sim_contract.py fight_caves_rl/tests/integration/test_wrapper_step_matches_sim_trace.py` -> `2 skipped`
+  - `uv run python scripts/smoke_random.py --max-steps 1` -> exits early with the explicit missing-cache prerequisite error
+- Recorded the remaining PR3 live blocker in RL docs/plan:
+  - `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2` is missing in the current workspace
+  - live reset/step/full-episode acceptance remains blocked until that cache prerequisite is restored
+- Recorded the current termination-handling constraint:
+  - the selected Mode A sim runtime surface does not yet expose a dedicated terminal-reason envelope
+  - the correctness env currently labels only provisional inferred outcomes for `player_death`, `cave_complete`, and `max_tick_cap`
+
 - Verified current upstream package state for the RL baseline decision:
   - `pufferlib` remains `3.0.0` on PyPI and is still the source-only package path
   - `pufferlib-core` is available as `3.0.17` and is the current wheel-backed candidate path

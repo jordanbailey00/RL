@@ -22,7 +22,8 @@ def test_official_benchmark_profile_config_matches_registry():
 def test_bridge_contract_registry_keeps_expected_artifact_defaults():
     assert FIGHT_CAVES_BRIDGE_CONTRACT.sim_artifact_task == ":game:headlessDistZip"
     assert FIGHT_CAVES_BRIDGE_CONTRACT.sim_artifact_fallback_task == ":game:packageHeadless"
-    assert FIGHT_CAVES_BRIDGE_CONTRACT.sim_distribution_relative_path == (
-        "game/build/distributions/fight-caves-headless.zip"
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.sim_distribution_glob == (
+        "game/build/distributions/fight-caves-headless*.zip"
     )
     assert FIGHT_CAVES_BRIDGE_CONTRACT.sim_headless_jar_name == "fight-caves-headless.jar"
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.requires_sim_workspace_checkout is True
