@@ -271,16 +271,19 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 3 and build the first correctness-first Python wrapper around the headless sim.
-2. Implement the PR 2-selected Mode A bridge path around the current direct-runtime surface.
-3. Mirror the sim's player provisioning flow exactly before reset/step/observe calls.
-4. Keep wrapper behavior semantically transparent while adding reset/step/close integration tests and smoke scripts.
+1. Start PR 8 and replace the PR5 single-env Mode A vecenv shim with the real batched/vectorized training path.
+2. Connect the PR7 batch bridge to a production-facing vector env that preserves deterministic slot indexing and manifest/replay identities.
+3. Keep the official benchmark profile v0 executable end-to-end through the vectorized path before adding reward/curriculum expansion.
+4. Carry forward the resolved subprocess-stability guardrails:
+   - TTY-aware dashboard rendering
+   - quiet embedded-JVM logging
+   - subprocess timeouts and child trace hooks for future diagnostics
 
-Stopping condition for the completed PR 2 chunk:
+Stopping condition for the current stop point:
 
-- RL freezes the sim-aligned integration contract in repo-owned docs.
-- RL defines the action/observation/episode-start/bridge/benchmark identities in one place.
-- RL documents the selected artifact strategy and Mode A bridge path early enough to steer PR 3.
+- RL has a clean pushed `main` branch with the aggregate-suite subprocess stall resolved.
+- RL docs and changelog reflect the current verified state and tomorrow's PR8 resume point.
+- The workspace is ready to begin PR8 vectorized backend work without reopening PR6/PR7 stability issues.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 

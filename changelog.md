@@ -2,6 +2,7 @@
 
 ## 2026-03-08
 
+- Resolved the aggregate-suite subprocess stall in RL and re-established the repo-wide aggregate pytest sweep as a normal verification path.
 - Started and completed PR 7 batched-bridge baseline work in RL.
 - Incremented the bridge contract from `fight_caves_bridge_v0` to `fight_caves_bridge_v1` because PR7 makes the batch envelope and lockstep slot semantics explicit.
 - Added the PR7 batch bridge core:
