@@ -2,6 +2,25 @@
 
 ## 2026-03-08
 
+- Aligned the RL episode-start source-of-truth docs to the current sim-side contract without changing the RL contract id/version:
+  - removed the stale `Defence: 50` / `Amulet of glory` wording from `RLspec.md`
+  - normalized the episode-start loadout and stat block to the current headless reset contract
+- Split RL validation policy into explicit buckets:
+  - dev-only unit bootstrap
+  - train-bootstrap import plus self-contained train tests
+  - local pre-merge live-runtime suites
+  - manual/scheduled performance validation
+- Moved the train-dependent dashboard test out of `fight_caves_rl/tests/unit` into `fight_caves_rl/tests/train`.
+- Narrowed the bootstrap manifest import path so dev-only unit collection no longer pulls in `gymnasium` or `torch` indirectly through train-only modules.
+- Updated GitHub Actions to match the approved PR-CI boundary:
+  - `unit-dev` runs the dev-only unit suite
+  - `train-bootstrap` runs the train-group import smoke plus `fight_caves_rl/tests/train`
+- Re-verified the approved bootstrap boundaries:
+  - `uv sync --group dev --python 3.11`
+  - `uv run pytest fight_caves_rl/tests/unit` -> `21 passed`
+  - `uv sync --group dev --group train --python 3.11`
+  - `uv run python -c "import pufferlib, torch, fight_caves_rl"`
+  - `uv run pytest fight_caves_rl/tests/train` -> `3 passed`
 - Resolved the aggregate-suite subprocess stall in RL and re-established the repo-wide aggregate pytest sweep as a normal verification path.
 - Started and completed PR 7 batched-bridge baseline work in RL.
 - Incremented the bridge contract from `fight_caves_bridge_v0` to `fight_caves_bridge_v1` because PR7 makes the batch envelope and lockstep slot semantics explicit.
@@ -44,7 +63,7 @@
   - added `ConfigurablePuffeRL` plus `should_enable_dashboard(...)` so RL only renders the local dashboard when the config requests it and stdout/stderr are attached to an interactive TTY
   - added `configs/logging/headless_quiet_logback.xml` and now launch the embedded JVM with `-Dlogback.configurationFile=...` so headless smoke/train/eval subprocesses do not leak Java/logback console output past Python capture
   - added a default timeout to `fight_caves_rl/tests/smoke/_helpers.py::run_script(...)` so future subprocess hangs fail fast instead of stalling the suite indefinitely
-  - added `FC_RL_TRACE_DIR` child-process tracing plus `fight_caves_rl/tests/unit/test_trainer_dashboard_control.py`
+  - added `FC_RL_TRACE_DIR` child-process tracing plus `fight_caves_rl/tests/train/test_trainer_dashboard_control.py`
 - Re-verified the previously bad PR6 pair after the fix:
   - `uv run pytest fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py -q` -> passed
 - Re-verified the full current RL sweep after the fix:

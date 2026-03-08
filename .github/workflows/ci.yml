@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  unit:
+  unit-dev:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
       - name: Run unit tests
         run: uv run pytest fight_caves_rl/tests/unit
 
-  train-smoke:
+  train-bootstrap:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,3 +30,5 @@ jobs:
         run: uv sync --group dev --group train --python 3.11
       - name: Run import smoke
         run: uv run python -c "import pufferlib, torch, fight_caves_rl"
+      - name: Run train-bootstrap tests
+        run: uv run pytest fight_caves_rl/tests/train

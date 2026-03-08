@@ -203,8 +203,8 @@ Tests to add:
 - Repo bootstrap install smoke for the wheel-backed `train` dependency group on the standard Linux/WSL path.
 - Config loader unit test.
 - Run manifest skeleton unit test.
-- CI smoke job that imports the package and runs the unit subset.
-- CI train-group smoke job that imports `pufferlib`, `torch`, and `fight_caves_rl`.
+- CI job that runs the dev-only unit subset.
+- CI train-group smoke job that imports `pufferlib`, `torch`, and `fight_caves_rl`, plus the self-contained train-bootstrap test subset.
 
 Acceptance criteria:
 
@@ -212,10 +212,12 @@ Acceptance criteria:
 - Python and PufferLib baselines are pinned.
 - Baseline package imports work.
 - CI can install dependencies and run the bootstrap test subset.
+- The default dev bootstrap remains independent of the `train` group.
+- Train-dependent self-contained tests are kept outside `fight_caves_rl/tests/unit`.
 - RL root filenames and cross-module doc reference conventions are normalized from the start.
 - The RL repo documents the chosen bootstrap wheel path for `torch` so Linux does not silently fall back to the wrong package index.
 - `uv sync --group dev --group train --python 3.11` succeeds on the standard wheel-backed baseline without requiring the legacy source-build toolchain path.
-- CI validates the chosen train-group package path with an import smoke job.
+- CI validates the chosen train-group package path with an import smoke job plus the train-bootstrap test subset.
 
 Risks / likely failure modes:
 
@@ -1119,9 +1121,17 @@ Testing should be layered exactly as required by the spec and should mature with
    - Verify checkpoint save/load and deterministic eval after restore.
 
 6. CI execution model
-   - Per-PR CI should run unit tests, integration tests, smoke training tests, deterministic eval smoke, and lint/type checks if enabled.
+   - Per-PR CI should run only self-contained checks:
+     - dev-only unit tests
+     - train-bootstrap import smoke
+     - self-contained train-bootstrap tests
+     - lint/type checks if enabled
+   - Local pre-merge validation should own the live runtime suites:
+     - integration
+     - determinism
+     - smoke
+     - parity
    - Heavy benchmarks should live in a scheduled or manually triggered workflow.
-   - Parity canaries should begin as early smoke coverage once PR 4 lands and can expand into heavier/nightly jobs later if they depend on larger external packs.
 
 ## 6. Performance Plan
 

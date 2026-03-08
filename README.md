@@ -21,12 +21,19 @@ uv sync --group dev --python 3.11
 uv run pytest fight_caves_rl/tests/unit
 ```
 
+This is the default dev-bootstrap contract:
+- self-contained unit coverage only
+- no `pufferlib`/`torch` requirement
+- no live sim workspace requirement
+
 Training dependencies are pinned in the `train` dependency group:
 
 ```bash
 source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
 uv sync --group dev --group train --python 3.11
 uv run python -c "import pufferlib, torch, fight_caves_rl"
+uv run pytest fight_caves_rl/tests/train
 ```
 
 The RL baseline now pins the wheel-backed `pufferlib-core==3.0.17` distribution, which imports as `pufferlib`.
@@ -46,6 +53,25 @@ The default sibling-repo layout is:
 - `/home/jordan/code/RL`
 
 Override these with `.env` values that match `.env.example` if needed.
+
+## Validation Boundary
+
+Per-PR CI is intentionally limited to:
+
+- dev-only unit tests under `fight_caves_rl/tests/unit`
+- train-bootstrap import smoke
+- self-contained train-bootstrap tests under `fight_caves_rl/tests/train`
+
+Local pre-merge validation owns the live runtime suites:
+
+- `fight_caves_rl/tests/integration`
+- `fight_caves_rl/tests/determinism`
+- `fight_caves_rl/tests/parity`
+- `fight_caves_rl/tests/smoke`
+
+Manual or scheduled validation owns:
+
+- `fight_caves_rl/tests/performance`
 
 ## PR3 Runtime Prerequisites
 
@@ -68,8 +94,7 @@ Current workspace status:
 
 That means:
 
-- PR3 unit tests run
-- PR3 live integration tests pass against the real sim workspace
+- PR3 live integration tests can run against the real sim workspace
 - `uv run python scripts/smoke_random.py --max-steps 20000` reaches a full wrapper-managed episode truncation at `max_tick_cap`
 
 Mode A validation note:

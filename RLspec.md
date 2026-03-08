@@ -444,36 +444,43 @@ This starting state is required to remain constant across the training set so ep
 
 #### Equipped items
 - Weapon: Rune crossbow
-- Ammo: Adamant bolts, or the closest standard bolts that the RSPS fork supports reliably
-- Helm: Coif, or an equivalent low-tier ranged helm if required by the fork
-- Body: Black d'hide body
-- Legs: Black d'hide chaps
-- Hands: Black d'hide vambraces
+- Ammo: Adamant bolts
+  - Default ammo count is controlled by the headless reset contract input `ammo`
+  - Current default: `1000`
+- Helm: Coif
+- Body: Black dragonhide body
+- Legs: Black dragonhide chaps
+- Hands: Black dragonhide vambraces
 - Feet: Snakeskin boots
-- Neck: Amulet of glory
+- No neck item is part of the current canonical episode-start contract
 
 #### Inventory
 - Prayer potion x8
-  - Preferred starting form: 4-dose potions
+  - Required starting form: 4-dose potions
   - Potion consumption must degrade to the dose-minus-1 variant exactly as the game/fork normally does
 - Shark x20
 
 #### Skills and resource state
+- Attack: 1
+- Strength: 1
+- Defence: 70
 - Prayer: 43
   - Each episode starts with full prayer points
   - Prayer drains normally during the episode
 - Hitpoints: 70
+  - Internal engine scale: Constitution `700`
   - Each episode starts with full hitpoints
   - Hitpoints drain normally during the episode
 - Ranged: 70
-- Defense: 50
+- Magic: 1
+- All other skills: 1
 
 #### Other required starting conditions
 - Run energy: 100%
-- Run mode toggle: on at episode start
+- Run mode toggle: ON at episode start
   - The agent may toggle run on/off at any time during the episode
 - No XP gain during episodes
-- Stats do not change during episodes
+- Episode-start stats/loadout are fixed by the headless sim contract and must not be loosened through wrapper-side substitutions
 
 This episode-start state must be implemented in the headless sim contract and treated by the RL module as authoritative environment initialization state, not as wrapper-invented local state.
 
@@ -1065,12 +1072,21 @@ The RL repo must include all of the following test layers.
 
 #### Layer A: unit tests
 For:
+- self-contained dev-bootstrap validation only
+- no `pufferlib`/`torch` imports
+- no live sim runtime prerequisite
 - config loading
 - observation flatten/unflatten
 - action mapping
 - reward math
 - manifest generation
 - artifact naming
+
+#### Layer A2: train-bootstrap tests
+For:
+- self-contained tests that require the `train` dependency group
+- train bootstrap/import-path validation
+- trainer-wrapper behavior that does not require the live sim runtime
 
 #### Layer B: integration tests
 For:
@@ -1121,14 +1137,19 @@ Required named tests/artifacts should include equivalents of:
 
 ### 18.3 CI requirements
 
-CI must at minimum run:
-- unit tests
-- integration tests
-- smoke training tests
-- deterministic eval smoke
+Per-PR CI must at minimum run:
+- dev-only unit tests
+- train-bootstrap import smoke
+- train-bootstrap self-contained tests
 - lint/type checks if configured
 
-Heavy benchmarks may run on a separate scheduled job if needed.
+Local pre-merge validation must at minimum run:
+- live integration tests
+- determinism tests
+- smoke training/eval tests
+- parity canaries
+
+Heavy benchmarks may run on a separate scheduled or manual job.
 
 ---
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -5,18 +7,20 @@ from platform import machine, platform, processor, python_implementation, python
 import json
 import os
 import subprocess
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from fight_caves_rl.bridge.launcher import build_bridge_handshake, discover_headless_runtime_paths
-from fight_caves_rl.envs.puffer_encoding import (
+from fight_caves_rl.envs.schema import (
+    OFFICIAL_BENCHMARK_PROFILE,
     PUFFER_POLICY_ACTION_SCHEMA,
     PUFFER_POLICY_OBSERVATION_SCHEMA,
 )
-from fight_caves_rl.envs.schema import OFFICIAL_BENCHMARK_PROFILE
 from fight_caves_rl.logging.artifact_naming import ArtifactRecord
 from fight_caves_rl.manifests.versions import resolve_pufferlib_runtime_version
-from fight_caves_rl.policies.checkpointing import CheckpointMetadata
 from fight_caves_rl.utils.config import BootstrapConfig
+
+if TYPE_CHECKING:
+    from fight_caves_rl.policies.checkpointing import CheckpointMetadata
 
 
 @dataclass(frozen=True)
