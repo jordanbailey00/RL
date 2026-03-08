@@ -273,25 +273,30 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 10 and expand deterministic replay/eval artifacts on top of the now-live PR9 reward/curriculum registry layer.
-2. Keep the PR8/PR9 runtime contracts stable while replay/export work lands:
-   - deterministic slot seeding
+1. Start PR 12 and expand the RL-side parity canaries on top of the now-live PR11 benchmark and replay stack.
+2. Keep the PR7/PR8/PR10/PR11 runtime contracts stable while parity-oracle work lands:
    - `fight_caves_bridge_v1`
+   - deterministic slot seeding
    - `puffer_policy_observation_v0`
    - `puffer_policy_action_v0`
-   - reward/curriculum config ids recorded in manifests and checkpoint metadata
-3. Preserve the official benchmark profile v0 path and the new `benchmark_env.py` entrypoint while replay/export surfaces are added.
+   - replay artifact ids and seed-pack/trace-pack registries
+   - benchmark-context metadata attached to repo-owned benchmark reports
+3. Preserve the official benchmark profile v0 path and the current benchmark entrypoints while parity/export surfaces are extended:
+   - `scripts/benchmark_bridge.py`
+   - `scripts/benchmark_env.py`
+   - `scripts/benchmark_train.py`
 4. Carry forward the resolved subprocess-stability guardrails:
    - TTY-aware dashboard rendering
    - quiet embedded-JVM logging
    - subprocess timeouts and child trace hooks for future diagnostics
-   - subprocess-isolated vecenv smoke coverage for fresh embedded-JVM bring-up
+   - subprocess-isolated vecenv/env-benchmark coverage for fresh embedded-JVM bring-up
+   - fresh child `train.py` processes per logging-mode benchmark measurement
 
 Stopping condition for the current stop point:
 
-- RL has a clean pushed `main` branch with PR9 merged and the reward/curriculum registry layer verified.
-- RL docs and changelog reflect the current verified state and the next PR10 resume point.
-- The workspace is ready to begin replay/eval artifact work without reopening PR6/PR7/PR8/PR9 stability issues.
+- RL has a clean pushed `main` branch with PR11 merged and the performance hardening path verified.
+- RL docs and changelog reflect the current verified state and the next PR12 resume point.
+- The workspace is ready to begin expanded parity/oracle validation work without reopening PR7/PR8/PR10/PR11 stability issues.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -1026,6 +1031,23 @@ Risks / likely failure modes:
 - Benchmark claims that change semantics or skip required work.
 - Logging, replay, or artifact generation quietly dominating SPS.
 - Tuning effort focusing on trainer internals before boundary crossings and copies are fixed.
+
+PR 11 execution status (2026-03-08):
+
+- [x] Added shared benchmark-context metadata in `fight_caves_rl/benchmarks/common.py`.
+- [x] Extended `fight_caves_rl/benchmarks/bridge_bench.py` to attach benchmark-context metadata to the bridge benchmark report.
+- [x] Added `fight_caves_rl/benchmarks/env_bench.py` and updated `scripts/benchmark_env.py`.
+- [x] Added `fight_caves_rl/benchmarks/train_bench.py` and `scripts/benchmark_train.py`.
+- [x] Added `configs/benchmark/train_1024env_v0.yaml`.
+- [x] Added `.github/workflows/benchmarks.yml` for manual self-hosted benchmark runs.
+- [x] Added PR11 performance smoke coverage:
+  - `fight_caves_rl/tests/performance/test_env_benchmark_smoke.py`
+  - `fight_caves_rl/tests/performance/test_train_benchmark_smoke.py`
+- [x] Fixed the embedded-JVM benchmark isolation issue by running wrapper and vecenv env measurements in separate child processes.
+- [x] Fixed the tiny-smoke train benchmark instability by clamping child train batch settings and adding explicit subprocess timeouts.
+- [x] Re-verified:
+  - `uv run pytest fight_caves_rl/tests/performance -q`
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q`
 
 ### PR 12 - Expanded Parity Canaries and Oracle-Reference Validation
 

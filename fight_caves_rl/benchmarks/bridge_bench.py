@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from fight_caves_rl.benchmarks.common import BenchmarkContext, build_benchmark_context
 from fight_caves_rl.bridge.batch_client import BatchClientConfig, HeadlessBatchClient
 from fight_caves_rl.bridge.buffers import build_step_buffers
 from fight_caves_rl.bridge.contracts import HeadlessBootstrapConfig
@@ -51,11 +52,13 @@ class BridgeBenchmarkReport:
     reference: BridgeBenchmarkMeasurement
     batch: BridgeBenchmarkMeasurement
     speedup_vs_reference: float
+    context: BenchmarkContext
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["reference"] = self.reference.to_dict()
         payload["batch"] = self.batch.to_dict()
+        payload["context"] = self.context.to_dict()
         return payload
 
 
@@ -100,6 +103,14 @@ def run_bridge_benchmark(
         )
     )
     try:
+        context = build_benchmark_context(
+            env_count=int(config.env_count),
+            logging_mode="benchmark_minimized",
+            replay_mode="disabled",
+            dashboard_mode="disabled",
+            reward_config_id="reward_sparse_v0",
+            curriculum_config_id="curriculum_disabled_v0",
+        )
         seeds = [config.seed_base + slot_index for slot_index in range(config.env_count)]
         _warmup(client, config, seeds)
         reference = _run_reference_measurement(client, config, seeds)
@@ -118,6 +129,7 @@ def run_bridge_benchmark(
             reference=reference,
             batch=batch,
             speedup_vs_reference=float(speedup),
+            context=context,
         )
     finally:
         client.close()

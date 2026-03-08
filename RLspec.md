@@ -1073,6 +1073,16 @@ Benchmark configs must document:
 - reward config
 - replay mode
 
+Current implementation note:
+- the repo-owned benchmark entrypoints are:
+  - `scripts/benchmark_bridge.py`
+  - `scripts/benchmark_env.py`
+  - `scripts/benchmark_train.py`
+- current benchmark JSON outputs carry the required benchmark metadata inside a shared `context` block
+- env benchmark wrapper and vecenv measurements run in separate child processes because the embedded-JVM lifecycle is process-global
+- training benchmark measurements run in fresh child `train.py` subprocesses per logging mode
+- the current PR11 training benchmark keeps replay disabled while isolating bridge, vecenv, trainer, and W&B logging overhead
+
 ---
 
 ## 18) Testing and Validation Contract
@@ -1161,6 +1171,10 @@ Local pre-merge validation must at minimum run:
 - parity canaries
 
 Heavy benchmarks may run on a separate scheduled or manual job.
+
+Current implementation note:
+- `.github/workflows/benchmarks.yml` is the repo-owned manual benchmark workflow
+- it is intentionally scoped to a self-hosted Linux runner with the sibling workspace repos present
 
 ---
 

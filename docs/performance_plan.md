@@ -23,7 +23,7 @@ Frozen profile defaults:
 - `dashboard_mode = disabled`
 - env-count ladder: `1`, `16`, `64`, `256`, `1024`
 
-Every benchmark manifest must record:
+Every benchmark report must record:
 
 - benchmark profile id/version
 - hardware profile
@@ -39,6 +39,15 @@ Every benchmark manifest must record:
 - curriculum config id
 - replay/logging/dashboard modes
 - env count
+
+Current PR11 implementation note:
+
+- repo-owned benchmark JSON outputs now carry this metadata under a shared `context` block
+- that `context` block is the current benchmark-manifest surface for RL benchmark entrypoints
+- the current benchmark entrypoints are:
+  - `scripts/benchmark_bridge.py`
+  - `scripts/benchmark_env.py`
+  - `scripts/benchmark_train.py`
 
 ## Stage Gate A - Correctness Baseline
 
@@ -66,9 +75,14 @@ Current PR7 benchmark split:
 ## Stage Gate C - Vectorized Env Baseline
 
 - measure VecEnv throughput and stability
-- current PR8 benchmark/config surfaces:
+- current PR8/PR11 benchmark/config surfaces:
   - `configs/benchmark/vecenv_256env_v0.yaml`
   - `scripts/benchmark_env.py`
+  - `fight_caves_rl/benchmarks/env_bench.py`
+- current env benchmark split:
+  - `wrapper_sequential`
+  - `vecenv_lockstep`
+- the wrapper and vecenv measurements currently run in separate child processes because the embedded-JVM lifecycle is process-global and cannot safely benchmark both paths in one Python process
 - profiles: `64 envs`, `256 envs`
 - exit condition: vectorized execution is stable and clearly better than the non-vectorized path
 
@@ -76,8 +90,19 @@ Current PR7 benchmark split:
 
 - measure end-to-end training SPS
 - compare normal logging, minimized logging, replay disabled, replay periodic
+- current PR11 benchmark/config surfaces:
+  - `configs/benchmark/train_1024env_v0.yaml`
+  - `scripts/benchmark_train.py`
+  - `fight_caves_rl/benchmarks/train_bench.py`
+  - `.github/workflows/benchmarks.yml`
+- current logging matrix:
+  - `disabled`
+  - `standard`
+  - `aggressive`
+- replay remains disabled in the current PR11 training benchmark path so logging overhead can be isolated first
+- each training measurement currently runs in a fresh child `train.py` process so logging modes do not share embedded-JVM or W&B process state
 - profiles: `64 envs`, `256 envs`, `1024 envs` where hardware allows
-- exit condition: manifests isolate trainer, bridge, wrapper, and W&B overhead
+- exit condition: benchmark reports isolate trainer, bridge, wrapper, and W&B overhead
 
 ## Stage Gate E - Tuned Production Path
 

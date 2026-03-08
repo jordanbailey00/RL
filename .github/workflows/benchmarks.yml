@@ -1,0 +1,82 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      bridge_rounds:
+        description: Bridge benchmark rounds override
+        required: false
+        default: "256"
+      env_rounds:
+        description: Env benchmark rounds override
+        required: false
+        default: "64"
+      env_count:
+        description: Env count override for env/train benchmarks
+        required: false
+        default: "16"
+      train_timesteps:
+        description: Train benchmark timesteps override
+        required: false
+        default: "64"
+      logging_modes:
+        description: Comma-separated train benchmark logging modes
+        required: false
+        default: "disabled,standard"
+
+jobs:
+  benchmark-manual:
+    runs-on:
+      - self-hosted
+      - linux
+    steps:
+      - name: Verify workspace layout
+        run: |
+          test -f /home/jordan/code/.workspace-env.sh
+          test -d /home/jordan/code/RL
+          test -d /home/jordan/code/fight-caves-RL
+          test -d /home/jordan/code/RSPS
+      - name: Sync train dependencies
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv sync --group dev --group train --python 3.11
+      - name: Run bridge benchmark
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv run python scripts/benchmark_bridge.py \
+            --config configs/benchmark/bridge_1env_v0.yaml \
+            --rounds "${{ github.event.inputs.bridge_rounds }}" \
+            --output /tmp/fc-bridge-benchmark.json
+      - name: Run env benchmark
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv run python scripts/benchmark_env.py \
+            --config configs/benchmark/vecenv_256env_v0.yaml \
+            --env-count "${{ github.event.inputs.env_count }}" \
+            --rounds "${{ github.event.inputs.env_rounds }}" \
+            --output /tmp/fc-env-benchmark.json
+      - name: Run train benchmark
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv run python scripts/benchmark_train.py \
+            --config configs/benchmark/train_1024env_v0.yaml \
+            --env-count "${{ github.event.inputs.env_count }}" \
+            --total-timesteps "${{ github.event.inputs.train_timesteps }}" \
+            --logging-modes "${{ github.event.inputs.logging_modes }}" \
+            --output /tmp/fc-train-benchmark.json
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rl-benchmarks-${{ github.run_id }}
+          path: |
+            /tmp/fc-bridge-benchmark.json
+            /tmp/fc-env-benchmark.json
+            /tmp/fc-train-benchmark.json

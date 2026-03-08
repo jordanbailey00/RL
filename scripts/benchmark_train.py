@@ -4,27 +4,27 @@ import argparse
 import json
 from pathlib import Path
 
-from fight_caves_rl.benchmarks.env_bench import run_env_benchmark
+from fight_caves_rl.benchmarks.train_bench import parse_logging_modes, run_train_benchmark
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the PR11 env benchmark.")
+    parser = argparse.ArgumentParser(description="Run the PR11 training benchmark matrix.")
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/benchmark/vecenv_256env_v0.yaml"),
+        default=Path("configs/benchmark/train_1024env_v0.yaml"),
     )
-    parser.add_argument("--rounds", type=int, default=None)
+    parser.add_argument("--total-timesteps", type=int, default=None)
     parser.add_argument("--env-count", type=int, default=None)
-    parser.add_argument("--wrapper-env-count", type=int, default=None)
+    parser.add_argument("--logging-modes", type=str, default=None)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    report = run_env_benchmark(
+    report = run_train_benchmark(
         args.config,
-        rounds_override=args.rounds,
+        total_timesteps_override=args.total_timesteps,
         env_count_override=args.env_count,
-        wrapper_env_count_override=args.wrapper_env_count,
+        logging_modes_override=parse_logging_modes(args.logging_modes),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

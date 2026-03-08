@@ -44,6 +44,13 @@ Current PR7 implementation notes:
 - visible targets are derived from `observation.npcs` in the batch path instead of requiring a second runtime query
 - single-slot trace benchmarking can bypass per-step Python loops by reusing the sim-side `runFightCaveBatch(...)` helper
 
+Current PR11 benchmark notes:
+
+- bridge/env/train benchmark reports now attach shared benchmark-context metadata instead of emitting unrelated per-benchmark metadata shapes
+- env benchmark wrapper and vecenv measurements run in separate child processes because the embedded-JVM lifecycle is process-global
+- training benchmark measurements run in fresh child `train.py` processes per logging mode so SPS comparisons do not share runtime state
+- benchmark-only logging stress is injected through `FC_RL_BENCHMARK_EXTRA_LOG_BURSTS` rather than changing normal train semantics
+
 ## Mode C - High-Throughput Vector Target
 
 1. policy inference on batched observations

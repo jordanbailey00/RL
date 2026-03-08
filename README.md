@@ -73,6 +73,8 @@ Manual or scheduled validation owns:
 
 - `fight_caves_rl/tests/performance`
 - `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/fc_vecenv_bench.json`
+- `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench.json`
+- `.github/workflows/benchmarks.yml` on a self-hosted Linux runner with the sibling workspace repos present
 
 ## PR3 Runtime Prerequisites
 
@@ -260,3 +262,17 @@ Current shipped replay/eval facts:
 - the thin PR4 canary utilities still exist for scripted-policy determinism checks and parity trace comparisons
 
 See [eval_and_replay.md](/home/jordan/code/RL/docs/eval_and_replay.md) for the frozen replay artifact contract.
+
+## PR11 Performance Hardening
+
+PR11 extends the repo-owned benchmark path without changing simulator semantics.
+
+Current PR11 facts:
+
+- `scripts/benchmark_bridge.py` remains the raw bridge microbenchmark entrypoint
+- `scripts/benchmark_env.py` now reports both `wrapper_sequential` and `vecenv_lockstep`
+- those env measurements run in separate child processes because the embedded-JVM lifecycle is process-global
+- `scripts/benchmark_train.py` now benchmarks end-to-end training SPS across `disabled`, `standard`, and `aggressive` logging modes
+- train benchmark measurements run in fresh child `train.py` processes per logging mode
+- benchmark reports now carry shared benchmark-context metadata that records the benchmark profile, repo SHAs, sim artifact task/path, schema ids, reward/curriculum ids, PufferLib distribution/version, and hardware profile
+- `.github/workflows/benchmarks.yml` is the repo-owned manual benchmark workflow for a self-hosted Linux workspace runner

@@ -90,6 +90,7 @@ class WandbRunLogger:
         self.records.append(LoggedMetricRecord(step=int(step), payload=payload))
         if self._run is not None and payload:
             self._run.log(payload, step=int(step))
+            self._emit_benchmark_log_bursts(payload, step=int(step))
 
     def log_metrics(
         self,
@@ -145,6 +146,21 @@ class WandbRunLogger:
         if self._wandb is not None:
             self._wandb.finish()
         self._finished = True
+
+    def _emit_benchmark_log_bursts(self, payload: Mapping[str, Any], *, step: int) -> None:
+        extra_bursts = int(os.environ.get("FC_RL_BENCHMARK_EXTRA_LOG_BURSTS", "0") or "0")
+        if self._run is None or extra_bursts <= 0:
+            return
+        numeric_payload = coerce_numeric_metrics(payload)
+        if not numeric_payload:
+            return
+        for burst_index in range(extra_bursts):
+            burst_payload = {
+                f"benchmark_logging/repeat_{burst_index}/{key}": value
+                for key, value in numeric_payload.items()
+            }
+            self.records.append(LoggedMetricRecord(step=int(step), payload=burst_payload))
+            self._run.log(burst_payload, step=int(step))
 
     def metrics_to_dicts(self) -> list[dict[str, Any]]:
         return [asdict(record) for record in self.records]

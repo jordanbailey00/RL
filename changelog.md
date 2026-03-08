@@ -2,6 +2,36 @@
 
 ## 2026-03-08
 
+- Started and completed PR 11 performance hardening in RL.
+- Added the shared benchmark-context metadata surface:
+  - `fight_caves_rl/benchmarks/common.py`
+- Expanded the repo-owned benchmark package:
+  - `fight_caves_rl/benchmarks/env_bench.py`
+  - `fight_caves_rl/benchmarks/train_bench.py`
+- Added the PR11 benchmark entrypoint and config surfaces:
+  - `scripts/benchmark_train.py`
+  - `configs/benchmark/train_1024env_v0.yaml`
+  - `.github/workflows/benchmarks.yml`
+- Extended the existing bridge and logging surfaces for PR11 benchmarking:
+  - `fight_caves_rl/benchmarks/bridge_bench.py`
+  - `fight_caves_rl/logging/wandb_client.py`
+  - `scripts/benchmark_env.py`
+- Added PR11 performance smoke coverage:
+  - `fight_caves_rl/tests/performance/test_env_benchmark_smoke.py`
+  - `fight_caves_rl/tests/performance/test_train_benchmark_smoke.py`
+- Found and fixed one real PR11 env-benchmark stability issue:
+  - wrapper and vecenv measurements cannot safely share one Python process because the embedded-JVM lifecycle is process-global
+  - `fight_caves_rl/benchmarks/env_bench.py` now collects wrapper and vecenv measurements in separate child processes
+- Found and fixed one real PR11 train-benchmark smoke issue:
+  - tiny smoke overrides on `train_1024env_v0` inherited oversized batch/minibatch settings and could stall or stop making useful progress
+  - `fight_caves_rl/benchmarks/train_bench.py` now clamps child train batch settings for tiny benchmark runs and enforces explicit subprocess timeouts
+- Re-verified the PR11 benchmark acceptance set:
+  - `uv run pytest fight_caves_rl/tests/performance/test_vecenv_benchmark_smoke.py -q`
+  - `uv run pytest fight_caves_rl/tests/performance/test_env_benchmark_smoke.py -q`
+  - `uv run pytest fight_caves_rl/tests/performance/test_train_benchmark_smoke.py -q`
+  - `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench_smoke.json`
+- Re-verified the full current RL suite after PR11:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q` -> passed
 - Started and completed PR 10 replay/eval artifact work in RL.
 - Added the PR10 replay package:
   - `fight_caves_rl/replay/replay_export.py`
