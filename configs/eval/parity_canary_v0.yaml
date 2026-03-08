@@ -1,0 +1,6 @@
+config_id: parity_canary_v0
+seed_pack: parity_reference_v0
+trace_pack: parity_single_wave_v0
+comparison_mode: semantic_digest
+reward_config: reward_sparse_v0
+curriculum_config: curriculum_disabled_v0

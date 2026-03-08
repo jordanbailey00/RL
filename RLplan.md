@@ -467,6 +467,9 @@ Expected files/directories:
 - `/home/jordan/code/RL/fight_caves_rl/utils/seeding.py`
 - `/home/jordan/code/RL/configs/eval/eval_seedpack_v0.yaml`
 - `/home/jordan/code/RL/configs/eval/parity_canary_v0.yaml`
+- `/home/jordan/code/RL/scripts/collect_reset_repro.py`
+- `/home/jordan/code/RL/scripts/collect_trajectory_trace.py`
+- `/home/jordan/code/RL/scripts/collect_seedpack_eval.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/determinism/test_fixed_seed_reset_reproducibility.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/determinism/test_wrapper_vs_raw_sim_trajectory_agreement.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/determinism/test_deterministic_eval_same_checkpoint_same_seed_pack.py`
@@ -498,7 +501,34 @@ Risks / likely failure modes:
 - Hidden wrapper-local caches contaminating determinism.
 - Schema drift causing false deterministic mismatches.
 - Seed pack definitions that are not portable across machines or commit SHAs.
+- Comparing raw absolute ticks or instance-shifted tiles and mistaking allocator drift for semantic drift.
+- Reusing more than one embedded runtime bootstrap inside a single pytest process and getting false failures from the Mode A lifecycle.
 - Waiting too long to introduce canaries and discovering wrapper drift only after training plumbing is layered on top.
+
+PR 4 execution status (2026-03-08):
+
+- [x] Added `fight_caves_rl/replay/seed_packs.py`.
+- [x] Added `fight_caves_rl/replay/trace_packs.py`.
+- [x] Added `fight_caves_rl/utils/seeding.py`.
+- [x] Added `docs/eval_and_replay.md`.
+- [x] Added `docs/parity_canaries.md`.
+- [x] Added `configs/eval/parity_canary_v0.yaml`.
+- [x] Expanded `configs/eval/eval_seedpack_v0.yaml` with deterministic-eval smoke fields.
+- [x] Added `scripts/collect_reset_repro.py`, `scripts/collect_trajectory_trace.py`, and `scripts/collect_seedpack_eval.py` as deterministic validation helpers.
+- [x] Froze PR4 trace packs in per-tick RL env action space; sim-side replay traces with `ticksAfter > 1` are expanded into repeated per-tick RL actions rather than hidden inside wrapper-side stepping.
+- [x] Froze PR4 determinism/parity comparison on semantic projections that normalize episode-relative ticks and instance-shifted tiles.
+- [x] Moved the remaining live reset validation off direct pytest-process bootstraps and onto subprocess-isolated helpers so the full suite respects the one-runtime-per-process Mode A rule.
+- [x] Added PR4 determinism coverage for fixed-seed reset reproducibility, wrapper-vs-raw trajectory agreement, and deterministic scripted-checkpoint eval on a fixed seed pack.
+- [x] Added PR4 parity coverage for thin semantic-digest canary smoke and replay-to-trace sequence equivalence smoke.
+- [x] Validated the PR4 suite live:
+  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
+  - `uv run pytest fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity -vv --maxfail=1` -> `7 passed`
+
+Downstream alignment notes after PR4:
+
+- PR5 should consume the versioned seed-pack and per-tick trace-pack registries from `fight_caves_rl/replay` rather than inventing trainer-local copies.
+- PR5 scripted/eval smoke should keep using subprocess-isolated live helpers whenever a test needs a fresh embedded runtime, instead of adding more direct multi-bootstrap pytest-process coverage.
+- PR6+ manifests and analytics should record semantic-digest pack ids/versions, not raw absolute instance-sensitive reset payloads, when summarizing determinism/parity outputs.
 
 ### PR 5 - PufferLib Smoke Integration
 

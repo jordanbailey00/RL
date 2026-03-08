@@ -410,6 +410,7 @@ Current verified runtime note:
 - the current sim bootstrap still requires the checked-out sibling `fight-caves-RL` workspace root plus `data/cache/main_file_cache.dat2`
 - the RL bridge must therefore preflight both the packaged artifact and the checked-out sim workspace before attempting correctness-mode bring-up
 - fresh-runtime wrapper-vs-raw equivalence checks must use separate Python processes in Mode A because the embedded JVM is process-global and episode resets allocate per-player dynamic instances
+- reset/determinism validation must compare a semantic projection rather than raw absolute instance ids, raw absolute ticks, or instance-shifted absolute tiles
 
 Human-readable artifacts belong in:
 - debug mode
@@ -1042,6 +1043,7 @@ For:
 - fixed seed reset reproducibility
 - fixed checkpoint + fixed seeds => identical eval summaries
 - wrapper-vs-raw-sim trajectory agreement for fixed action traces
+- semantic-projection equivalence when raw absolute reset state drifts only because of global tick/instance allocation details
 
 #### Layer D: smoke training tests
 For:
@@ -1059,6 +1061,7 @@ For:
 For:
 - fixed trace pack subsets against sim/oracle expectations where appropriate
 - wrapper does not introduce semantic drift
+- versioned per-tick RL trace packs expanded from sim replay traces where the sim source uses `ticksAfter > 1`
 
 ### 18.2 Required correctness tests
 

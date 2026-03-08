@@ -61,6 +61,39 @@
 - Closed the original PR3 workspace blocker:
   - live reset/step validation is no longer blocked by the missing cache in the active workspace
   - the remaining PR3 gap is semantic, not bootstrap-related: Mode A still does not receive a dedicated terminal-reason envelope from the sim runtime
+- Started and completed PR 4 determinism/parity bring-up in RL.
+- Added PR4 replay/eval support files:
+  - `fight_caves_rl/replay/seed_packs.py`
+  - `fight_caves_rl/replay/trace_packs.py`
+  - `fight_caves_rl/utils/seeding.py`
+  - `scripts/collect_reset_repro.py`
+  - `scripts/collect_trajectory_trace.py`
+  - `scripts/collect_seedpack_eval.py`
+- Added PR4 docs/configs:
+  - `docs/eval_and_replay.md`
+  - `docs/parity_canaries.md`
+  - `configs/eval/parity_canary_v0.yaml`
+  - expanded `configs/eval/eval_seedpack_v0.yaml`
+- Locked the PR4 determinism/parity comparison rule:
+  - compare semantic projections, not raw absolute instance ids or raw absolute ticks
+  - normalize player/NPC tiles relative to the episode start tile
+  - express trace packs in per-tick RL env action space
+  - expand sim-side replay traces with `ticksAfter > 1` into repeated per-tick RL actions
+- Found and fixed the PR4 suite-order bootstrap issue:
+  - repeated embedded-runtime bootstraps inside the pytest process are not a reliable live-test pattern
+  - moved the remaining live reset/repro validation onto subprocess-isolated helpers so the full suite follows the documented one-runtime-per-process Mode A rule
+- Added PR4 test coverage:
+  - `fight_caves_rl/tests/determinism/test_fixed_seed_reset_reproducibility.py`
+  - `fight_caves_rl/tests/determinism/test_wrapper_vs_raw_sim_trajectory_agreement.py`
+  - `fight_caves_rl/tests/determinism/test_deterministic_eval_same_checkpoint_same_seed_pack.py`
+  - `fight_caves_rl/tests/parity/test_parity_canary_smoke.py`
+  - `fight_caves_rl/tests/parity/test_replay_to_trace_equivalence_smoke.py`
+- Froze the first thin parity canary digest in `parity_single_wave_v0`:
+  - `expected_semantic_digest = 50f696569ed20307aa247a29aa84bf29ddeb3ba2a4886d561813cdb650a504f3`
+  - `expected_final_relative_tick = 40`
+- Verified the PR4 live suite:
+  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
+  - `uv run pytest fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity -vv --maxfail=1` -> `7 passed`
 
 - Verified current upstream package state for the RL baseline decision:
   - `pufferlib` remains `3.0.0` on PyPI and is still the source-only package path

@@ -76,6 +76,7 @@ Mode A validation note:
 
 - wrapper-vs-raw reset/step equivalence should be validated in separate Python processes
 - the embedded-JVM bridge owns one runtime per process, and separate player slots inside one runtime are not a valid proof of identical absolute reset state because each episode gets its own dynamic instance
+- PR4 determinism/parity checks therefore compare semantic projections that normalize episode-relative ticks and instance-shifted tiles instead of asserting on raw absolute allocator-dependent values
 
 ## PufferLib Reuse
 
