@@ -98,3 +98,93 @@ Allowed later wrapper behavior:
 
 - booleans may be converted to `0/1` at the last possible wrapper boundary
 - strings such as `ammo_id` may be mapped to stable encoded forms, but only through an explicit documented dictionary/versioned mapping
+
+## PR5 Policy Input Encoding
+
+PR5 freezes the first Gym/Puffer policy-input encoding as:
+
+- `policy_observation_schema_id = puffer_policy_observation_v0`
+- `policy_observation_schema_version = 0`
+
+This is an RL-local encoding for trainer input only.
+The raw sim payload above remains authoritative and is still validated before encoding.
+
+### Constants dropped after validation
+
+The PR5 policy vector does not include:
+
+- `schema_id`
+- `compatibility_policy`
+
+Those fields are constant after the raw payload passes contract validation, so PR5 excludes them from the policy tensor and records the schema identity separately in checkpoint metadata.
+
+### PR5 flat vector order
+
+Base prefix order:
+
+1. `schema_version`
+2. `tick`
+3. `episode_seed`
+4. `player.tile.{x,y,level}`
+5. `player.hitpoints_current`
+6. `player.hitpoints_max`
+7. `player.prayer_current`
+8. `player.prayer_max`
+9. `player.run_energy`
+10. `player.run_energy_max`
+11. `player.run_energy_percent`
+12. `player.running`
+13. `player.protection_prayers.{magic,missiles,melee}`
+14. `player.lockouts.{attack,food,drink,combo,busy}`
+15. `player.consumables.{shark_count,prayer_potion_dose_count,ammo_id_code,ammo_count}`
+16. `wave.{wave,rotation,remaining}`
+17. `npcs.visible_count`
+
+Per-NPC slot order:
+
+1. `present`
+2. `visible_index`
+3. `npc_index`
+4. `id_code`
+5. `tile.{x,y,level}`
+6. `hitpoints_current`
+7. `hitpoints_max`
+8. `hidden`
+9. `dead`
+10. `under_attack`
+
+### PR5 visible-NPC cap
+
+PR5 policy encoding fixes `max_visible_npcs = 8`.
+
+Rationale from the current verified sim closure:
+
+- static wave data peaks at `6` declared NPC entries
+- `tz_kek` split behavior can raise live count to `7`
+- Jad healer scenarios peak lower than that
+
+Unused slots are zero-padded in deterministic order.
+If the sim grows beyond this cap, RL must bump the policy-observation schema rather than silently truncating.
+
+### PR5 categorical dictionaries
+
+`ammo_id_code`:
+
+- `0` => `""`
+- `1` => `adamant_bolts`
+
+`npc_id_code` order:
+
+1. `tz_kih`
+2. `tz_kih_spawn_point`
+3. `tz_kek`
+4. `tz_kek_spawn_point`
+5. `tz_kek_spawn`
+6. `tok_xil`
+7. `tok_xil_spawn_point`
+8. `yt_mej_kot`
+9. `yt_mej_kot_spawn_point`
+10. `ket_zek`
+11. `ket_zek_spawn_point`
+12. `tztok_jad`
+13. `yt_hur_kot`

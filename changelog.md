@@ -2,6 +2,43 @@
 
 ## 2026-03-08
 
+- Started and completed PR 5 PufferLib smoke integration in RL.
+- Added the PR5 Puffer/Gym policy-input encoding registry:
+  - `fight_caves_rl/envs/puffer_encoding.py`
+  - `puffer_policy_observation_v0`
+  - `puffer_policy_action_v0`
+- Froze the PR5 smoke baseline observation/action encoding rules:
+  - fixed visible-NPC cap `8`
+  - explicit ammo-id and Fight Caves NPC-id dictionaries
+  - full absolute-tile `MultiDiscrete` action heads for correctness-first smoke bring-up
+- Confirmed that the stock `pufferlib.vector.Serial` backend is not viable for the selected Mode A bridge because it constructs the env twice and the second embedded-runtime bootstrap collides with one-shot Kotlin script registration.
+- Added a repo-local single-env Mode A vecenv shim that still feeds the stock `pufferlib.pufferl.PuffeRL` training loop without changing simulator semantics.
+- Added PR5 integration code:
+  - `fight_caves_rl/puffer/factory.py`
+  - `fight_caves_rl/puffer/trainer.py`
+  - `fight_caves_rl/puffer/callbacks.py`
+  - `fight_caves_rl/policies/mlp.py`
+  - `fight_caves_rl/policies/checkpointing.py`
+  - `scripts/train.py`
+  - `scripts/eval.py`
+  - `scripts/smoke_scripted.py`
+- Expanded PR5 configs:
+  - `configs/train/smoke_ppo_v0.yaml`
+  - `configs/eval/replay_eval_v0.yaml`
+- Added checkpoint sidecar metadata carrying:
+  - sim observation/action schema ids and versions
+  - episode-start contract id/version
+  - PR5 policy observation/action schema ids and versions
+  - PufferLib distribution/version from distribution metadata
+- Added PR5 smoke coverage:
+  - `fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py`
+  - `fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_eval_loop_smoke.py`
+  - `fight_caves_rl/tests/smoke/test_scripted_baseline_smoke.py`
+- Verified that the scripted PR5 smoke path matches the existing PR4 parity canary digest for `parity_single_wave_v0`.
+- Verified the PR5 acceptance matrix:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke -q` -> passed
+
 - Started PR 3 correctness-wrapper implementation in RL.
 - Added `jpype1>=1.6.0` to the RL baseline dependencies so the embedded JVM bridge is part of the normal repo bootstrap path.
 - Corrected the frozen sim artifact assumption from a single fixed path to the verified distribution glob:

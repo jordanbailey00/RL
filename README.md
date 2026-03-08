@@ -89,3 +89,24 @@ The RL repo should lean on PufferLib rather than reimplementing surfaces it alre
 - specifically reuse `pufferlib.pufferl.PuffeRL`, `pufferlib.pufferl.WandbLogger`, `pufferlib.vector.make`, and `pufferlib.emulation` unless the sim contract forces a documented wrapper at the RL boundary
 
 Anything simulator-semantic, replay-semantic, or parity-semantic still stays in the sim/oracle boundary and must not be recreated in Python.
+
+## PR5 Smoke Path
+
+PR5 now provides the first end-to-end PufferLib smoke path on top of the correctness wrapper:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/train.py --output /tmp/fc_train.json
+uv run python scripts/eval.py --checkpoint "$(python - <<'PY'\nimport json\nprint(json.load(open('/tmp/fc_train.json'))['checkpoint_path'])\nPY)" --output /tmp/fc_eval.json
+uv run pytest fight_caves_rl/tests/smoke -q
+```
+
+Current PR5 constraints:
+
+- the smoke trainer path is single-env only on Mode A
+- PR5 keeps the raw sim semantics and uses a documented RL-local policy encoding:
+  - `puffer_policy_observation_v0`
+  - `puffer_policy_action_v0`
+- PR5 uses a repo-local single-env vecenv shim instead of `pufferlib.vector.Serial` because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
+- true batched/vector training remains PR8 scope

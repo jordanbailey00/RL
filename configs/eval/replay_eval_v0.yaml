@@ -1,0 +1,4 @@
+config_id: replay_eval_v0
+seed_pack: bootstrap_smoke
+policy_mode: greedy
+max_steps: 64

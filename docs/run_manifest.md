@@ -39,6 +39,11 @@ PR 2 freezes the next required manifest identities in the RL registry:
 
 These are defined in `fight_caves_rl/envs/schema.py`.
 
+PR5 adds the first RL-local policy-input identities that later manifests and checkpoint sidecars must also record:
+
+- policy observation schema id/version
+- policy action schema id/version
+
 The full run manifest implementation later must also record:
 
 - sim artifact task/path
@@ -46,5 +51,6 @@ The full run manifest implementation later must also record:
 - RL commit SHA
 - reward config id
 - curriculum config id
+- checkpoint format id/version
 - replay/logging/dashboard modes
 - benchmark hardware profile

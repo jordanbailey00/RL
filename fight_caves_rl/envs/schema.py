@@ -261,3 +261,15 @@ OFFICIAL_BENCHMARK_PROFILE = BenchmarkProfileContract(
         "env_count",
     ),
 )
+
+PUFFER_POLICY_OBSERVATION_SCHEMA = VersionedContract(
+    contract_id="puffer_policy_observation_v0",
+    version=0,
+    compatibility_policy="replace_on_layout_change",
+)
+
+PUFFER_POLICY_ACTION_SCHEMA = VersionedContract(
+    contract_id="puffer_policy_action_v0",
+    version=0,
+    compatibility_policy="replace_on_layout_change",
+)

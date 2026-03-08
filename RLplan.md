@@ -528,6 +528,8 @@ Downstream alignment notes after PR4:
 
 - PR5 should consume the versioned seed-pack and per-tick trace-pack registries from `fight_caves_rl/replay` rather than inventing trainer-local copies.
 - PR5 scripted/eval smoke should keep using subprocess-isolated live helpers whenever a test needs a fresh embedded runtime, instead of adding more direct multi-bootstrap pytest-process coverage.
+- PR6 run manifests and W&B metadata should include the PR5 policy-input schema ids/versions in addition to the sim-side schema ids/versions.
+- PR8 must replace the PR5 single-env Mode A vecenv shim with a true batched/vector backend; the shim exists only because `pufferlib.vector.Serial` double-constructs envs and conflicts with the embedded-JVM runtime lifecycle.
 - PR6+ manifests and analytics should record semantic-digest pack ids/versions, not raw absolute instance-sensitive reset payloads, when summarizing determinism/parity outputs.
 
 ### PR 5 - PufferLib Smoke Integration
@@ -543,14 +545,17 @@ Expected files/directories:
 - `/home/jordan/code/RL/fight_caves_rl/puffer/callbacks.py`
 - `/home/jordan/code/RL/fight_caves_rl/policies/mlp.py`
 - `/home/jordan/code/RL/fight_caves_rl/policies/checkpointing.py`
+- `/home/jordan/code/RL/fight_caves_rl/envs/puffer_encoding.py`
 - `/home/jordan/code/RL/configs/train/smoke_ppo_v0.yaml`
 - `/home/jordan/code/RL/configs/eval/replay_eval_v0.yaml`
 - `/home/jordan/code/RL/scripts/train.py`
 - `/home/jordan/code/RL/scripts/eval.py`
 - `/home/jordan/code/RL/scripts/smoke_scripted.py`
+- `/home/jordan/code/RL/fight_caves_rl/tests/smoke/_helpers.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py`
 - `/home/jordan/code/RL/fight_caves_rl/tests/smoke/test_eval_loop_smoke.py`
+- `/home/jordan/code/RL/fight_caves_rl/tests/smoke/test_scripted_baseline_smoke.py`
 
 Dependencies:
 
@@ -577,6 +582,15 @@ Risks / likely failure modes:
 - Early policy wiring depending on wrapper-only behavior that will not survive batching.
 - PufferLib API mismatches at the pinned version.
 - Checkpoint metadata missing schema/version information.
+
+Status:
+
+- [x] Added the PR5 policy-input encoding registry and documented `puffer_policy_observation_v0` / `puffer_policy_action_v0`.
+- [x] Reused `pufferlib.pufferl.PuffeRL` for the first trainer loop instead of building a parallel trainer stack.
+- [x] Added a single-env Mode A vecenv shim because the stock `pufferlib.vector.Serial` backend double-constructs envs and conflicts with the embedded-JVM runtime lifecycle.
+- [x] Added checkpoint sidecars with schema/version metadata.
+- [x] Added train/eval/scripted entrypoints plus smoke coverage.
+- [x] Re-ran unit, integration, determinism, parity, and smoke suites after PR5 landed.
 
 ### PR 6 - W&B Integration and Run Manifests
 
@@ -1141,29 +1155,35 @@ Mandatory benchmark breakdowns across the stages:
    - The current sim repo already exposes runtime reset/action/observe APIs and a batch stepping helper, but the exact multi-episode interface needed by RL may require explicit sim-side support. Any such dependency must be tracked as an external prerequisite on the sim repo, not hidden inside RL.
 
 7. Action-space encoding
-   - Partially resolved in PR 2.
+   - Resolved for the PR5 smoke baseline.
    - `docs/action_mapping.md` now freezes the sim-aligned action ids, parameters, and rejection reasons.
-   - The final PufferLib/Gymnasium space encoding still needs implementation in PR 3/PR 5, but it must stay inside the PR 2 contract.
+   - PR5 now freezes the first RL-local policy-action encoding as `puffer_policy_action_v0`.
+   - Production hot-path/vector action transport remains open for PR8 and must version-bump the RL-local policy-action schema if the head layout changes.
 
-8. Reward shaping details
+8. Observation-space encoding
+   - Resolved for the PR5 smoke baseline.
+   - PR5 now freezes the first RL-local policy-observation encoding as `puffer_policy_observation_v0`, including the current categorical dictionaries and `max_visible_npcs = 8`.
+   - Production hot-path/vector observation transport remains open for PR8 and must version-bump the RL-local policy-observation schema if the layout changes.
+
+9. Reward shaping details
    - `reward_sparse_v0` and `reward_shaped_v0` are required, but the exact shaped terms, coefficients, and default curriculum behavior are not fully specified. These need to be explicitly documented before training comparisons begin.
 
-9. Seed/trace/parity pack ownership
+10. Seed/trace/parity pack ownership
    - The source, storage location, and versioning policy for seed packs, trace packs, and oracle-reference parity packs must be nailed down so RL does not invent its own drifting copies.
 
-10. W&B operational settings
+11. W&B operational settings
    - Project name, entity/team, artifact retention policy, and default online/offline behavior are operational details that should be fixed before PR 6 lands.
 
-11. Official benchmark hardware/profile
+12. Official benchmark hardware/profile
    - Partially resolved in PR 2.
    - Benchmark profile v0 is now frozen in RL config/docs.
    - If a permanent benchmark host is not yet selected, benchmark manifests must still record the exact machine profile so `>= 1,000,000 env steps/sec` claims remain comparable and auditable.
 
-12. WSL toolchain baseline
+13. WSL toolchain baseline
    - `scripts/bootstrap_wsl_toolchain.sh` remains available for legacy source-build comparisons and future native dependencies, but it is no longer required for the standard RL train-group bootstrap after the move to `pufferlib-core==3.0.17`.
    - If a future RL dependency reintroduces source builds, re-evaluate whether the workspace-local sysroot remains the right fallback path for this workspace.
 
-13. Permanent PufferLib package choice (resolved 2026-03-08)
+14. Permanent PufferLib package choice (resolved 2026-03-08)
    - RL now standardizes on `pufferlib-core==3.0.17` as the baseline distribution, imported as `pufferlib`.
    - Decision basis: wheel-backed install path, required RL-facing surfaces present, compiled `_C` available, no import-time `resources` symlink side effect, and a materially smaller dependency footprint than `pufferlib==3.0.0`.
    - Known upstream drift to carry forward:
@@ -1171,7 +1191,7 @@ Mandatory benchmark breakdowns across the stages:
      - the installed `pufferlib-core==3.0.17` distribution currently imports with `pufferlib.__version__ == "3.0.3"`
      - RL manifests must therefore capture distribution metadata instead of trusting the imported version string
 
-14. RL Git/repo initialization (resolved 2026-03-07)
+15. RL Git/repo initialization (resolved 2026-03-07)
    - `/home/jordan/code/RL` is now a Git-backed repository in this workspace.
    - The canonical RL remote is `git@github.com:jordanbailey00/RL.git`.
    - RL branch cleanliness and push workflows are now available; later manifest code still needs to record the RL commit SHA at runtime.

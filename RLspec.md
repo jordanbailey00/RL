@@ -578,6 +578,11 @@ Required capabilities:
 - deterministic seeding policy across vectorized env slots
 - worker-aware env indexing
 
+PR5 implementation note:
+- the correctness/smoke path may use a single-env compatibility shim if an upstream vecenv backend constructs the Mode A env more than once during bootstrap
+- this does not satisfy the final production vector path
+- PR8 must replace any such shim with a true batched/vector backend
+
 ### 8.4 Policy contract
 
 Policies are normal PyTorch modules.
@@ -689,6 +694,16 @@ If RL-local derived features are introduced, they must:
 
 Debug-only extra fields may be supported, but they must not contaminate the production policy input pipeline by accident.
 
+### 10.5 PR5 policy-observation baseline
+
+PR5 freezes the first RL-local policy input schema as `puffer_policy_observation_v0`.
+
+Requirements:
+- raw simulator observations must still be validated against `headless_observation_v1` before encoding
+- the policy-input layout must be explicitly documented
+- any cap or categorical dictionary used by the policy-input encoding must be versioned
+- later production encodings may replace this baseline only via a schema/version bump
+
 ---
 
 ## 11) Action Mapping Contract
@@ -714,6 +729,15 @@ If added later:
 - masks must be versioned
 - masks must be advisory only
 - invalid actions must still be handled correctly by the environment path
+
+### 11.4 PR5 policy-action baseline
+
+PR5 freezes the first RL-local action encoding as `puffer_policy_action_v0`.
+
+Requirements:
+- the RL-local encoding must decode back into the frozen sim action contract without renumbering or repurposing action ids
+- inactive parameter heads must be ignored rather than overloaded with alternate semantics
+- later production encodings may replace this baseline only via a schema/version bump
 
 ---
 
@@ -1172,6 +1196,7 @@ Exit criteria:
 
 Required action items:
 1. Construct basic vecenv integration.
+   - A single-env shim is acceptable for PR5 if the stock vecenv bootstrap pattern conflicts with the current Mode A runtime lifecycle.
 2. Build minimal policy and trainer wiring.
 3. Add train/eval entrypoints.
 4. Save checkpoints.
