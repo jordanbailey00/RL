@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import json
+import os
 from pathlib import Path
+import sys
 from typing import Any
 
 import numpy as np
@@ -36,6 +38,19 @@ from fight_caves_rl.replay.trace_packs import project_observation_for_determinis
 from fight_caves_rl.utils.config import load_bootstrap_config
 
 
+class ConfigurablePuffeRL(pufferlib.pufferl.PuffeRL):
+    """Thin PuffeRL wrapper that keeps dashboard rendering opt-in and TTY-bound."""
+
+    def __init__(self, *args: Any, dashboard_enabled: bool = True, **kwargs: Any) -> None:
+        self._dashboard_enabled = bool(dashboard_enabled)
+        super().__init__(*args, **kwargs)
+
+    def print_dashboard(self, *args: Any, **kwargs: Any) -> None:
+        if not self._dashboard_enabled:
+            return
+        super().print_dashboard(*args, **kwargs)
+
+
 @dataclass(frozen=True)
 class TrainRunResult:
     config_id: str
@@ -52,52 +67,103 @@ class TrainRunResult:
         return asdict(self)
 
 
+def should_enable_dashboard(
+    config: dict[str, Any],
+    *,
+    stdout_isatty: bool | None = None,
+    stderr_isatty: bool | None = None,
+) -> bool:
+    requested = bool(dict(config.get("logging", {})).get("dashboard", False))
+    if not requested:
+        return False
+    if stdout_isatty is None:
+        stdout_isatty = sys.stdout.isatty()
+    if stderr_isatty is None:
+        stderr_isatty = sys.stderr.isatty()
+    return bool(stdout_isatty and stderr_isatty)
+
+
+def trace_stage(stage: str) -> None:
+    trace_dir = os.environ.get("FC_RL_TRACE_DIR")
+    if not trace_dir:
+        return
+    path = Path(trace_dir).expanduser().resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    trace_path = path / f"train-{os.getpid()}.trace"
+    with trace_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{stage}\n")
+
+
 def run_smoke_training(
     *,
     config_path: str | Path | None = None,
     total_timesteps: int | None = None,
     data_dir: str | Path | None = None,
 ) -> TrainRunResult:
+    trace_stage("run_smoke_training:start")
     bootstrap_config = load_bootstrap_config()
+    trace_stage("run_smoke_training:bootstrap_config_loaded")
     config = load_smoke_train_config(config_path)
+    trace_stage("run_smoke_training:config_loaded")
     output_dir = build_train_output_dir(data_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    trace_stage("run_smoke_training:before_make_vecenv")
     vecenv = make_vecenv(config)
+    trace_stage("run_smoke_training:vecenv_ready")
     policy = MultiDiscreteMLPPolicy.from_spaces(
         vecenv.single_observation_space,
         vecenv.single_action_space,
         hidden_size=int(config["policy"]["hidden_size"]),
     )
+    trace_stage("run_smoke_training:policy_ready")
     puffer_train_config = build_puffer_train_config(
         config,
         data_dir=output_dir,
         total_timesteps=total_timesteps,
     )
+    dashboard_enabled = should_enable_dashboard(config)
+    trace_stage(f"run_smoke_training:dashboard_enabled={int(dashboard_enabled)}")
     logger = WandbRunLogger(
         config=bootstrap_config,
         run_kind="train",
         config_id=str(config["config_id"]),
         tags=(str(config["config_id"]), "smoke-train"),
     )
-    trainer = pufferlib.pufferl.PuffeRL(puffer_train_config, vecenv, policy, logger)
+    trace_stage("run_smoke_training:logger_ready")
+    trainer = ConfigurablePuffeRL(
+        puffer_train_config,
+        vecenv,
+        policy,
+        logger,
+        dashboard_enabled=dashboard_enabled,
+    )
+    trace_stage("run_smoke_training:trainer_ready")
 
     try:
         while trainer.global_step < puffer_train_config["total_timesteps"]:
+            trace_stage(f"run_smoke_training:loop_eval:{trainer.global_step}")
             trainer.evaluate()
+            trace_stage(f"run_smoke_training:loop_train:{trainer.global_step}")
             trainer.train()
 
+        trace_stage("run_smoke_training:final_eval")
         trainer.evaluate()
+        trace_stage("run_smoke_training:mean_and_log")
         trainer.mean_and_log()
+        trace_stage("run_smoke_training:close")
         checkpoint_path = Path(trainer.close())
+        trace_stage("run_smoke_training:closed")
         trainer.logger.close(str(checkpoint_path))
     finally:
         if hasattr(trainer, "vecenv"):
             try:
+                trace_stage("run_smoke_training:vecenv_close")
                 trainer.vecenv.close()
             except Exception:
                 pass
 
+    trace_stage("run_smoke_training:metadata")
     metadata = build_checkpoint_metadata(
         train_config_id=str(config["config_id"]),
         policy_id=str(config["policy"]["id"]),
@@ -129,7 +195,7 @@ def run_smoke_training(
         curriculum_config_id=str(config["curriculum_config"]),
         policy_id=str(config["policy"]["id"]),
         env_count=int(config["num_envs"]),
-        dashboard_enabled=bool(config["logging"]["dashboard"]),
+        dashboard_enabled=dashboard_enabled,
         wandb_tags=logger.effective_tags,
         checkpoint_metadata=metadata,
         checkpoint_path=checkpoint_path,
@@ -137,6 +203,7 @@ def run_smoke_training(
         artifacts=(checkpoint_record, checkpoint_metadata_record, manifest_record),
     )
     write_run_manifest(manifest_path, manifest)
+    trace_stage("run_smoke_training:manifest_written")
     logger.update_config(manifest.to_dict())
     logger.close(str(checkpoint_path))
     logger.log_artifact(
@@ -164,8 +231,11 @@ def run_smoke_training(
             "artifact_category": "run_manifest",
         },
     )
+    trace_stage("run_smoke_training:artifacts_logged")
     logger.finish()
+    trace_stage("run_smoke_training:logger_finished")
     puffer_logs = [record.payload for record in logger.records]
+    trace_stage("run_smoke_training:return")
     return TrainRunResult(
         config_id=str(config["config_id"]),
         checkpoint_path=str(checkpoint_path),

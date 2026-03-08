@@ -109,6 +109,7 @@ Current PR5 constraints:
   - `puffer_policy_observation_v0`
   - `puffer_policy_action_v0`
 - PR5 uses a repo-local single-env vecenv shim instead of `pufferlib.vector.Serial` because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
+- local dashboard rendering is TTY-aware; smoke and CI subprocesses suppress terminal painting automatically while still preserving the manifest/logging contract
 - true batched/vector training remains PR8 scope
 
 ## PR6 Run Logging

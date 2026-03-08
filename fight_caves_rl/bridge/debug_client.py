@@ -32,6 +32,9 @@ class _JVMContext:
 
 
 _JVM_CONTEXT: _JVMContext | None = None
+QUIET_LOGBACK_CONFIG = (
+    Path(__file__).resolve().parents[2] / "configs" / "logging" / "headless_quiet_logback.xml"
+)
 
 
 class HeadlessDebugClient:
@@ -337,6 +340,7 @@ def _ensure_jvm(headless_jar: Path, launch_cwd: Path) -> dict[str, Any]:
     if not jpype.isJVMStarted():
         jpype.startJVM(
             f"-Duser.dir={launch_cwd.resolve()}",
+            f"-Dlogback.configurationFile={QUIET_LOGBACK_CONFIG.resolve()}",
             classpath=[str(headless_jar.resolve())],
         )
 

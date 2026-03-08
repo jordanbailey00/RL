@@ -30,6 +30,7 @@ def run_script(
     *args: str,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
+    timeout_seconds: float = 120.0,
 ) -> subprocess.CompletedProcess[str]:
     root = repo_root()
     allowed_keys = {
@@ -50,7 +51,7 @@ def run_script(
     process_env = {
         key: value
         for key, value in os.environ.items()
-        if key in allowed_keys or key.startswith("XDG_")
+        if key in allowed_keys or key.startswith("XDG_") or key.startswith("FC_RL_")
     }
     process_env.setdefault("HOME", str(Path.home()))
     process_env.setdefault("LANG", "C.UTF-8")
@@ -59,23 +60,35 @@ def run_script(
         process_env.update(env)
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout_file:
         with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file:
-            result = subprocess.run(
-                [sys.executable, str(root / "scripts" / script_name), *args],
-                cwd=str(cwd or root),
-                env=process_env,
-                stdin=subprocess.DEVNULL,
-                stdout=stdout_file,
-                stderr=stderr_file,
-                text=True,
-                check=False,
-            )
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(root / "scripts" / script_name), *args],
+                    cwd=str(cwd or root),
+                    env=process_env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout_file,
+                    stderr=stderr_file,
+                    text=True,
+                    check=False,
+                    timeout=timeout_seconds,
+                )
+                returncode = result.returncode
+                command = result.args
+            except subprocess.TimeoutExpired as exc:
+                returncode = 124
+                command = exc.cmd
             stdout_file.seek(0)
             stderr_file.seek(0)
+            stderr = stderr_file.read()
+            if returncode == 124:
+                stderr = (
+                    f"{stderr}\nSubprocess timed out after {float(timeout_seconds):.1f}s.\n"
+                ).lstrip()
             return subprocess.CompletedProcess(
-                args=result.args,
-                returncode=result.returncode,
+                args=command,
+                returncode=returncode,
                 stdout=stdout_file.read(),
-                stderr=stderr_file.read(),
+                stderr=stderr,
             )
 
 

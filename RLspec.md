@@ -980,6 +980,7 @@ The RL repo must support local terminal monitoring using the PufferLib trainer d
 
 Rules:
 - local dashboard output must be optional/config-driven
+- local dashboard output must degrade to a no-op in non-interactive subprocess and CI contexts even when config requests it
 - dashboard printing must not become a hot-path bottleneck
 - dashboard summaries must align with W&B metrics as closely as practical
 

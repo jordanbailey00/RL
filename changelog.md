@@ -38,7 +38,16 @@
   - `uv run pytest fight_caves_rl/tests/unit/test_contract_version_registry.py fight_caves_rl/tests/unit/test_config_loader.py fight_caves_rl/tests/unit/test_run_manifest_basics.py -q` -> passed
 - Discovered one remaining verification gap:
   - a monolithic aggregate pytest run across unit/integration/determinism/parity/smoke/performance stalled in the existing PR6 manifest smoke
-  - targeted PR6 and PR7 suites passed independently, so the current unresolved issue is in aggregate-suite stability, not in the new PR7 bridge code path
+  - targeted PR6 and PR7 suites passed independently, so the current unresolved issue was in aggregate-suite stability rather than in the PR7 bridge code path
+- Resolved the aggregate-suite subprocess stall in follow-up work:
+  - added `ConfigurablePuffeRL` plus `should_enable_dashboard(...)` so RL only renders the local dashboard when the config requests it and stdout/stderr are attached to an interactive TTY
+  - added `configs/logging/headless_quiet_logback.xml` and now launch the embedded JVM with `-Dlogback.configurationFile=...` so headless smoke/train/eval subprocesses do not leak Java/logback console output past Python capture
+  - added a default timeout to `fight_caves_rl/tests/smoke/_helpers.py::run_script(...)` so future subprocess hangs fail fast instead of stalling the suite indefinitely
+  - added `FC_RL_TRACE_DIR` child-process tracing plus `fight_caves_rl/tests/unit/test_trainer_dashboard_control.py`
+- Re-verified the previously bad PR6 pair after the fix:
+  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py -q` -> passed
+- Re-verified the full current RL sweep after the fix:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q` -> passed
 
 - Started and completed PR 6 W&B integration and run-manifest wiring in RL.
 - Added the PR6 logging package:

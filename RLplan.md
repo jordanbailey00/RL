@@ -668,6 +668,11 @@ Status:
   - run child scripts with `stdin=DEVNULL`
   - use a hermetic allowlisted child environment instead of inheriting the full pytest process environment
   - give smoke tests per-test offline W&B directories instead of sharing repo-global W&B state
+- [x] Resolved the aggregate subprocess pytest stall discovered after PR7 by:
+  - making local PufferLib dashboard rendering TTY-aware instead of implicitly always-on inside `PuffeRL`
+  - forcing the embedded JVM onto a repo-owned quiet `logback` config so headless smoke runs do not leak JVM console output past Python capture
+  - adding a default timeout to `run_script(...)` so future subprocess hangs fail fast instead of stalling the suite indefinitely
+  - adding an `FC_RL_TRACE_DIR` pass-through/debug hook so child train subprocess stage traces can be captured when a future hang needs to be localized
 - [x] Verified the PR6-targeted suite:
   - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q`
 - [x] Re-verified the full current RL suite after the PR6 harness fixes:
@@ -677,6 +682,7 @@ Carry-forward notes:
 
 - Future train/eval/benchmark subprocess tests should reuse the PR6 hermetic subprocess helpers instead of inheriting repo-global W&B state or the parent pytest environment.
 - PR7+ benchmark work should continue to isolate W&B overhead explicitly; the PR6 logger settings remove console/system-monitor noise but are not a throughput optimization strategy on their own.
+- Local dashboard printing must remain config-driven and TTY-aware; future trainer refactors should not reintroduce unconditional `PuffeRL` console painting into smoke or CI subprocesses.
 
 ### PR 7 - Batched Bridge
 
@@ -759,7 +765,7 @@ Status:
 Carry-forward notes:
 
 - The current PR7 batch bridge is transport-agnostic but not yet the final lower-copy subprocess/shared-buffer transport originally sketched in PR2 docs; PR8/later performance work can preserve the PR7 protocol while replacing the transport.
-- A repo-wide aggregate pytest run was re-attempted after PR7, but the monolithic combined run stalled in the existing PR6 manifest smoke even though the targeted PR6 and PR7 suites passed independently. Keep targeted suite verification explicit until that aggregate flake is isolated.
+- The old aggregate-suite PR6 subprocess stall is resolved. The RL harness now uses TTY-aware dashboard gating, quiet embedded-JVM logging, and subprocess timeouts, and the repo-wide aggregate pytest sweep is part of normal verification again.
 
 ### PR 8 - Vectorized PufferLib Backend
 
@@ -1194,6 +1200,7 @@ Mandatory benchmark breakdowns across the stages:
 
 5. PufferLib dashboard alignment
    - Local dashboard printing should be optional and config-driven.
+   - Dashboard rendering should only activate when an interactive terminal is actually available.
    - Dashboard summaries should mirror the W&B metric families closely enough that local and remote monitoring agree.
    - Dashboard output must not become a hot-path bottleneck.
 
