@@ -93,6 +93,8 @@ PARITY_JAD_HEALER_TRACE_PACK = TracePack(
     ),
     description="Per-tick RL env expansion of the sim parity harness Jad healer trace.",
     source_ref="fight-caves-RL parityJadHealerTrace expanded from replay ticks to per-tick RL env actions",
+    expected_semantic_digest="0b926e8d1732513962acec51c1104c99448bd85bf56c4c863699dfc87686ae24",
+    expected_final_relative_tick=12,
 )
 
 PARITY_TZKEK_SPLIT_TRACE_PACK = TracePack(
@@ -110,6 +112,8 @@ PARITY_TZKEK_SPLIT_TRACE_PACK = TracePack(
     ),
     description="Per-tick RL env expansion of the sim parity harness Tz-Kek split trace.",
     source_ref="fight-caves-RL parityTzKekSplitTrace expanded from replay ticks to per-tick RL env actions",
+    expected_semantic_digest="7dcbeba60700a3e8f1003968c33b217d9df5f5dfe47483454c5391debbe19867",
+    expected_final_relative_tick=14,
 )
 
 

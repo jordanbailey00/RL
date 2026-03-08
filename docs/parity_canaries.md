@@ -1,45 +1,58 @@
 # parity_canaries.md
 
-This document freezes the PR4 thin parity-canary layer.
+This document freezes the PR12 expanded parity-canary layer.
 
 ## Purpose
 
-PR4 parity canaries are early smoke checks that ensure the RL wrapper/bridge path does not introduce semantic drift before training complexity is added.
+PR12 parity canaries are the repo-owned oracle-reference validation layer for fixed trace/seed packs.
 
-They are intentionally thin:
+They are intentionally:
 
 - versioned
-- fast enough to run in normal PR validation
-- tied back to known sim parity scenarios where possible
+- inspectable
+- tied back to known sim parity scenarios from `/home/jordan/code/fight-caves-RL`
+- separate from the production training hot path
 
-## Current Canary Inputs
+## Current Entry Point
 
-The first RL canaries are sourced from the sim parity harness scenarios in `/home/jordan/code/fight-caves-RL`:
+Current PR12 entry surfaces:
 
-- single-wave trace
-- Jad healer trace
-- Tz-Kek split trace
+- config: `configs/eval/parity_canary_v0.yaml`
+- runner: `scripts/run_parity_canary.py`
+- seed pack: `parity_reference_v0`
 
-In RL, those traces are expanded from replay-style `ticksAfter` steps into per-tick env actions.
+The current config expands the parity matrix across:
 
-## Current Comparison Mode
+- `parity_single_wave_v0` with seed `11001`
+- `parity_jad_healer_v0` with seed `33003`
+- `parity_tzkek_split_v0` with seed `44004`
 
-The current canary comparison mode is `semantic_digest`.
+Each trace pack remains a per-tick RL expansion of the sim-side replay-style parity traces.
 
-That digest is computed from:
+## Current Comparison Surfaces
 
-- semantic initial observation
-- per-step action sequence
-- per-step semantic observations
-- action results
-- semantic visible-target payloads
-- terminal/truncation labels currently available through the PR3 surface
+Each parity scenario currently compares three RL-facing surfaces:
 
-It intentionally ignores allocator-specific fields such as dynamic instance ids and absolute instance-shifted tiles.
+- wrapper trace via `scripts/collect_trajectory_trace.py --mode wrapper`
+- raw sim trace via `scripts/collect_trajectory_trace.py --mode raw`
+- trace-pack-driven scripted replay path via `scripts/smoke_scripted.py`
+
+The configured comparison mode remains `semantic_digest`, but the PR12 runner also checks:
+
+- semantic episode-state agreement
+- semantic initial-observation agreement
+- per-step action agreement
+- per-step semantic-observation agreement
+- per-step action-result agreement
+- per-step semantic visible-target agreement
+- final relative tick agreement
+- completed-all-steps agreement
+
+The semantic digest intentionally ignores allocator-specific fields such as dynamic instance ids and absolute instance-shifted tiles.
 
 ## Process Model
 
-Fresh-runtime wrapper-vs-raw comparisons must run in separate Python processes.
+Fresh-runtime parity comparisons must run in separate Python processes.
 
 Reasons:
 
@@ -47,7 +60,17 @@ Reasons:
 - multiple bootstraps in one Python process are not a valid fresh-runtime comparison path
 - multiple player slots in one runtime do not guarantee identical absolute reset state
 
-## Current Limitation
+## Oracle Boundary
+
+The trace packs and seed pack are sourced from sim-side parity scenarios and remain the reference inputs for RL-side drift checks.
+
+`RSPS` remains an oracle/reference module for parity disputes and headed debugging, but PR12 does not pull `RSPS` into the RL runtime hot path.
+
+## Current Limitations
+
+The PR12 "replay-to-trace equivalence" path refers to the trace-pack-driven scripted replay path from `scripts/smoke_scripted.py`, not the checkpoint replay-eval path from `scripts/replay_eval.py`.
+
+Checkpoint replay determinism remains covered by the PR10 replay artifact contract and the determinism suite.
 
 The Mode A surface still does not expose a dedicated simulator terminal-reason envelope.
 

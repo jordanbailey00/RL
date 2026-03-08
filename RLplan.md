@@ -273,30 +273,33 @@ Newly discovered follow-up now queued into PR 2:
 
 Immediate next chunk to resume:
 
-1. Start PR 12 and expand the RL-side parity canaries on top of the now-live PR11 benchmark and replay stack.
-2. Keep the PR7/PR8/PR10/PR11 runtime contracts stable while parity-oracle work lands:
+1. Start PR 13 and execute the MVP acceptance gate on top of the now-live PR12 parity/oracle validation layer.
+2. Keep the PR7/PR8/PR10/PR11/PR12 runtime contracts stable while the acceptance pass runs:
    - `fight_caves_bridge_v1`
    - deterministic slot seeding
    - `puffer_policy_observation_v0`
    - `puffer_policy_action_v0`
    - replay artifact ids and seed-pack/trace-pack registries
    - benchmark-context metadata attached to repo-owned benchmark reports
-3. Preserve the official benchmark profile v0 path and the current benchmark entrypoints while parity/export surfaces are extended:
+   - parity canary scenario matrix in `configs/eval/parity_canary_v0.yaml`
+3. Preserve the official benchmark profile v0 path and the current benchmark entrypoints while acceptance work runs:
    - `scripts/benchmark_bridge.py`
    - `scripts/benchmark_env.py`
    - `scripts/benchmark_train.py`
+   - `scripts/run_parity_canary.py`
 4. Carry forward the resolved subprocess-stability guardrails:
    - TTY-aware dashboard rendering
    - quiet embedded-JVM logging
    - subprocess timeouts and child trace hooks for future diagnostics
    - subprocess-isolated vecenv/env-benchmark coverage for fresh embedded-JVM bring-up
    - fresh child `train.py` processes per logging-mode benchmark measurement
+   - subprocess-isolated parity and scripted-trace checks for fresh embedded-JVM bring-up
 
 Stopping condition for the current stop point:
 
-- RL has a clean pushed `main` branch with PR11 merged and the performance hardening path verified.
-- RL docs and changelog reflect the current verified state and the next PR12 resume point.
-- The workspace is ready to begin expanded parity/oracle validation work without reopening PR7/PR8/PR10/PR11 stability issues.
+- RL has a clean pushed `main` branch with PR12 merged and the parity/oracle validation layer verified.
+- RL docs and changelog reflect the current verified state and the next PR13 resume point.
+- The workspace is ready to begin the MVP acceptance gate without reopening PR7/PR8/PR10/PR11/PR12 stability issues.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -1053,7 +1056,7 @@ PR 11 execution status (2026-03-08):
 
 Goal:
 
-- Expand the earlier RL-side parity canaries into a broader oracle-reference validation layer that proves the wrapper, replay path, and eval path are not introducing semantic drift relative to the sim and oracle.
+- Expand the earlier RL-side parity canaries into a broader oracle-reference validation layer that proves the wrapper and trace-pack-driven scripted replay path are not introducing semantic drift relative to the sim reference packs, while reusing the existing PR10 replay determinism contract.
 
 Expected files/directories:
 
@@ -1087,6 +1090,22 @@ Risks / likely failure modes:
 - Canary packs drifting from the actual sim/oracle validation packs.
 - Debug-only wrapper features contaminating parity mode.
 - Treating infrastructure failures as episode outcomes in parity runs.
+
+PR 12 execution status (2026-03-08):
+
+- [x] Added the config-driven parity runner in `fight_caves_rl/replay/parity_canaries.py`.
+- [x] Added `scripts/run_parity_canary.py` as the repo-owned PR12 parity entrypoint.
+- [x] Expanded `configs/eval/parity_canary_v0.yaml` from a single-scenario config into the current three-scenario matrix:
+  - `parity_single_wave_v0`
+  - `parity_jad_healer_v0`
+  - `parity_tzkek_split_v0`
+- [x] Locked sim-backed semantic digests and final relative ticks for the Jad healer and Tz-Kek split trace packs in `fight_caves_rl/replay/trace_packs.py`.
+- [x] Expanded `fight_caves_rl/tests/parity/test_parity_canary_smoke.py` to validate the full parity matrix output.
+- [x] Expanded `fight_caves_rl/tests/parity/test_replay_to_trace_equivalence_smoke.py` to validate scripted trace-pack replay equivalence against the wrapper trace for the same matrix.
+- [x] Kept `RSPS` out of the RL runtime hot path; PR12 still uses sim-sourced seed/trace packs only.
+- [x] Re-verified:
+  - `uv run python scripts/run_parity_canary.py --config configs/eval/parity_canary_v0.yaml --output /tmp/parity_canary_report.json`
+  - `uv run pytest fight_caves_rl/tests/parity -q`
 
 ### PR 13 - MVP Acceptance Gate
 

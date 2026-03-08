@@ -2,6 +2,27 @@
 
 ## 2026-03-08
 
+- Started and completed PR 12 parity/oracle validation work in RL.
+- Added the config-driven PR12 parity runner:
+  - `fight_caves_rl/replay/parity_canaries.py`
+  - `scripts/run_parity_canary.py`
+- Expanded the parity config surface:
+  - `configs/eval/parity_canary_v0.yaml` now defines the current three-scenario parity matrix over `parity_reference_v0`
+- Locked the additional sim-backed trace expectations in:
+  - `fight_caves_rl/replay/trace_packs.py`
+    - `parity_jad_healer_v0`
+    - `parity_tzkek_split_v0`
+- Expanded the PR12 parity suite:
+  - `fight_caves_rl/tests/parity/test_parity_canary_smoke.py`
+  - `fight_caves_rl/tests/parity/test_replay_to_trace_equivalence_smoke.py`
+- Standardized the PR12 parity comparison path:
+  - wrapper trace via `collect_trajectory_trace.py --mode wrapper`
+  - raw sim trace via `collect_trajectory_trace.py --mode raw`
+  - trace-pack-driven scripted replay path via `smoke_scripted.py`
+- Kept checkpoint replay-eval determinism on the existing PR10 contract; PR12 replay-to-trace equivalence refers specifically to the scripted trace-pack path.
+- Re-verified the PR12 acceptance set:
+  - `uv run python scripts/run_parity_canary.py --config configs/eval/parity_canary_v0.yaml --output /tmp/parity_canary_report.json`
+  - `uv run pytest fight_caves_rl/tests/parity -q` -> passed
 - Started and completed PR 11 performance hardening in RL.
 - Added the shared benchmark-context metadata surface:
   - `fight_caves_rl/benchmarks/common.py`

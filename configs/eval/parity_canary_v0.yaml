@@ -1,6 +1,15 @@
 config_id: parity_canary_v0
 seed_pack: parity_reference_v0
-trace_pack: parity_single_wave_v0
 comparison_mode: semantic_digest
+scenarios:
+  - scenario_id: parity_single_wave
+    trace_pack: parity_single_wave_v0
+    seed: 11001
+  - scenario_id: parity_jad_healer
+    trace_pack: parity_jad_healer_v0
+    seed: 33003
+  - scenario_id: parity_tzkek_split
+    trace_pack: parity_tzkek_split_v0
+    seed: 44004
 reward_config: reward_sparse_v0
 curriculum_config: curriculum_disabled_v0

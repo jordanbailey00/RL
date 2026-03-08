@@ -21,6 +21,14 @@ from fight_caves_rl.replay.replay_index import (
     build_replay_index,
     write_replay_index,
 )
+from fight_caves_rl.replay.parity_canaries import (
+    ParityCanaryConfig,
+    ParityCanaryReport,
+    ParityCanaryScenario,
+    ParityScenarioReport,
+    load_parity_canary_config,
+    run_parity_canary,
+)
 from fight_caves_rl.replay.trace_packs import (
     PARITY_JAD_HEALER_TRACE_PACK,
     PARITY_SINGLE_WAVE_TRACE_PACK,
@@ -39,9 +47,13 @@ from fight_caves_rl.replay.trace_packs import (
 
 __all__ = [
     "BOOTSTRAP_SMOKE_SEED_PACK",
+    "ParityCanaryConfig",
+    "ParityCanaryReport",
+    "ParityCanaryScenario",
     "PARITY_JAD_HEALER_TRACE_PACK",
     "PARITY_REFERENCE_SEED_PACK",
     "PARITY_SINGLE_WAVE_TRACE_PACK",
+    "ParityScenarioReport",
     "PARITY_TZKEK_SPLIT_TRACE_PACK",
     "REPLAY_INDEX_SCHEMA",
     "REPLAY_PACK_SCHEMA",
@@ -56,11 +68,13 @@ __all__ = [
     "build_replay_episode",
     "build_replay_index",
     "build_replay_pack",
+    "load_parity_canary_config",
     "project_episode_state_for_determinism",
     "project_observation_for_determinism",
     "project_visible_targets_for_determinism",
     "resolve_seed_pack",
     "resolve_trace_pack",
+    "run_parity_canary",
     "sample_replay_steps",
     "seed_pack_ids",
     "semantic_digest",

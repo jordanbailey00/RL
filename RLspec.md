@@ -1407,6 +1407,12 @@ Required tests:
 Exit criteria:
 - RL-side integration does not mask or introduce semantic drift.
 
+Current implementation note:
+- `configs/eval/parity_canary_v0.yaml` is now a versioned multi-scenario parity matrix over `parity_reference_v0`
+- `scripts/run_parity_canary.py` is the repo-owned parity entrypoint
+- each PR12 scenario compares wrapper trace, raw sim trace, and the trace-pack-driven scripted replay path in fresh subprocesses
+- checkpoint replay-eval determinism remains covered by the PR10 replay contract; PR12 replay-to-trace equivalence refers to the scripted trace-pack path
+
 ---
 
 ### Step 12 - MVP Acceptance Gate

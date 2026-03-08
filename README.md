@@ -276,3 +276,15 @@ Current PR11 facts:
 - train benchmark measurements run in fresh child `train.py` processes per logging mode
 - benchmark reports now carry shared benchmark-context metadata that records the benchmark profile, repo SHAs, sim artifact task/path, schema ids, reward/curriculum ids, PufferLib distribution/version, and hardware profile
 - `.github/workflows/benchmarks.yml` is the repo-owned manual benchmark workflow for a self-hosted Linux workspace runner
+
+## PR12 Parity and Oracle Validation
+
+PR12 expands the thin PR4 parity checks into a versioned multi-scenario parity matrix.
+
+Current PR12 facts:
+
+- `scripts/run_parity_canary.py` is the canonical parity entrypoint
+- `configs/eval/parity_canary_v0.yaml` now runs the current three-scenario matrix: `parity_single_wave_v0`, `parity_jad_healer_v0`, `parity_tzkek_split_v0`
+- each scenario compares wrapper trace, raw sim trace, and the trace-pack-driven scripted replay path in fresh subprocesses
+- parity reports are inspectable JSON outputs with per-scenario digests, final ticks, and pass/fail status
+- checkpoint replay-eval determinism still lives under the PR10 replay contract; PR12 replay-to-trace equivalence refers to the scripted trace-pack path, not checkpoint eval replay
