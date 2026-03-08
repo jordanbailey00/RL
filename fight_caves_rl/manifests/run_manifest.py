@@ -14,6 +14,7 @@ class BootstrapRunManifest:
     rsps_repo: str
     python_version: str
     python_baseline: str
+    pufferlib_distribution: str
     pufferlib_version: str
     wandb_project: str
     wandb_mode: str
@@ -30,6 +31,7 @@ def build_bootstrap_manifest(config: BootstrapConfig) -> BootstrapRunManifest:
         rsps_repo=str(Path(config.rsps_repo)),
         python_version=python_version(),
         python_baseline=config.python_baseline,
+        pufferlib_distribution=config.pufferlib_distribution,
         pufferlib_version=config.pufferlib_version,
         wandb_project=config.wandb_project,
         wandb_mode=config.wandb_mode,

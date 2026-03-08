@@ -25,8 +25,7 @@ dev = [
   "pytest-cov>=7.0.0",
 ]
 train = [
-  "ninja>=1.13.0",
-  "pufferlib==3.0.0",
+  "pufferlib-core==3.0.17",
   "torch>=2.8.0",
 ]
 

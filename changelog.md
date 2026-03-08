@@ -1,5 +1,46 @@
 # changelog.md
 
+## 2026-03-08
+
+- Verified current upstream package state for the RL baseline decision:
+  - `pufferlib` remains `3.0.0` on PyPI and is still the source-only package path
+  - `pufferlib-core` is available as `3.0.17` and is the current wheel-backed candidate path
+  - official upstream docs still recommend `pip install pufferlib`
+- Built an isolated Python `3.11` validation matrix for `pufferlib==3.0.0` and `pufferlib-core==3.0.17`.
+- Confirmed that `pufferlib-core==3.0.17` exposes the RL-facing surfaces required by the plan:
+  - `pufferlib.pufferl.PuffeRL`
+  - `pufferlib.pufferl.WandbLogger`
+  - `pufferlib.vector.make`
+  - `pufferlib.emulation`
+  - compiled `pufferlib._C`
+- Confirmed the key upstream drift that affects RL integration and reproducibility:
+  - the installed `pufferlib-core==3.0.17` distribution imports with `pufferlib.__version__ == "3.0.3"`
+  - `pufferlib==3.0.0` creates an import-time `resources` symlink in the current working directory
+  - `pufferlib-core==3.0.17` has a materially smaller dependency footprint than `pufferlib==3.0.0`
+- Adopted `pufferlib-core==3.0.17` as the RL baseline distribution and updated:
+  - `pyproject.toml`
+  - `uv.lock`
+  - `.env.example`
+  - `README.md`
+  - `RLspec.md`
+  - `RLplan.md`
+  - `docs/run_manifest.md`
+- Added `fight_caves_rl/manifests/versions.py` so baseline/runtime PufferLib distribution metadata can be resolved without trusting the imported version string.
+- Updated the bootstrap config and bootstrap manifest schema to record `pufferlib_distribution` alongside `pufferlib_version`.
+- Added unit coverage for the new version utility and updated bootstrap config/manifest tests to reflect the new baseline.
+- Updated CI so GitHub Actions now validates the train-group package path with a `pufferlib`/`torch`/`fight_caves_rl` import smoke job.
+- Re-ran the RL acceptance set after the baseline decision:
+  - `uv lock --python 3.11`
+  - `uv sync --group dev --python 3.11`
+  - `uv sync --group dev --group train --python 3.11`
+  - `uv run pytest fight_caves_rl/tests/unit`
+  - `uv run python -c \"import pufferlib, torch, fight_caves_rl\"`
+- Verified the current validated RL environment resolves:
+  - `pufferlib-core==3.0.17`
+  - `pufferlib.__version__ == "3.0.3"`
+  - `torch==2.10.0+cpu`
+  - no import-time `resources` symlink side effect in a clean temporary working directory
+
 ## 2026-03-07
 
 - Adopted canonical RL root filenames: `RLspec.md` and `RLplan.md`.

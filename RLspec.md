@@ -81,19 +81,25 @@ The RL repo must never duplicate core Fight Caves semantics that properly belong
 
 ### 2.1 PufferLib baseline
 
-The RL module must target **PufferLib 3.0.0** as the current baseline version.
+The RL module must target **`pufferlib-core==3.0.17`** as the current baseline distribution.
+At runtime, that distribution imports under the **`pufferlib`** namespace.
 
-Current project state as of 2026-03-07:
-- the live RL bootstrap in `/home/jordan/code/RL` is still pinned to `pufferlib==3.0.0`
-- a validated upstream replacement candidate now exists: `pufferlib-core==3.0.18`
-- that candidate ships wheels, preserves the `pufferlib` import namespace, and includes the required RL-facing surfaces currently planned for this repo
-- the next documented bootstrap-support chunk is to validate whether RL should standardize on `pufferlib-core` instead of the older source-only package
-- until that validation is completed and this spec is explicitly updated, `pufferlib==3.0.0` remains the formal baseline
+Current project state as of 2026-03-08:
+- the live RL bootstrap in `/home/jordan/code/RL` is pinned to `pufferlib-core==3.0.17`
+- that distribution ships wheels, preserves the `pufferlib` import namespace, and includes the required RL-facing surfaces currently planned for this repo:
+  - `pufferlib.pufferl.PuffeRL`
+  - `pufferlib.pufferl.WandbLogger`
+  - `pufferlib.vector.make`
+  - `pufferlib.emulation`
+  - compiled `pufferlib._C`
+- the older `pufferlib==3.0.0` package remains the legacy source-only reference path, but it is no longer the RL baseline because it drags Ocean/source-build overhead into standard installs and creates an import-time `resources` symlink in the current working directory
+- official upstream docs still recommend `pip install pufferlib`
+- the installed `pufferlib-core==3.0.17` distribution currently imports with `pufferlib.__version__ == "3.0.3"`, so RL manifests must record distribution metadata instead of trusting the imported version string
 
 Rules:
 - implementation may move to a newer PufferLib release only if the agent verifies the newer release and updates this spec + compatibility notes
-- the repo must pin a concrete PufferLib version in lockfiles
-- the repo must record the PufferLib version in every run manifest and W&B run config
+- the repo must pin a concrete PufferLib distribution and version in lockfiles
+- the repo must record the PufferLib distribution and version in every run manifest and W&B run config
 
 ### 2.2 Python baseline
 
@@ -111,7 +117,7 @@ The repo must use:
 ### 2.3 Core dependencies
 
 Required baseline dependencies:
-- `pufferlib`
+- `pufferlib-core` (runtime import namespace: `pufferlib`)
 - `torch`
 - `wandb`
 - `numpy`
@@ -219,7 +225,7 @@ At minimum, each run must record:
 - seed policy
 - benchmark profile / hardware profile
 
-Current workspace note as of 2026-03-07:
+Current workspace note as of 2026-03-08:
 - `/home/jordan/code/RL` is now a Git-backed repository in this workspace snapshot
 - the canonical RL remote is `git@github.com:jordanbailey00/RL.git`
 - RL-side commit SHA capture is no longer blocked by repo initialization, though later manifests still need code-path implementation to record it consistently

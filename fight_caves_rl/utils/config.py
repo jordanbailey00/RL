@@ -3,6 +3,10 @@ from os import environ
 from pathlib import Path
 from typing import Mapping
 
+from fight_caves_rl.manifests.versions import (
+    PUFFERLIB_BASELINE_DISTRIBUTION,
+    PUFFERLIB_BASELINE_VERSION,
+)
 from fight_caves_rl.utils.paths import repo_root, workspace_root
 
 
@@ -12,6 +16,7 @@ class BootstrapConfig:
     sim_repo: Path
     rsps_repo: Path
     python_baseline: str
+    pufferlib_distribution: str
     pufferlib_version: str
     wandb_project: str
     wandb_mode: str
@@ -26,8 +31,11 @@ def load_bootstrap_config(env: Mapping[str, str] | None = None) -> BootstrapConf
         sim_repo=Path(env_map.get("FIGHT_CAVES_RL_REPO", str(workspace / "fight-caves-RL"))),
         rsps_repo=Path(env_map.get("RSPS_REPO", str(workspace / "RSPS"))),
         python_baseline=env_map.get("PYTHON_BASELINE", "3.11"),
-        pufferlib_version=env_map.get("PUFFERLIB_VERSION", "3.0.0"),
+        pufferlib_distribution=env_map.get(
+            "PUFFERLIB_DISTRIBUTION",
+            PUFFERLIB_BASELINE_DISTRIBUTION,
+        ),
+        pufferlib_version=env_map.get("PUFFERLIB_VERSION", PUFFERLIB_BASELINE_VERSION),
         wandb_project=env_map.get("WANDB_PROJECT", "fight-caves-rl"),
         wandb_mode=env_map.get("WANDB_MODE", "offline"),
     )
-

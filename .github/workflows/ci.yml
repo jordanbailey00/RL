@@ -17,3 +17,16 @@ jobs:
         run: uv sync --group dev --python 3.11
       - name: Run unit tests
         run: uv run pytest fight_caves_rl/tests/unit
+
+  train-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync train dependencies
+        run: uv sync --group dev --group train --python 3.11
+      - name: Run import smoke
+        run: uv run python -c "import pufferlib, torch, fight_caves_rl"

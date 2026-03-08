@@ -15,7 +15,7 @@ Planning constraints carried through this document:
 - Canonical RL root filenames are `RLspec.md` and `RLplan.md`.
 - If other module specs/plans are referenced, use `FCspec.md` / `FCplan.md` for the headless Fight Caves sim module and `RSPSspec.md` / `RSPSplan.md` for the RSPS module.
 
-Current workspace reality as of 2026-03-07:
+Current workspace reality as of 2026-03-08:
 
 - `/home/jordan/code/fight-caves-RL` exists and is the current golden sim repo.
 - `/home/jordan/code/RSPS` exists and is the current oracle/reference repo.
@@ -25,7 +25,7 @@ Current workspace reality as of 2026-03-07:
 
 1. Create the RL repo skeleton at `/home/jordan/code/RL` with `uv`-managed Python packaging, a pinned dependency lockfile, baseline docs, and the required top-level directory layout from the spec.
 2. Standardize the Python baseline early. The spec prefers Python 3.11 and allows 3.12 only if dependency compatibility is verified; this must be decided in the bootstrap PR and then pinned in `pyproject.toml` and `uv.lock`.
-3. Pin the PufferLib baseline to `3.0.0` in locked dependencies and record that version in code-owned manifest/version utilities.
+3. Pin the PufferLib baseline to `pufferlib-core==3.0.17` in locked dependencies, while treating the runtime import namespace as `pufferlib` and recording the distribution/version in code-owned manifest/version utilities.
 4. Add a minimal package skeleton for `fight_caves_rl`, baseline config loading, manifest generation helpers, and environment-variable based discovery of sibling repos.
 5. Add `.env.example` and README setup instructions that explicitly reference:
    - `/home/jordan/code/fight-caves-RL`
@@ -226,7 +226,7 @@ Risks / likely failure modes:
 - Torch default Linux resolution may pull CUDA-heavy wheels unless the RL repo explicitly chooses the intended CPU/GPU install path.
 - `pufferlib==3.0.0` may still fail to build in the reduced `NO_OCEAN=1` path because the published `setup.py` references `c_extension_paths` outside the `NO_OCEAN` guard.
 
-PR 1 execution status (2026-03-07):
+PR 1 execution status (2026-03-07 to 2026-03-08):
 
 - [x] Canonical module filenames normalized to `FCspec.md` / `FCplan.md`, `RSPSspec.md` / `RSPSplan.md`, and `RLspec.md` / `RLplan.md`.
 - [x] RL bootstrap skeleton created with `pyproject.toml`, `uv.lock`, `.env.example`, README, baseline configs, run-manifest docs, package skeleton, and CI.
@@ -242,53 +242,43 @@ PR 1 execution status (2026-03-07):
 - [x] Validate whether the plain `pufferlib==3.0.0` build path without `NO_OCEAN=1` succeeds now that the compiler and CPU-only torch path are in place.
 - [x] Codify the current WSL toolchain/bootstrap flow in a repo-owned script so the working train-group path is reproducible.
 - [x] Initialize `/home/jordan/code/RL` as a Git-backed repository and connect it to `git@github.com:jordanbailey00/RL.git` so RL-side branch hygiene and future manifest SHA capture are unblocked.
+- [x] Verify the current upstream package state and correct the candidate baseline to `pufferlib-core==3.0.17` rather than the previously noted `3.0.18`.
+- [x] Create an isolated Python `3.11` validation matrix for `pufferlib==3.0.0` versus `pufferlib-core==3.0.17`.
+- [x] Confirm that `pufferlib-core==3.0.17` preserves the required RL-facing surfaces:
+  - `pufferlib.pufferl.PuffeRL`
+  - `pufferlib.pufferl.WandbLogger`
+  - `pufferlib.vector.make`
+  - `pufferlib.emulation`
+  - compiled `pufferlib._C`
+- [x] Record the observed upstream drift that matters to RL integration:
+  - `pufferlib-core==3.0.17` imports as `pufferlib` but reports `pufferlib.__version__ == "3.0.3"`
+  - `pufferlib==3.0.0` creates an import-time `resources` symlink in the current working directory
+  - `pufferlib-core==3.0.17` has a materially smaller dependency footprint than `pufferlib==3.0.0`
+  - core modules still differ from the current `pufferlib==3.0.0` sources, especially in `pufferl.py`, `vector.py`, and `emulation.py`
+- [x] Adopt `pufferlib-core==3.0.17` as the RL baseline and update the repo pins, manifest/version utilities, docs, and CI to match.
 
-Discovered work now queued into PR 1:
+Resolved PR 1 support work (2026-03-08):
 
-- Keep `pufferlib==3.0.0` pinned in the lockfile, but allow the default dev bootstrap path to exclude the `train` group until the compiler/build prerequisite is satisfied.
-- Record the `pufferlib` build prerequisite explicitly in README, changelog, and PR 1 acceptance notes so the train-group blocker remains visible.
-- Revisit torch package source selection during PR 1 completion so the repo does not silently default to the wrong Linux wheel path.
-- Treat the current `NO_OCEAN=1` failure as an upstream packaging issue, not a local toolchain issue; the next PR 1 task is to test the plain build path and only then decide whether a pinned local source override is necessary.
-- Preserve the current workspace-local GCC sysroot bootstrap as the documented WSL baseline until a simpler native package path is available in the sandboxed environment.
-- Decide in the next bootstrap-support pass whether CI should run `scripts/bootstrap_wsl_toolchain.sh` for train-group validation or remain intentionally dev-only until the CI-native toolchain path is frozen.
-- Evaluate replacing `pufferlib==3.0.0` with the upstream wheel-backed `pufferlib-core` line as the permanent dependency path, because current PyPI releases package the same `pufferlib` import namespace and the required `PuffeRL` / `WandbLogger` / `vector.make` / `emulation` surfaces without Ocean.
-- If that migration is pursued, validate and document the observed upstream drift before changing the pin:
-  - `pufferlib-core==3.0.18` imports as `pufferlib` but currently reports `__version__ == 3.0.17`
-  - core modules differ from the current `pufferlib==3.0.0` sources, especially in `pufferl.py`, `vector.py`, and `emulation.py`
-  - official docs at `https://puffer.ai/docs.html` still recommend `pip install pufferlib`, not `pufferlib-core`
+- [x] Replace the standard train-group baseline with `pufferlib-core==3.0.17`, keeping the old workspace-local GCC sysroot path only as a legacy fallback for source-built comparisons or future native dependencies.
+- [x] Keep the default dev bootstrap path independent of the train group, while making the train-group path simple enough to validate in CI.
+- [x] Preserve the CPU-only torch package source selection so Linux does not silently resolve CUDA-heavy default wheels.
+- [x] Document the official-docs mismatch and the imported-version mismatch so later manifest code uses distribution metadata rather than `pufferlib.__version__`.
+
+Newly discovered follow-up now queued into PR 2:
+
+- Keep the module-drift observations for `pufferl.py`, `vector.py`, and `emulation.py` visible when PR 2 freezes the RL/sim bridge and env contract docs.
+- Keep the imported-version mismatch visible when PR 2 builds the version/schema registry, because `pufferlib-core==3.0.17` still imports as `pufferlib.__version__ == "3.0.3"` in the validated RL environment.
+
 Immediate next chunk to resume:
 
-1. Create an isolated validation matrix for `pufferlib==3.0.0` versus `pufferlib-core==3.0.18`.
-2. Verify that the required RL-facing surfaces remain compatible under `pufferlib-core`:
-   - `pufferlib.pufferl.PuffeRL`
-   - `pufferlib.pufferl.WandbLogger`
-   - `pufferlib.vector.make`
-   - `pufferlib.emulation`
-   - compiled `_C` extension availability on the intended Python baseline
-3. Record all observed drift that could affect RL integration contracts, especially in:
-   - `pufferl.py`
-   - `vector.py`
-   - `emulation.py`
-   - imported version reporting / manifest version capture
-4. Decide whether the permanent RL dependency baseline should remain `pufferlib==3.0.0` or move to `pufferlib-core==3.0.18`.
-5. If the migration is approved by validation, update the RL source-of-truth docs and dependency pins together:
-   - `RLspec.md`
-   - `RLplan.md`
-   - `README.md`
-   - `pyproject.toml`
-   - `uv.lock`
-   - manifest/version capture utilities
-6. Re-run the bootstrap acceptance set after the package decision:
-   - `uv sync --group dev --python 3.11`
-   - `uv sync --group dev --group train --python 3.11`
-   - `uv run pytest fight_caves_rl/tests/unit`
-   - package import smoke for `pufferlib`, `torch`, and `fight_caves_rl`
-7. Decide whether CI should stay dev-only or begin validating the chosen train-group package path.
+1. Start PR 2 and freeze the RL/sim integration contract in repo-owned docs before any wrapper code starts drifting.
+2. Lock the episode-start-state contract to the headless sim implementation, not to RL-local assumptions.
+3. Freeze the bridge strategy, official sim artifact consumption strategy, and official benchmark profile v0.
+4. Add the version/schema registry files and tests that PR 3 will rely on.
 
-Stopping condition for the next chunk:
+Stopping condition for the completed chunk:
 
-- either RL formally adopts `pufferlib-core` as the new baseline and the docs/pins are updated together
-- or RL explicitly records why `pufferlib-core` is rejected and keeps the current `pufferlib==3.0.0` + workspace-local GCC sysroot path as the documented long-term baseline
+- RL formally adopts `pufferlib-core==3.0.17` as the new baseline, the docs/pins are updated together, and CI begins validating the train-group package path.
 
 ### PR 2 - RL/Sim Contract Docs, Episode Start Contract, Bridge Strategy, Artifact Strategy, Benchmark Profile, and Version Registry
 
@@ -1085,13 +1075,16 @@ Mandatory benchmark breakdowns across the stages:
    - If a permanent benchmark host is not yet selected, benchmark manifests must still record the exact machine profile so `>= 1,000,000 env steps/sec` claims remain comparable and auditable.
 
 12. WSL toolchain baseline
-   - The current reproducible train-group bootstrap path is pinned to Ubuntu 24.04 (`noble`) and a workspace-local GCC sysroot because sandboxed `sudo`/root package installs are unavailable in this environment.
-   - If the WSL distro baseline changes, `scripts/bootstrap_wsl_toolchain.sh` and the matching package pins must be revised before treating that machine as equivalent to the current bootstrap path.
+   - `scripts/bootstrap_wsl_toolchain.sh` remains available for legacy source-build comparisons and future native dependencies, but it is no longer required for the standard RL train-group bootstrap after the move to `pufferlib-core==3.0.17`.
+   - If a future RL dependency reintroduces source builds, re-evaluate whether the workspace-local sysroot remains the right fallback path for this workspace.
 
-13. Permanent PufferLib package choice
-   - Current local bootstrap works with `pufferlib==3.0.0`, but that package is source-only on PyPI and drags Ocean/native build risk into every install.
-   - Upstream `pufferlib-core==3.0.18` now ships manylinux wheels and preserves the import namespace plus the specific RL-facing modules we plan to use, so it is a credible long-term replacement candidate.
-   - Before adopting it, PR 1/2 support work should explicitly validate the module-level drift against the current plan assumptions and decide whether RL should standardize on `pufferlib-core` instead of the older source package.
+13. Permanent PufferLib package choice (resolved 2026-03-08)
+   - RL now standardizes on `pufferlib-core==3.0.17` as the baseline distribution, imported as `pufferlib`.
+   - Decision basis: wheel-backed install path, required RL-facing surfaces present, compiled `_C` available, no import-time `resources` symlink side effect, and a materially smaller dependency footprint than `pufferlib==3.0.0`.
+   - Known upstream drift to carry forward:
+     - official docs still say `pip install pufferlib`
+     - the installed `pufferlib-core==3.0.17` distribution currently imports with `pufferlib.__version__ == "3.0.3"`
+     - RL manifests must therefore capture distribution metadata instead of trusting the imported version string
 
 14. RL Git/repo initialization (resolved 2026-03-07)
    - `/home/jordan/code/RL` is now a Git-backed repository in this workspace.

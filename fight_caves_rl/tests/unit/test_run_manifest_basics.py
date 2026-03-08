@@ -10,6 +10,7 @@ def test_bootstrap_manifest_contains_expected_fields():
     assert payload["sim_repo"].endswith("/home/jordan/code/fight-caves-RL")
     assert payload["rsps_repo"].endswith("/home/jordan/code/RSPS")
     assert payload["python_baseline"] == "3.11"
-    assert payload["pufferlib_version"] == "3.0.0"
+    assert payload["pufferlib_distribution"] == "pufferlib-core"
+    assert payload["pufferlib_version"] == "3.0.17"
     assert payload["wandb_mode"] == "offline"
     assert payload["created_at"]
