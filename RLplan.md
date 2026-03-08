@@ -636,6 +636,48 @@ Risks / likely failure modes:
 - Incomplete commit/version metadata.
 - Divergent local-manifest and W&B run metadata.
 
+Status:
+
+- [x] Added the PR6 logging package:
+  - `fight_caves_rl/logging/wandb_client.py`
+  - `fight_caves_rl/logging/metrics.py`
+  - `fight_caves_rl/logging/artifact_naming.py`
+- [x] Expanded the run-manifest implementation from the PR1 bootstrap manifest to full train/eval manifests with:
+  - RL/sim/RSPS commit SHAs
+  - bridge/schema/episode-start/benchmark identities
+  - policy schema ids/versions
+  - W&B config fields and local dir roots
+  - hardware profile
+  - artifact records
+- [x] Added `.env.example` / bootstrap-config support for:
+  - `WANDB_ENTITY`
+  - `WANDB_GROUP`
+  - `WANDB_RESUME`
+  - `WANDB_RUN_PREFIX`
+  - `WANDB_TAGS`
+  - `WANDB_DIR`
+  - `WANDB_DATA_DIR`
+  - `WANDB_CACHE_DIR`
+- [x] Kept the RL-local W&B logger as the PR6 baseline instead of the stock `pufferlib.pufferl.WandbLogger`, because RL needs repo-owned run ids, local-manifest/config synchronization, artifact naming, and startup settings that suppress fragile console/system-monitor side effects in WSL smoke runs.
+- [x] Added PR6 integration/unit coverage:
+  - `test_wandb_run_manifest_completeness.py`
+  - `test_wandb_offline_smoke.py`
+  - `test_artifact_naming_versioning.py`
+- [x] Hardened the live subprocess test harness discovered during PR6:
+  - suspend pytest fd capture around live `run_script(...)` tests
+  - run child scripts with `stdin=DEVNULL`
+  - use a hermetic allowlisted child environment instead of inheriting the full pytest process environment
+  - give smoke tests per-test offline W&B directories instead of sharing repo-global W&B state
+- [x] Verified the PR6-targeted suite:
+  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q`
+- [x] Re-verified the full current RL suite after the PR6 harness fixes:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke -q`
+
+Carry-forward notes:
+
+- Future train/eval/benchmark subprocess tests should reuse the PR6 hermetic subprocess helpers instead of inheriting repo-global W&B state or the parent pytest environment.
+- PR7+ benchmark work should continue to isolate W&B overhead explicitly; the PR6 logger settings remove console/system-monitor noise but are not a throughput optimization strategy on their own.
+
 ### PR 7 - Batched Bridge
 
 Goal:

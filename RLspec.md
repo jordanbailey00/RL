@@ -889,8 +889,11 @@ Every W&B run must include at minimum:
 - run name
 - tags
 - run group
+- W&B mode
+- W&B resume mode
 - RL repo commit
 - sim repo commit
+- RSPS repo commit
 - oracle/parity pack version if relevant
 - hardware profile
 - trainer config snapshot
@@ -898,7 +901,14 @@ Every W&B run must include at minimum:
 - curriculum config ID
 - observation schema ID/version
 - action schema ID/version
-- PufferLib version
+- policy observation schema ID/version
+- policy action schema ID/version
+- bridge protocol ID/version
+- episode-start contract ID/version
+- benchmark profile ID/version
+- PufferLib distribution and distribution version
+- PufferLib import namespace/version when it differs from distribution metadata
+- local run-manifest path and artifact records
 
 ### 15.3 Required metric families
 
@@ -946,6 +956,7 @@ At minimum log:
 
 Required artifact categories in W&B:
 - checkpoints
+- checkpoint metadata
 - eval summaries
 - replay packs
 - benchmark reports
@@ -954,6 +965,12 @@ Required artifact categories in W&B:
 ### 15.5 Offline and resume support
 
 The repo should support offline logging / later sync where practical, but online W&B is the default target.
+
+PR6 implementation note:
+- a repo-owned RL logger is acceptable at the trainer boundary when the stock PufferLib logger does not satisfy manifest/artifact/version requirements
+- if RL owns the logger, it must still keep the `PuffeRL` logging contract intact and avoid redefining trainer semantics
+- local W&B directories for run files, artifact staging, and cache data must be configurable and owned by the repo bootstrap config
+- W&B console/system-monitor features that destabilize WSL subprocess smoke tests may be disabled by default
 
 ---
 

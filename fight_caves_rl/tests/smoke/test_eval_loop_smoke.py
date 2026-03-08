@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fight_caves_rl.tests.smoke._helpers import load_json, require_live_runtime, run_script
+import pytest
+
+from fight_caves_rl.tests.smoke._helpers import (
+    load_json,
+    offline_wandb_env,
+    require_live_runtime,
+    run_script,
+)
+
+pytestmark = pytest.mark.usefixtures("disable_subprocess_capture")
 
 
 def test_eval_loop_smoke(tmp_path: Path):
@@ -20,6 +29,7 @@ def test_eval_loop_smoke(tmp_path: Path):
         str(tmp_path / "train_artifacts"),
         "--output",
         str(summary_path),
+        env=offline_wandb_env(tmp_path, tags="smoke,eval-train"),
     )
     if train_result.returncode != 0:
         raise AssertionError(
@@ -37,6 +47,7 @@ def test_eval_loop_smoke(tmp_path: Path):
         "16",
         "--output",
         str(eval_path),
+        env=offline_wandb_env(tmp_path, tags="smoke,eval"),
     )
     if eval_result.returncode != 0:
         raise AssertionError(

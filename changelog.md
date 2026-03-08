@@ -2,6 +2,55 @@
 
 ## 2026-03-08
 
+- Started and completed PR 6 W&B integration and run-manifest wiring in RL.
+- Added the PR6 logging package:
+  - `fight_caves_rl/logging/wandb_client.py`
+  - `fight_caves_rl/logging/metrics.py`
+  - `fight_caves_rl/logging/artifact_naming.py`
+- Expanded `fight_caves_rl/manifests/run_manifest.py` from the bootstrap manifest into full train/eval manifests carrying:
+  - RL/sim/RSPS repo SHAs
+  - PufferLib distribution metadata plus import drift fields
+  - W&B project/group/mode/resume/tags/dir metadata
+  - PR2 bridge/schema/episode-start/benchmark identities
+  - PR5 policy schema ids/versions
+  - reward/curriculum/policy ids
+  - checkpoint/eval summary fields
+  - hardware profile
+  - artifact records
+- Added PR6 docs:
+  - `docs/wandb_logging_contract.md`
+  - updated `docs/run_manifest.md`
+- Expanded bootstrap configuration and `.env.example` with:
+  - `WANDB_ENTITY`
+  - `WANDB_GROUP`
+  - `WANDB_RESUME`
+  - `WANDB_RUN_PREFIX`
+  - `WANDB_TAGS`
+  - `WANDB_DIR`
+  - `WANDB_DATA_DIR`
+  - `WANDB_CACHE_DIR`
+- Chose a repo-owned RL W&B logger instead of directly using `pufferlib.pufferl.WandbLogger` because PR6 needs:
+  - repo-owned run ids
+  - manifest-to-W&B config synchronization
+  - explicit artifact naming/versioning
+  - stable WSL startup settings that suppress console/system-monitor side effects
+- Added PR6 tests:
+  - `fight_caves_rl/tests/unit/test_artifact_naming_versioning.py`
+  - `fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py`
+  - `fight_caves_rl/tests/integration/test_wandb_offline_smoke.py`
+- Found and fixed two PR6 subprocess-harness issues:
+  - live subprocess tests were unstable under pytest fd capture
+  - inheriting the full parent pytest environment caused live child processes to become order-sensitive when PR6 W&B initialization was active
+- Hardened the live subprocess harness:
+  - added `fight_caves_rl/tests/conftest.py` to suspend fd capture for run-script-based live tests
+  - updated `fight_caves_rl/tests/smoke/_helpers.py` to use `stdin=DEVNULL`
+  - switched child processes onto an allowlisted hermetic environment
+  - moved smoke tests onto per-test offline W&B directories instead of repo-global defaults
+- Verified the PR6-targeted suite:
+  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q` -> passed
+- Re-verified the full current RL suite after the PR6 harness fixes:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke -q` -> passed (`25` collected tests)
+
 - Started and completed PR 5 PufferLib smoke integration in RL.
 - Added the PR5 Puffer/Gym policy-input encoding registry:
   - `fight_caves_rl/envs/puffer_encoding.py`

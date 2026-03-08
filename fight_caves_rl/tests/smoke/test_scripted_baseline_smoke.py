@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fight_caves_rl.tests.smoke._helpers import load_json, require_live_runtime, run_script
+import pytest
+
+from fight_caves_rl.tests.smoke._helpers import (
+    load_json,
+    offline_wandb_env,
+    require_live_runtime,
+    run_script,
+)
+
+pytestmark = pytest.mark.usefixtures("disable_subprocess_capture")
 
 
 def test_scripted_baseline_smoke(tmp_path: Path):
@@ -15,6 +24,7 @@ def test_scripted_baseline_smoke(tmp_path: Path):
         "parity_single_wave_v0",
         "--output",
         str(output_path),
+        env=offline_wandb_env(tmp_path, tags="smoke,scripted"),
     )
     if result.returncode != 0:
         raise AssertionError(

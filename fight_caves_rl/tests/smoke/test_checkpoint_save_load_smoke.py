@@ -2,10 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from fight_caves_rl.envs.puffer_encoding import build_policy_action_space, build_policy_observation_space
 from fight_caves_rl.policies.checkpointing import load_policy_checkpoint
 from fight_caves_rl.policies.mlp import MultiDiscreteMLPPolicy
-from fight_caves_rl.tests.smoke._helpers import load_json, require_live_runtime, run_script
+from fight_caves_rl.tests.smoke._helpers import (
+    load_json,
+    offline_wandb_env,
+    require_live_runtime,
+    run_script,
+)
+
+pytestmark = pytest.mark.usefixtures("disable_subprocess_capture")
 
 
 def test_checkpoint_save_load_smoke(tmp_path: Path):
@@ -22,6 +31,7 @@ def test_checkpoint_save_load_smoke(tmp_path: Path):
         str(tmp_path / "train_artifacts"),
         "--output",
         str(summary_path),
+        env=offline_wandb_env(tmp_path, tags="smoke,checkpoint"),
     )
     if result.returncode != 0:
         raise AssertionError(

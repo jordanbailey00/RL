@@ -110,3 +110,48 @@ Current PR5 constraints:
   - `puffer_policy_action_v0`
 - PR5 uses a repo-local single-env vecenv shim instead of `pufferlib.vector.Serial` because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
 - true batched/vector training remains PR8 scope
+
+## PR6 Run Logging
+
+PR6 adds repo-owned W&B and manifest wiring on top of the PR5 smoke path.
+
+- every `train.py` run now writes:
+  - a checkpoint
+  - checkpoint metadata
+  - a local `run_manifest.json`
+  - a `wandb_run_id`
+- every `eval.py` run now writes:
+  - an `eval_summary.json`
+  - a local `run_manifest.json`
+  - a `wandb_run_id`
+
+The bootstrap config now owns the local W&B directories:
+
+- `WANDB_DIR`
+- `WANDB_DATA_DIR`
+- `WANDB_CACHE_DIR`
+
+Those paths matter in WSL because artifact staging and cache writes must stay inside writable workspace-owned directories.
+
+Example:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/train.py --output /tmp/fc_train.json
+python - <<'PY'
+import json
+payload = json.load(open("/tmp/fc_train.json"))
+print(payload["wandb_run_id"])
+print(payload["run_manifest_path"])
+PY
+```
+
+Current PR6 implementation note:
+
+- RL uses a repo-owned `fight_caves_rl.logging.WandbRunLogger` instead of directly using `pufferlib.pufferl.WandbLogger`
+- the reason is not trainer semantics; it is manifest/artifact policy and runtime stability:
+  - repo-owned run ids
+  - explicit artifact naming/versioning
+  - local-manifest and W&B config synchronization
+  - W&B startup settings that suppress console/stat-monitor side effects in WSL smoke tests

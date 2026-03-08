@@ -1,56 +1,127 @@
 # Run Manifest
 
-Each train/eval/benchmark run must emit a local manifest before later W&B and replay work is added.
+PR6 replaces the old bootstrap-only manifest with a full local train/eval run manifest.
 
-## Bootstrap Manifest Fields
+Each train/eval run now writes a `run_manifest.json` alongside the run outputs before the same metadata is mirrored into W&B config/artifacts.
 
-The bootstrap manifest records:
+## Required Top-Level Fields
 
-- RL repo root
-- headless sim repo root
-- RSPS repo root
-- Python version
-- PufferLib distribution name
-- PufferLib baseline version
-- W&B mode
-- timestamp
+- `created_at`
+- `run_kind`
+- `run_id`
+- `config_id`
+- `run_output_dir`
 
-This is intentionally minimal for PR1. Later PRs will extend it with schema versions, reward/curriculum versions, bridge protocol version, replay schema version, checkpoint metadata, and hardware/benchmark profile details.
+## Repo / Runtime Provenance
 
-## Baseline Values
+Every manifest records:
 
-- Python baseline: `3.11`
-- PufferLib distribution: `pufferlib-core`
-- PufferLib baseline: `3.0.17`
-- default W&B mode: `offline`
+- RL repo root + commit SHA
+- headless sim repo root + commit SHA
+- RSPS repo root + commit SHA
+- Python version + Python baseline
+- PufferLib distribution version from distribution metadata
+- PufferLib import namespace/version for drift visibility
 
-PR1 records the pinned PufferLib distribution/version from repo configuration rather than requiring the package to be installed in the default unit-test sync.
-Later manifest work should resolve the installed distribution metadata from `importlib.metadata` instead of trusting `pufferlib.__version__`, because the upstream `pufferlib-core==3.0.17` wheel currently imports as `pufferlib.__version__ == "3.0.3"`.
+The canonical PufferLib values come from `importlib.metadata`, not `pufferlib.__version__`, because `pufferlib-core==3.0.17` currently imports as `pufferlib.__version__ == "3.0.3"`.
 
-## PR 2 Contract Fields
+## W&B Provenance
 
-PR 2 freezes the next required manifest identities in the RL registry:
+Every manifest records:
 
-- observation schema id/version
-- action schema id/version
-- episode-start contract id/version
-- bridge protocol id/version
+- `wandb_project`
+- `wandb_entity`
+- `wandb_group`
+- `wandb_mode`
+- `wandb_resume`
+- `wandb_tags`
+- `wandb_dir`
+- `wandb_data_dir`
+- `wandb_cache_dir`
+
+## Frozen Contract / Schema Fields
+
+Every manifest records the PR2/PR5 contract identities:
+
 - benchmark profile id/version
-
-These are defined in `fight_caves_rl/envs/schema.py`.
-
-PR5 adds the first RL-local policy-input identities that later manifests and checkpoint sidecars must also record:
-
+- bridge protocol id/version
+- sim observation schema id/version
+- sim action schema id/version
+- episode-start contract id/version
 - policy observation schema id/version
 - policy action schema id/version
 
-The full run manifest implementation later must also record:
+## Run-Mode Fields
 
-- sim artifact task/path
-- sim commit SHA
-- RL commit SHA
-- reward config id
-- curriculum config id
-- checkpoint format id/version
-- replay/logging/dashboard modes
-- benchmark hardware profile
+Every manifest records:
+
+- `benchmark_mode`
+- `bridge_mode`
+- `replay_mode`
+- `logging_mode`
+- `dashboard_mode`
+- `env_count`
+- `reward_config_id`
+- `curriculum_config_id`
+- `policy_id`
+
+## Sim Artifact Fields
+
+Every manifest records the packaged sim dependency actually consumed by RL:
+
+- `sim_artifact_task`
+- `sim_artifact_path`
+
+These values come from the PR2 bridge handshake built from the packaged headless distribution selected by the launcher.
+
+## Checkpoint / Eval Fields
+
+Train/eval manifests record:
+
+- `checkpoint_format_id`
+- `checkpoint_format_version`
+- `checkpoint_path`
+- `checkpoint_metadata_path`
+
+Eval manifests additionally record:
+
+- `seed_pack`
+- `seed_pack_version`
+- `summary_digest`
+
+## Hardware Profile
+
+Each manifest embeds a `hardware_profile` object with:
+
+- platform
+- machine
+- processor
+- cpu count
+- Python implementation
+
+## Artifact Records
+
+Each manifest records artifact records produced by the run. PR6 currently supports:
+
+- checkpoint
+- checkpoint metadata
+- run manifest
+- eval summary
+
+Artifact names are repo-owned and versioned in `fight_caves_rl/logging/artifact_naming.py`.
+
+## Current Defaults
+
+- Python baseline: `3.11`
+- PufferLib distribution baseline: `pufferlib-core`
+- PufferLib distribution baseline version: `3.0.17`
+- default W&B mode: `offline`
+
+## File Ownership
+
+- manifest schema + writing: `fight_caves_rl/manifests/run_manifest.py`
+- PufferLib version resolution: `fight_caves_rl/manifests/versions.py`
+- artifact naming/versioning: `fight_caves_rl/logging/artifact_naming.py`
+- train/eval logger integration: `fight_caves_rl/logging/wandb_client.py`
+
+Benchmarks will extend the same manifest surface later rather than introducing a second manifest shape.
