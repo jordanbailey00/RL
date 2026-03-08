@@ -29,6 +29,9 @@
 - Updated the bootstrap config and bootstrap manifest schema to record `pufferlib_distribution` alongside `pufferlib_version`.
 - Added unit coverage for the new version utility and updated bootstrap config/manifest tests to reflect the new baseline.
 - Updated CI so GitHub Actions now validates the train-group package path with a `pufferlib`/`torch`/`fight_caves_rl` import smoke job.
+- Updated downstream RL planning so later PRs build on the new baseline correctly:
+  - PR 2 now extends the existing `fight_caves_rl/manifests/versions.py` and treats PufferLib distribution metadata as canonical
+  - PR 6 now explicitly records the PufferLib distribution/version pair in manifests and W&B config instead of trusting `pufferlib.__version__`
 - Re-ran the RL acceptance set after the baseline decision:
   - `uv lock --python 3.11`
   - `uv sync --group dev --python 3.11`

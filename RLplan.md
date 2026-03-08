@@ -200,10 +200,11 @@ Dependencies:
 Tests to add:
 
 - Repo bootstrap install smoke from lockfile.
-- Repo bootstrap install smoke for the `train` dependency group once the compiler/toolchain prerequisite is satisfied.
+- Repo bootstrap install smoke for the wheel-backed `train` dependency group on the standard Linux/WSL path.
 - Config loader unit test.
 - Run manifest skeleton unit test.
 - CI smoke job that imports the package and runs the unit subset.
+- CI train-group smoke job that imports `pufferlib`, `torch`, and `fight_caves_rl`.
 
 Acceptance criteria:
 
@@ -212,19 +213,18 @@ Acceptance criteria:
 - Baseline package imports work.
 - CI can install dependencies and run the bootstrap test subset.
 - RL root filenames and cross-module doc reference conventions are normalized from the start.
-- The workspace has the compiler/build toolchain required for `uv sync --group dev --group train --python 3.11`.
 - The RL repo documents the chosen bootstrap wheel path for `torch` so Linux does not silently fall back to the wrong package index.
-- `uv sync --group dev --group train --python 3.11` succeeds once the toolchain prerequisite is in place.
+- `uv sync --group dev --group train --python 3.11` succeeds on the standard wheel-backed baseline without requiring the legacy source-build toolchain path.
+- CI validates the chosen train-group package path with an import smoke job.
 
 Risks / likely failure modes:
 
 - Python 3.11 vs 3.12 compatibility mismatch.
-- PufferLib 3.0.0 dependency conflicts.
+- PufferLib distribution/import metadata drift causes manifests or diagnostics to record the wrong version source.
 - Early path handling that hard-codes local machine assumptions instead of sibling repo discovery.
 - Cross-module doc naming drift if canonical filenames are not normalized immediately.
-- Missing compiler/build toolchain in WSL blocks `pufferlib==3.0.0` from building in the `train` dependency group.
 - Torch default Linux resolution may pull CUDA-heavy wheels unless the RL repo explicitly chooses the intended CPU/GPU install path.
-- `pufferlib==3.0.0` may still fail to build in the reduced `NO_OCEAN=1` path because the published `setup.py` references `c_extension_paths` outside the `NO_OCEAN` guard.
+- Upstream docs still point users at `pip install pufferlib`, which can reintroduce the heavier legacy package path if the RL docs are not explicit.
 
 PR 1 execution status (2026-03-07 to 2026-03-08):
 
@@ -316,9 +316,15 @@ Tests to add:
 - Episode-start contract registry test.
 - Official benchmark profile registry/config presence test.
 
+Existing bootstrap artifacts to extend rather than recreate:
+
+- `/home/jordan/code/RL/fight_caves_rl/manifests/versions.py`
+- `/home/jordan/code/RL/configs/benchmark/official_profile_v0.yaml`
+
 Acceptance criteria:
 
 - Observation schema ID/version, action schema ID/version, bridge protocol version, and episode-start contract version are defined in one place.
+- The version registry treats `pufferlib-core==3.0.17` distribution metadata as canonical and does not rely on `pufferlib.__version__` as the source of truth for manifests or W&B config.
 - `docs/rl_integration_contract.md` explicitly freezes the constant episode-start-state contract used for all training episodes, including:
   - equipped items
   - inventory
@@ -534,6 +540,7 @@ Acceptance criteria:
 - W&B receives the required run metadata, core metric families, and artifact categories.
 - Resume-safe metadata is recorded.
 - Run manifests include the episode-start contract version, sim artifact metadata, bridge protocol version, and benchmark profile reference defined earlier in PR 2.
+- Run manifests and W&B config record PufferLib distribution plus version, using distribution metadata rather than `pufferlib.__version__`.
 - Prefer `pufferlib.pufferl.WandbLogger` as the baseline logger integration point; any RL-local logger wrapper should exist only to satisfy missing manifest/artifact requirements.
 
 Risks / likely failure modes:
@@ -1006,7 +1013,7 @@ Mandatory benchmark breakdowns across the stages:
 ## 7. W&B + PufferLib Analytics / Dashboard Plan
 
 1. W&B run initialization
-   - Every training and evaluation run should start with project, run name, tags, run group, RL commit, sim commit, hardware profile, reward config ID, curriculum config ID, observation schema ID/version, action schema ID/version, episode-start contract version, benchmark profile ID/version, and PufferLib version.
+   - Every training and evaluation run should start with project, run name, tags, run group, RL commit, sim commit, hardware profile, reward config ID, curriculum config ID, observation schema ID/version, action schema ID/version, episode-start contract version, benchmark profile ID/version, and the canonical PufferLib distribution/version pair.
 
 2. Required metric families
    - Throughput: `env_steps_total`, `env_steps_per_sec`, `learner_updates_per_sec`, `batch_collection_time_ms`, `train_time_ms`, `bridge_time_ms`, `obs_pack_time_ms`, `action_unpack_time_ms`.
@@ -1021,7 +1028,7 @@ Mandatory benchmark breakdowns across the stages:
 4. Run manifests
    - Persist a local run manifest for every run.
    - Keep the local manifest and W&B config payload aligned.
-   - Include reward/curriculum versions, bridge protocol version, replay schema version, seed policy, official benchmark profile reference, episode-start contract version, and sim artifact metadata.
+   - Include reward/curriculum versions, bridge protocol version, replay schema version, seed policy, official benchmark profile reference, episode-start contract version, sim artifact metadata, and the canonical PufferLib distribution/version pair.
 
 5. PufferLib dashboard alignment
    - Local dashboard printing should be optional and config-driven.
