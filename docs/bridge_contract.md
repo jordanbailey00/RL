@@ -139,6 +139,13 @@ Mode C direction:
 - use a lightweight control channel plus low-copy batch payloads
 - optimize for the staged path to `>= 1,000,000 env steps/sec`, not just correctness-mode convenience
 
+Current post-MVP stability note:
+
+- same-process `PuffeRL.train()` plus the embedded JPype/JVM runtime is not currently stable once episode resets are exercised across longer runs
+- the shipped `train.py` path now keeps the vecenv inside a subprocess worker while preserving the existing PR7/PR8 batch semantics
+- this subprocess path is a stability fix, not the final throughput transport
+- embedded direct runtime remains the canonical path for correctness tooling and direct bridge/env benchmarks
+
 ## Selection Criteria
 
 Every bridge implementation must be judged on:

@@ -54,7 +54,7 @@ def run_vecenv_benchmark(
     if rounds <= 0:
         raise ValueError(f"rounds must be > 0, got {rounds}.")
 
-    vecenv = make_vecenv(config)
+    vecenv = make_vecenv(config, backend="embedded")
     try:
         seed = int(config["train"]["seed"])
         zero_action = np.zeros(

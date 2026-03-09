@@ -49,6 +49,25 @@ Current PR11 implementation note:
   - `scripts/benchmark_env.py`
   - `scripts/benchmark_train.py`
 
+Current measured local baseline gap (2026-03-08, Ryzen 5 5600G / WSL):
+
+- `fight-caves-RL/docs/performance_report.md` currently records about `8.9k` ticks/sec for the existing wait-only sim benchmark
+- RL local bridge measurements on this workspace host:
+  - `bridge_1env_v0` batch trace: about `18.3k` env steps/sec
+  - `bridge_64env_v0` lockstep batch: about `1.33k` env steps/sec total
+- RL local vecenv measurement on this workspace host (`4 envs`, embedded direct backend, constant wait action, no reset pressure): about `742` env steps/sec total
+- RL local stable training measurement on this workspace host (`train_baseline_v0`, `4 envs`, subprocess-isolated worker backend):
+  - W&B disabled: about `39.5` train SPS
+  - W&B online: about `13.1` train SPS
+
+Interpretation:
+
+- the current bottleneck is not one thing
+- the simulator itself is still far below the end goal
+- the current Python bridge/vector layer collapses throughput further, especially at higher env counts
+- the stability-first subprocess training fix adds extra IPC overhead but prevents the reset-boundary segfault in the shipped training path
+- W&B overhead is meaningful, but it is not the primary reason the stack is far from `100,000-1,000,000+` SPS
+
 ## Stage Gate A - Correctness Baseline
 
 - measure single-env wrapper throughput and reset/step latency
@@ -108,6 +127,14 @@ Current PR7 benchmark split:
 
 - tune boundary crossings, memory copies, observation packing, worker topology, logging cadence, then policy overhead
 - exit condition: reach `>= 1,000,000 env steps/sec` on the defined profile or document the verified remaining blockers
+
+Required next optimization queue after the 2026-03-08 remediation:
+
+1. Replace the current subprocess pipe/pickle transport with shared-memory flat numeric buffers.
+2. Move multi-slot reset/action/observe work toward truly batched sim-side entrypoints instead of per-slot Python/JVM loops.
+3. Re-profile the headless runtime itself and raise the raw sim ceiling well beyond the current single-digit-thousands tick rate.
+4. Scale out across multiple worker processes/runtimes only after one-worker transport costs are materially lower.
+5. Delay learner-side micro-optimization until environment collection is at least one to two orders of magnitude faster than today.
 
 ## Mandatory Breakdown
 

@@ -1409,3 +1409,28 @@ Mandatory benchmark breakdowns across the stages:
    - `/home/jordan/code/RL` is now a Git-backed repository in this workspace.
    - The canonical RL remote is `git@github.com:jordanbailey00/RL.git`.
    - RL branch cleanliness and push workflows are now available; later manifest code still needs to record the RL commit SHA at runtime.
+
+## 9. Post-MVP Stabilization Notes (2026-03-08)
+
+- Training crash investigation is now complete.
+- Root-cause scope:
+  - raw `HeadlessBatchClient` reset/step loops are stable
+  - direct embedded vecenv reset/step loops are stable
+  - `PuffeRL.evaluate()` without `train()` is stable
+  - the crash appears only after `PuffeRL.train()` has shared a process with the embedded JPype/JVM runtime and the next reset crosses back into `resetFightCaveEpisode(...)`
+- Shipped remediation:
+  - `scripts/train.py` now uses a subprocess-isolated vecenv worker
+  - the child worker still uses the PR7/PR8 batched bridge semantics
+  - embedded direct vecenv remains available for correctness and benchmark tooling
+- Verified local baselines from the remediation pass:
+  - raw sim report in `fight-caves-RL/docs/performance_report.md`: about `8.9k` ticks/sec
+  - RL bridge microbenchmark on this WSL host:
+    - `bridge_1env_v0` batch trace: about `18.3k` env steps/sec
+    - `bridge_64env_v0` lockstep batch: about `1.33k` env steps/sec total
+  - embedded vecenv no-train loop on this WSL host (`4 envs`, constant wait action, no reset pressure): about `742` env steps/sec total
+  - stable subprocess-backed `train.py` baseline on this WSL host (`train_baseline_v0`, `4 envs`, `512` timesteps):
+    - W&B disabled: about `39.5` train SPS
+    - W&B online: about `13.1` train SPS
+- Implication:
+  - the workspace is now stable for end-to-end training runs, but it is still multiple orders of magnitude away from the long-term SPS goal
+  - reaching `100,000-1,000,000+` SPS will require major transport/runtime optimization beyond the current subprocess-stability fix

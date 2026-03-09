@@ -173,7 +173,7 @@ def _run_vecenv_measurement(
     rounds: int,
     warmup_rounds: int,
 ) -> EnvBenchmarkMeasurement:
-    vecenv = make_vecenv(config)
+    vecenv = make_vecenv(config, backend="embedded")
     try:
         seed = int(config["train"]["seed"])
         zero_action = np.zeros(

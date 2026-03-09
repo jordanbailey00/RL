@@ -137,12 +137,15 @@ Current training-path facts:
 - RL keeps the raw sim semantics and uses the documented RL-local policy encoding:
   - `puffer_policy_observation_v0`
   - `puffer_policy_action_v0`
-- the shipped vecenv lives in `fight_caves_rl/envs/vector_env.py` and is a thin PufferLib-compatible wrapper around the PR7 batched bridge
+- `scripts/train.py` now defaults to a subprocess-isolated vecenv worker so `PuffeRL` training does not share one process with the embedded JPype/JVM runtime
+- the shipped embedded vecenv still lives in `fight_caves_rl/envs/vector_env.py` and remains the direct bridge path for correctness tooling and vecenv microbenchmarks
+- the subprocess training wrapper currently lives in `fight_caves_rl/envs/subprocess_vector_env.py` and preserves the PR7/PR8 batch semantics while paying Python IPC overhead
 - `pufferlib.vector.Serial` is still not used because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
 - `configs/train/train_baseline_v0.yaml` is the first repo-owned multi-env baseline config
 - `configs/benchmark/vecenv_256env_v0.yaml` plus `scripts/benchmark_env.py` are the current PR8 benchmark entrypoints
 - local dashboard rendering is TTY-aware; smoke and CI subprocesses suppress terminal painting automatically while still preserving the manifest/logging contract
 - live vecenv-only smoke checks use `scripts/run_vecenv_smoke.py` so each smoke run gets a fresh embedded-JVM process
+- current local WSL performance is still far below the long-term target; see `docs/performance_plan.md` for the measured baseline gap and next optimization queue
 
 ## PR6 Run Logging
 

@@ -19,6 +19,10 @@ from fight_caves_rl.envs.puffer_encoding import (
     encode_observation_for_policy,
 )
 from fight_caves_rl.envs.schema import HEADLESS_ACTION_REJECT_REASONS
+from fight_caves_rl.envs.subprocess_vector_env import (
+    SubprocessHeadlessBatchVecEnv,
+    SubprocessHeadlessBatchVecEnvConfig,
+)
 from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
 from fight_caves_rl.rewards.registry import resolve_reward_fn
 from fight_caves_rl.utils.paths import repo_root
@@ -225,24 +229,43 @@ def load_replay_eval_config(path: str | Path | None = None) -> dict[str, Any]:
     return config
 
 
-def make_vecenv(config: Mapping[str, Any]):
+def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
     env_config = dict(config.get("env", {}))
     reward_config_id = str(config["reward_config"])
     curriculum = build_curriculum(str(config["curriculum_config"]))
-    return HeadlessBatchVecEnv(
-        HeadlessBatchVecEnvConfig(
-            env_count=int(config["num_envs"]),
-            account_name_prefix=str(env_config.get("account_name_prefix", "rl_vecenv")),
-            start_wave=int(env_config.get("start_wave", 1)),
-            ammo=int(env_config.get("ammo", 1000)),
-            prayer_potions=int(env_config.get("prayer_potions", 8)),
-            sharks=int(env_config.get("sharks", 20)),
-            tick_cap=int(env_config.get("tick_cap", 20_000)),
-            include_future_leakage=bool(env_config.get("include_future_leakage", False)),
-            reset_options_provider=curriculum.reset_overrides,
-        ),
-        reward_fn=resolve_reward_fn(reward_config_id),
+    batch_config = HeadlessBatchVecEnvConfig(
+        env_count=int(config["num_envs"]),
+        account_name_prefix=str(env_config.get("account_name_prefix", "rl_vecenv")),
+        start_wave=int(env_config.get("start_wave", 1)),
+        ammo=int(env_config.get("ammo", 1000)),
+        prayer_potions=int(env_config.get("prayer_potions", 8)),
+        sharks=int(env_config.get("sharks", 20)),
+        tick_cap=int(env_config.get("tick_cap", 20_000)),
+        include_future_leakage=bool(env_config.get("include_future_leakage", False)),
+        reset_options_provider=curriculum.reset_overrides,
     )
+    if backend == "embedded":
+        return HeadlessBatchVecEnv(
+            batch_config,
+            reward_fn=resolve_reward_fn(reward_config_id),
+        )
+    if backend == "subprocess":
+        return SubprocessHeadlessBatchVecEnv(
+            SubprocessHeadlessBatchVecEnvConfig(
+                env_count=int(config["num_envs"]),
+                reward_config_id=reward_config_id,
+                curriculum_config_id=str(config["curriculum_config"]),
+                account_name_prefix=batch_config.account_name_prefix,
+                start_wave=batch_config.start_wave,
+                ammo=batch_config.ammo,
+                prayer_potions=batch_config.prayer_potions,
+                sharks=batch_config.sharks,
+                tick_cap=batch_config.tick_cap,
+                include_future_leakage=batch_config.include_future_leakage,
+                bootstrap=batch_config.bootstrap,
+            )
+        )
+    raise ValueError(f"Unsupported vecenv backend: {backend!r}")
 
 
 def build_train_output_dir(

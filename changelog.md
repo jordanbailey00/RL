@@ -2,6 +2,47 @@
 
 ## 2026-03-08
 
+- Investigated the reported reset-boundary training crash and reproduced it locally.
+- Confirmed the failure scope with targeted isolation runs:
+  - raw `HeadlessBatchClient` reset/step loops are stable across repeated `max_tick_cap` resets
+  - direct embedded vecenv reset/step loops are stable across repeated `max_tick_cap` resets
+  - `PuffeRL.evaluate()` without `train()` is stable
+  - the crash appears only after `PuffeRL.train()` has shared a process with the embedded JPype/JVM runtime and the next reset crosses back into `resetFightCaveEpisode(...)`
+- Verified that the crash is not specific to:
+  - W&B online logging
+  - the current PufferLib advantage kernel alone
+  - PyTorch CPU thread count alone
+- Shipped a stability-first remediation:
+  - added `fight_caves_rl/envs/subprocess_vector_env.py`
+  - `scripts/train.py` now uses a subprocess-isolated vecenv worker by default through `fight_caves_rl.puffer.factory.make_vecenv(..., backend="subprocess")`
+  - direct embedded vecenv remains the path for correctness tooling and vecenv microbenchmarks through `backend="embedded"`
+- Added regression coverage:
+  - `fight_caves_rl/tests/smoke/test_train_reset_boundary_smoke.py`
+  - the new smoke run forces a low `tick_cap` so training crosses an episode reset boundary without crashing
+- Updated run-manifest accuracy:
+  - train manifests now record `bridge_mode = subprocess_isolated_jvm`
+- Verified the fixed training path locally:
+  - `WANDB_MODE=disabled uv run python scripts/train.py --config configs/train/train_baseline_v0.yaml --total-timesteps 512 --output /tmp/fc_train_postfix.json`
+  - `WANDB_MODE=online uv run python scripts/train.py --config configs/train/train_baseline_v0.yaml --total-timesteps 512 --output /tmp/fc_train_postfix_online.json`
+  - both complete successfully across reset boundaries
+- Verified targeted RL validation after the remediation:
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train fight_caves_rl/tests/smoke/test_train_reset_boundary_smoke.py fight_caves_rl/tests/smoke/test_multi_worker_smoke.py -q`
+  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity -q`
+  - `uv run pytest fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q`
+- Recorded the current measured local performance gap:
+  - existing `fight-caves-RL` sim report: about `8.9k` ticks/sec
+  - RL bridge benchmark on this host:
+    - `bridge_1env_v0` batch trace: about `18.3k` env steps/sec
+    - `bridge_64env_v0` lockstep batch: about `1.33k` env steps/sec total
+  - RL embedded vecenv no-train loop (`4 envs`, constant wait action, no reset pressure): about `742` env steps/sec total
+  - RL stable subprocess-backed training baseline (`train_baseline_v0`, `4 envs`, `512` timesteps):
+    - W&B disabled: about `39.5` train SPS
+    - W&B online: about `13.1` train SPS
+- Documented the main implication for future work:
+  - the workspace is now stable for end-to-end training runs again
+  - the current stack is still far from the long-term `100,000-1,000,000+` SPS goal
+  - the next required performance work is a lower-copy subprocess/shared-memory transport plus substantial sim-side batching/runtime optimization
+
 - Fixed one real W&B online bootstrap bug in RL:
   - `fight_caves_rl/utils/config.py` previously passed `WANDB_ENTITY` through verbatim
   - when users supplied a full `wandb.ai/<entity>/<project>` URL, RL forwarded that URL directly into `wandb.init(entity=...)`

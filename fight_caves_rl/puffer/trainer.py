@@ -98,7 +98,7 @@ def run_smoke_training(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     trace_stage("run_smoke_training:before_make_vecenv")
-    vecenv = make_vecenv(config)
+    vecenv = make_vecenv(config, backend="subprocess")
     trace_stage("run_smoke_training:vecenv_ready")
     policy = MultiDiscreteMLPPolicy.from_spaces(
         vecenv.single_observation_space,
@@ -184,6 +184,7 @@ def run_smoke_training(
         curriculum_config_id=str(config["curriculum_config"]),
         policy_id=str(config["policy"]["id"]),
         env_count=int(config["num_envs"]),
+        bridge_mode="subprocess_isolated_jvm",
         dashboard_enabled=dashboard_enabled,
         wandb_tags=logger.effective_tags,
         checkpoint_metadata=metadata,

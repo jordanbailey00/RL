@@ -382,6 +382,11 @@ Characteristics:
 - direct use of PufferLib vectorization features
 - zero- or low-copy observation handling wherever feasible
 
+Current post-MVP stability note:
+- same-process `PuffeRL.train()` plus the embedded JPype/JVM runtime is not a supported production path once runs cross episode-reset boundaries
+- the shipped `train.py` path must therefore keep the headless runtime in a subprocess-isolated vecenv worker until a lower-copy transport replaces it
+- this is a stability rule, not a simulator-semantics change; the child worker still uses the same PR7/PR8 batch semantics against the golden sim
+
 ### 6.2 Mandatory architectural rule
 
 The final high-throughput path must **not** rely on one Python call per env per tick.
@@ -1082,6 +1087,8 @@ Current implementation note:
 - env benchmark wrapper and vecenv measurements run in separate child processes because the embedded-JVM lifecycle is process-global
 - training benchmark measurements run in fresh child `train.py` subprocesses per logging mode
 - the current PR11 training benchmark keeps replay disabled while isolating bridge, vecenv, trainer, and W&B logging overhead
+- post-MVP stability remediation (2026-03-08) now requires `train.py` itself to use a subprocess-isolated vecenv worker rather than the direct embedded-JVM vecenv
+- current measured local baselines remain far below the target path to `>= 1,000,000 env steps/sec`; see `docs/performance_plan.md` for the recorded gap and required next optimizations
 
 ---
 

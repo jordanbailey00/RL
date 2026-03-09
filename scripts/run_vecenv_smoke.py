@@ -37,7 +37,7 @@ def main() -> None:
 
 
 def _run_reset_step(config: dict[str, object]) -> dict[str, object]:
-    vecenv = make_vecenv(config)
+    vecenv = make_vecenv(config, backend="embedded")
     try:
         env_count = int(config["num_envs"])
         vecenv.async_reset(seed=int(config["train"]["seed"]))
@@ -68,7 +68,7 @@ def _run_reset_step(config: dict[str, object]) -> dict[str, object]:
 
 
 def _run_long_run(config: dict[str, object]) -> dict[str, object]:
-    vecenv = make_vecenv(config)
+    vecenv = make_vecenv(config, backend="embedded")
     try:
         env_count = int(config["num_envs"])
         vecenv.async_reset(seed=int(config["train"]["seed"]))

@@ -65,6 +65,12 @@ Every manifest records:
 - `curriculum_config_id`
 - `policy_id`
 
+Current training-path note:
+
+- train manifests now record `bridge_mode = subprocess_isolated_jvm`
+- this indicates that `train.py` used the subprocess-isolated vecenv worker rather than the direct embedded-JVM vecenv
+- correctness and direct bridge/env benchmark tools may still record other bridge-mode values
+
 ## Sim Artifact Fields
 
 Every manifest records the packaged sim dependency actually consumed by RL:
