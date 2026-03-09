@@ -27,10 +27,10 @@ cd /home/jordan/code/fight-caves-RL
 ./gradlew --no-daemon :game:headlessPerformanceProfile
 ```
 
-Current Phase 0 gate status on this host class:
+Current local WSL packet status on this host class:
 - host class: `wsl2`
 - benchmark source of truth: `false`
-- gate blocker: `native_linux_source_of_truth_missing`
+- native-Linux gate blocker on this host class: `native_linux_source_of_truth_missing`
 - bridge rows complete: `1 / 16 / 64`
 - vecenv rows complete: `1 / 16 / 64`
 - train rows complete: `4 / 16 / 64`

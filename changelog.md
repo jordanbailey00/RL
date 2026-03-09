@@ -1,5 +1,9 @@
 ## 2026-03-09
 
+- Pruned stale active Phase 0 blocker wording from live RL performance docs after the native-Linux gate passed:
+  - `docs/benchmark_matrix.md` now distinguishes local WSL packet status from the approved native-Linux source-of-truth gate
+  - active docs now consistently treat Phase 1 as the next pickup point instead of repeating pre-gate blocker language
+
 - Hosted native-Linux Phase 0 gate passed via the `fight-caves-RL` fallback workflow:
   - published results branch now contains a native-Linux source-of-truth packet for run `22842056526`
   - gate summary reports:
