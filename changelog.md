@@ -1,5 +1,15 @@
 ## 2026-03-09
 
+- Completed `WC-P1-04` and `WC-P1-05` from the workspace optimization plan.
+- Added the RL-side Phase 1 decision-gate source of truth:
+  - `docs/phase1_decision_gate.md`
+- Froze the post-implementation Phase 1 rerun packet:
+  - required native-Linux bridge rows
+  - required native-Linux vecenv rows
+  - required steady-state Python profile rerun
+  - explicit continue-versus-pivot thresholds
+- Updated parity-safe optimization guidance so the future flat-path implementation must clear the new raw-vs-flat equivalence gate before it is trusted.
+
 - Completed `WC-P1-02` and `WC-P1-03` from the workspace optimization plan.
 - Froze the first flat-path design as a conservative sim-owned schema that intentionally mirrors the current shipped `134`-feature trainer tensor layout.
 - Added the RL-side ingestion design source of truth:
