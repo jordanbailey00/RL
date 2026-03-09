@@ -1,40 +1,13 @@
-from copy import deepcopy
+import numpy as np
 
-import pytest
-
-from fight_caves_rl.envs.observation_mapping import flatten_observation
-
-
-def test_observation_flattening_is_deterministic_for_same_payload():
-    observation = _sample_observation()
-
-    left = flatten_observation(observation)
-    right = flatten_observation(deepcopy(observation))
-
-    assert left == right
-    assert left[0] == "headless_observation_v1"
-    assert left[31] == 1
-    assert left[-1] == 2
+from fight_caves_rl.envs.puffer_encoding import (
+    POLICY_OBSERVATION_SIZE,
+    encode_observation_for_policy,
+)
 
 
-def test_observation_flattening_fails_on_contract_order_drift():
+def test_policy_encoding_includes_jad_telegraph_field():
     observation = {
-        "schema_version": 1,
-        "schema_id": "headless_observation_v1",
-        "compatibility_policy": "v1_additive_only",
-        "tick": 0,
-        "episode_seed": 123,
-        "player": _sample_observation()["player"],
-        "wave": _sample_observation()["wave"],
-        "npcs": [],
-    }
-
-    with pytest.raises(ValueError):
-        flatten_observation(observation)
-
-
-def _sample_observation() -> dict[str, object]:
-    return {
         "schema_id": "headless_observation_v1",
         "schema_version": 1,
         "compatibility_policy": "v1_additive_only",
@@ -69,23 +42,25 @@ def _sample_observation() -> dict[str, object]:
                 "ammo_count": 1000,
             },
         },
-        "wave": {
-            "wave": 1,
-            "rotation": 2,
-            "remaining": 3,
-        },
+        "wave": {"wave": 63, "rotation": 1, "remaining": 1},
         "npcs": [
             {
                 "visible_index": 0,
-                "npc_index": 17,
-                "id": "tz-kih",
+                "npc_index": 99,
+                "id": "tztok_jad",
                 "tile": {"x": 4, "y": 5, "level": 0},
-                "hitpoints_current": 10,
-                "hitpoints_max": 10,
+                "hitpoints_current": 250,
+                "hitpoints_max": 250,
                 "hidden": False,
                 "dead": False,
                 "under_attack": True,
-                "jad_telegraph_state": 2,
+                "jad_telegraph_state": 1,
             }
         ],
     }
+
+    encoded = encode_observation_for_policy(observation)
+
+    assert isinstance(encoded, np.ndarray)
+    assert encoded.shape == (POLICY_OBSERVATION_SIZE,)
+    assert encoded[42] == 1.0

@@ -263,8 +263,8 @@ OFFICIAL_BENCHMARK_PROFILE = BenchmarkProfileContract(
 )
 
 PUFFER_POLICY_OBSERVATION_SCHEMA = VersionedContract(
-    contract_id="puffer_policy_observation_v0",
-    version=0,
+    contract_id="puffer_policy_observation_v1",
+    version=1,
     compatibility_policy="replace_on_layout_change",
 )
 

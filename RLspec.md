@@ -709,7 +709,8 @@ Debug-only extra fields may be supported, but they must not contaminate the prod
 
 ### 10.5 PR5 policy-observation baseline
 
-PR5 freezes the first RL-local policy input schema as `puffer_policy_observation_v0`.
+PR5 originally froze the first RL-local policy input schema as `puffer_policy_observation_v0`.
+The current trainer input schema is `puffer_policy_observation_v1` after the parity-preserving Jad telegraph cue was added to the policy tensor layout.
 
 Requirements:
 - raw simulator observations must still be validated against `headless_observation_v1` before encoding

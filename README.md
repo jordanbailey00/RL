@@ -135,7 +135,7 @@ uv run pytest fight_caves_rl/tests/smoke -q
 Current training-path facts:
 
 - RL keeps the raw sim semantics and uses the documented RL-local policy encoding:
-  - `puffer_policy_observation_v0`
+  - `puffer_policy_observation_v1`
   - `puffer_policy_action_v0`
 - `scripts/train.py` now defaults to a subprocess-isolated vecenv worker so `PuffeRL` training does not share one process with the embedded JPype/JVM runtime
 - the shipped embedded vecenv still lives in `fight_caves_rl/envs/vector_env.py` and remains the direct bridge path for correctness tooling and vecenv microbenchmarks

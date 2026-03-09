@@ -78,12 +78,19 @@ Each entry includes:
 - `hidden`
 - `dead`
 - `under_attack`
+- `jad_telegraph_state`
 
 Ordering contract:
 
 - the NPC list is deterministically ordered
 - the ordering source is the same visible-NPC mapping used by the headless action adapter
 - `AttackVisibleNpc.visible_npc_index` must continue to align with `npcs[*].visible_index`
+- `jad_telegraph_state` is a semantic cue, not an oracle:
+  - `0 = idle`
+  - `1 = magic_windup`
+  - `2 = ranged_windup`
+  - only the real Jad NPC may surface a non-zero value
+  - RL must not reinterpret this as a countdown or a direct prayer answer
 
 ## RL Flattening Guardrails
 
@@ -101,10 +108,10 @@ Allowed later wrapper behavior:
 
 ## PR5 Policy Input Encoding
 
-PR5 freezes the first Gym/Puffer policy-input encoding as:
+The current Gym/Puffer policy-input encoding is:
 
-- `policy_observation_schema_id = puffer_policy_observation_v0`
-- `policy_observation_schema_version = 0`
+- `policy_observation_schema_id = puffer_policy_observation_v1`
+- `policy_observation_schema_version = 1`
 
 This is an RL-local encoding for trainer input only.
 The raw sim payload above remains authoritative and is still validated before encoding.
@@ -118,7 +125,7 @@ The PR5 policy vector does not include:
 
 Those fields are constant after the raw payload passes contract validation, so PR5 excludes them from the policy tensor and records the schema identity separately in checkpoint metadata.
 
-### PR5 flat vector order
+### Current flat vector order
 
 Base prefix order:
 
@@ -152,6 +159,7 @@ Per-NPC slot order:
 8. `hidden`
 9. `dead`
 10. `under_attack`
+11. `jad_telegraph_state`
 
 ### PR5 visible-NPC cap
 

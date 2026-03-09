@@ -49,5 +49,5 @@ def test_checkpoint_save_load_smoke(tmp_path: Path):
 
     assert metadata.checkpoint_format_id == "rl_checkpoint_v0"
     assert metadata.train_config_id == "smoke_ppo_v0"
-    assert metadata.policy_observation_schema_id == "puffer_policy_observation_v0"
+    assert metadata.policy_observation_schema_id == "puffer_policy_observation_v1"
     assert metadata.policy_action_schema_id == "puffer_policy_action_v0"

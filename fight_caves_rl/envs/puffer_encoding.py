@@ -90,6 +90,7 @@ POLICY_NPC_SLOT_FIELD_ORDER = (
     "hidden",
     "dead",
     "under_attack",
+    "jad_telegraph_state",
 )
 
 POLICY_ACTION_NVECS = np.asarray(
@@ -196,6 +197,7 @@ def encode_observation_for_policy(observation: dict[str, object]) -> np.ndarray:
                 float(int(bool(npc["hidden"]))),
                 float(int(bool(npc["dead"]))),
                 float(int(bool(npc["under_attack"]))),
+                float(int(npc.get("jad_telegraph_state", 0))),
             )
         )
 

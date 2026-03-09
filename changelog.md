@@ -1,5 +1,10 @@
 ## 2026-03-09
 
+- Integrated the parity-preserving Jad telegraph cue into the RL-side observation contract.
+- Kept the raw sim observation contract on additive `headless_observation_v1` and consumed the new NPC field `jad_telegraph_state` as an additive raw feature.
+- Version-bumped the RL-local trainer tensor layout from `puffer_policy_observation_v0` to `puffer_policy_observation_v1` because the policy input schema now includes the Jad telegraph feature.
+- Updated RL-side observation encoding/tests so the policy can learn from the real Jad windup cue without any prayer oracle.
+
 - Pruned stale active Phase 0 blocker wording from live RL performance docs after the native-Linux gate passed:
   - `docs/benchmark_matrix.md` now distinguishes local WSL packet status from the approved native-Linux source-of-truth gate
   - active docs now consistently treat Phase 1 as the next pickup point instead of repeating pre-gate blocker language

@@ -7,6 +7,7 @@ from fight_caves_rl.envs.schema import (
     HEADLESS_OBSERVATION_SCHEMA,
     HEADLESS_OBSERVATION_TOP_LEVEL_FIELDS,
     OFFICIAL_BENCHMARK_PROFILE,
+    PUFFER_POLICY_OBSERVATION_SCHEMA,
 )
 from fight_caves_rl.manifests.versions import (
     PUFFERLIB_BASELINE_DISTRIBUTION,
@@ -25,6 +26,8 @@ def test_contract_registry_exports_expected_core_versions():
     assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.version == 1
     assert OFFICIAL_BENCHMARK_PROFILE.identity.contract_id == "official_profile_v0"
     assert OFFICIAL_BENCHMARK_PROFILE.identity.version == 0
+    assert PUFFER_POLICY_OBSERVATION_SCHEMA.contract_id == "puffer_policy_observation_v1"
+    assert PUFFER_POLICY_OBSERVATION_SCHEMA.version == 1
 
 
 def test_contract_registry_keeps_expected_schema_shapes():

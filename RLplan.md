@@ -586,7 +586,7 @@ Risks / likely failure modes:
 
 Status:
 
-- [x] Added the PR5 policy-input encoding registry and documented `puffer_policy_observation_v0` / `puffer_policy_action_v0`.
+- [x] Added the PR5 policy-input encoding registry and documented the initial `puffer_policy_observation_v0` / `puffer_policy_action_v0` pair.
 - [x] Reused `pufferlib.pufferl.PuffeRL` for the first trainer loop instead of building a parallel trainer stack.
 - [x] Added a single-env Mode A vecenv shim because the stock `pufferlib.vector.Serial` backend double-constructs envs and conflicts with the embedded-JVM runtime lifecycle.
 - [x] Added checkpoint sidecars with schema/version metadata.
@@ -1376,8 +1376,8 @@ Mandatory benchmark breakdowns across the stages:
 
 8. Observation-space encoding
    - Resolved for the PR5 smoke baseline.
-   - PR5 now freezes the first RL-local policy-observation encoding as `puffer_policy_observation_v0`, including the current categorical dictionaries and `max_visible_npcs = 8`.
-   - PR8 kept the shipped vector path on `puffer_policy_observation_v0`; any later hot-path transport change must version-bump the RL-local policy-observation schema if the layout changes.
+   - PR5 originally froze the first RL-local policy-observation encoding as `puffer_policy_observation_v0`, including the current categorical dictionaries and `max_visible_npcs = 8`.
+   - the current shipped vector path now uses `puffer_policy_observation_v1` after the parity-preserving Jad telegraph cue was added to the policy tensor layout; any later hot-path transport change must still version-bump the RL-local policy-observation schema if the layout changes.
 
 9. Reward shaping details
    - `reward_sparse_v0` and `reward_shaped_v0` are required, but the exact shaped terms, coefficients, and default curriculum behavior are not fully specified. These need to be explicitly documented before training comparisons begin.

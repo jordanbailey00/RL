@@ -98,6 +98,7 @@ def flatten_observation(observation: Mapping[str, Any]) -> tuple[Any, ...]:
                 int(bool(npc_mapping["hidden"])),
                 int(bool(npc_mapping["dead"])),
                 int(bool(npc_mapping["under_attack"])),
+                int(npc_mapping.get("jad_telegraph_state", 0)),
             )
         )
 

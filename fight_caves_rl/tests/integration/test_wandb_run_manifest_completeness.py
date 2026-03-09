@@ -53,7 +53,7 @@ def test_train_and_eval_manifests_record_required_contracts(tmp_path: Path):
     assert train_manifest["episode_start_contract_id"] == "fight_cave_episode_start_v1"
     assert train_manifest["observation_schema_id"] == "headless_observation_v1"
     assert train_manifest["action_schema_id"] == "headless_action_v1"
-    assert train_manifest["policy_observation_schema_id"] == "puffer_policy_observation_v0"
+    assert train_manifest["policy_observation_schema_id"] == "puffer_policy_observation_v1"
     assert train_manifest["policy_action_schema_id"] == "puffer_policy_action_v0"
     assert train_manifest["pufferlib_distribution"] == "pufferlib-core"
     assert train_manifest["checkpoint_format_id"] == "rl_checkpoint_v0"
