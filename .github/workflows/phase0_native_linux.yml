@@ -1,0 +1,135 @@
+name: Phase 0 Native Linux
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/phase0_native_linux.yml"
+      - "scripts/refresh_phase0_packet.py"
+      - "scripts/benchmark_bridge.py"
+      - "scripts/benchmark_env.py"
+      - "scripts/benchmark_train.py"
+      - "fight_caves_rl/benchmarks/**"
+      - "configs/benchmark/**"
+  workflow_dispatch:
+
+jobs:
+  phase0-native-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RL
+        uses: actions/checkout@v4
+
+      - name: Checkout fight-caves-RL
+        uses: actions/checkout@v4
+        with:
+          repository: jordanbailey00/fight-caves-RL
+          path: _workspace/fight-caves-RL
+
+      - name: Checkout RSPS
+        uses: actions/checkout@v4
+        with:
+          repository: jordanbailey00/void-rsps-v2-5-0
+          path: _workspace/RSPS
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync RL dependencies
+        run: uv sync --group dev --group train --python 3.11
+
+      - name: Run standalone sim report
+        working-directory: _workspace/fight-caves-RL
+        run: ./gradlew --no-daemon :game:headlessPerformanceReport
+
+      - name: Run standalone sim profile
+        working-directory: _workspace/fight-caves-RL
+        run: ./gradlew --no-daemon :game:headlessPerformanceProfile
+
+      - name: Refresh native Linux Phase 0 packet
+        env:
+          FIGHT_CAVES_RL_REPO: ${{ github.workspace }}/_workspace/fight-caves-RL
+          RSPS_REPO: ${{ github.workspace }}/_workspace/RSPS
+        run: |
+          uv run python scripts/refresh_phase0_packet.py \
+            --output-dir "${RUNNER_TEMP}/fc_phase0_packet_linux"
+
+      - name: Summarize gate
+        env:
+          PACKET_DIR: ${{ runner.temp }}/fc_phase0_packet_linux
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          packet_dir = Path(os.environ["PACKET_DIR"])
+          packet = json.loads((packet_dir / "phase0_packet.json").read_text())
+          sim = json.loads((Path(os.environ["GITHUB_WORKSPACE"]) / "_workspace" / "fight-caves-RL" / "docs" / "performance_benchmark.json").read_text())
+
+          gate = packet["gate_status"]
+          summary = {
+              "benchmark_host_class": gate["benchmark_host_class"],
+              "performance_source_of_truth": gate["performance_source_of_truth"],
+              "native_linux_source_of_truth": gate["native_linux_source_of_truth"],
+              "phase1_unblocked": gate["phase1_unblocked"],
+              "blockers": gate["blockers"],
+              "sim_single_slot_ticks_per_second": sim["throughput"]["ticks_per_second"],
+              "sim_batched_env_steps_per_second": sim["batched"]["env_steps_per_second"],
+              "workers_needed_for_100k": gate["workers_needed_for_100k"],
+          }
+
+          print("PHASE0_GATE_SUMMARY_BEGIN")
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          print("PHASE0_GATE_SUMMARY_END")
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a", encoding="utf-8") as handle:
+                  handle.write("# Phase 0 Native Linux Gate\n\n")
+                  handle.write("```json\n")
+                  handle.write(json.dumps(summary, indent=2, sort_keys=True))
+                  handle.write("\n```\n")
+          PY
+
+      - name: Upload Phase 0 artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase0-native-linux-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/fc_phase0_packet_linux
+            _workspace/fight-caves-RL/docs/performance_benchmark.log
+            _workspace/fight-caves-RL/docs/performance_benchmark.json
+            _workspace/fight-caves-RL/game/build/reports/headless-performance
+
+      - name: Enforce Phase 0 gate
+        env:
+          PACKET_DIR: ${{ runner.temp }}/fc_phase0_packet_linux
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          packet_dir = Path(os.environ["PACKET_DIR"])
+          packet = json.loads((packet_dir / "phase0_packet.json").read_text())
+          gate = packet["gate_status"]
+          if gate["phase1_unblocked"]:
+              sys.exit(0)
+          print("Phase 0 gate is still blocked:", gate["blockers"])
+          sys.exit(1)
+          PY
