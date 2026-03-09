@@ -2,6 +2,20 @@
 
 ## 2026-03-08
 
+- Fixed one real W&B online bootstrap bug in RL:
+  - `fight_caves_rl/utils/config.py` previously passed `WANDB_ENTITY` through verbatim
+  - when users supplied a full `wandb.ai/<entity>/<project>` URL, RL forwarded that URL directly into `wandb.init(entity=...)`
+  - W&B rejected that with `invalid parameters: 64 limit exceeded for EntityName`
+- RL now normalizes W&B target inputs during bootstrap:
+  - bare entity slugs still work unchanged
+  - full `https://wandb.ai/<entity>/<project>` URLs now normalize to the correct `entity` slug
+  - if `WANDB_PROJECT` is still at the repo default, RL also derives the project name from the URL
+- Added regression coverage for URL-style W&B inputs in:
+  - `fight_caves_rl/tests/unit/test_config_loader.py`
+- Updated the W&B user-facing contract docs in:
+  - `.env.example`
+  - `README.md`
+  - `docs/wandb_logging_contract.md`
 - Added a repo-owned post-PR13 workspace refactor audit in:
   - `docs/workspace_refactor_audit.md`
 - Recorded current cross-repo maintainability findings without changing runtime behavior:

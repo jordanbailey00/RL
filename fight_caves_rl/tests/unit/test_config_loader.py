@@ -58,3 +58,37 @@ def test_load_bootstrap_config_honors_environment_overrides():
     assert config.wandb_dir.as_posix() == "/tmp/wandb"
     assert config.wandb_data_dir.as_posix() == "/tmp/wandb-data"
     assert config.wandb_cache_dir.as_posix() == "/tmp/wandb-cache"
+
+
+def test_load_bootstrap_config_normalizes_wandb_project_url():
+    config = load_bootstrap_config(
+        {
+            "WANDB_ENTITY": "https://wandb.ai/example-entity/example-project",
+        }
+    )
+
+    assert config.wandb_entity == "example-entity"
+    assert config.wandb_project == "example-project"
+
+
+def test_load_bootstrap_config_keeps_explicit_project_override_over_url():
+    config = load_bootstrap_config(
+        {
+            "WANDB_ENTITY": "https://wandb.ai/example-entity/example-project",
+            "WANDB_PROJECT": "custom-project",
+        }
+    )
+
+    assert config.wandb_entity == "example-entity"
+    assert config.wandb_project == "custom-project"
+
+
+def test_load_bootstrap_config_normalizes_slash_delimited_wandb_target():
+    config = load_bootstrap_config(
+        {
+            "WANDB_ENTITY": "example-entity/example-project",
+        }
+    )
+
+    assert config.wandb_entity == "example-entity"
+    assert config.wandb_project == "example-project"

@@ -170,6 +170,12 @@ The bootstrap config now owns the local W&B directories:
 
 Those paths matter in WSL because artifact staging and cache writes must stay inside writable workspace-owned directories.
 
+Online W&B note:
+
+- `WANDB_ENTITY` may be either a bare entity slug or a full `https://wandb.ai/<entity>/<project>` URL
+- if a full project URL is supplied and `WANDB_PROJECT` is still at the repo default, RL normalizes the entity slug and derives the project name automatically before calling `wandb.init(...)`
+- this avoids the common failure mode where a full URL is passed straight through as the W&B entity value
+
 Example:
 
 ```bash

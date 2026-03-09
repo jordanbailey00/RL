@@ -30,6 +30,18 @@ Every train/eval run must initialize W&B with:
 - `mode`
 - local `dir`
 
+Input normalization rules:
+
+- `WANDB_ENTITY` may be configured as either:
+  - a bare entity slug
+  - a full `https://wandb.ai/<entity>/<project>` URL
+- if a full project URL is provided and `WANDB_PROJECT` is still at the repo default (`fight-caves-rl`), RL derives:
+  - `entity = <entity>`
+  - `project = <project>`
+- explicit `WANDB_PROJECT` overrides the project parsed from the URL
+
+This normalization exists because W&B expects the `entity` field to be the entity slug, not the full project URL.
+
 Run ids currently follow:
 
 - `<wandb_run_prefix>-<run_kind>-<unix_timestamp>-<12_hex_suffix>`

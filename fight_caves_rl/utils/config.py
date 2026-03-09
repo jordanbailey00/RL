@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from os import environ
 from pathlib import Path
 from typing import Mapping
+from urllib.parse import urlparse
 
 from fight_caves_rl.manifests.versions import (
     PUFFERLIB_BASELINE_DISTRIBUTION,
@@ -43,11 +44,55 @@ def _parse_csv_env(value: str | None) -> tuple[str, ...]:
     return tuple(part.strip() for part in value.split(",") if part.strip())
 
 
+def _normalize_wandb_target(
+    *,
+    entity_value: str | None,
+    project_value: str | None,
+) -> tuple[str | None, str]:
+    default_project = "fight-caves-rl"
+    entity = _optional_env(entity_value)
+    explicit_project = _optional_env(project_value)
+    parsed_entity: str | None = None
+    parsed_project: str | None = None
+
+    if entity is not None:
+        if "://" in entity:
+            parsed = urlparse(entity)
+            if parsed.netloc.endswith("wandb.ai"):
+                parts = [part for part in parsed.path.split("/") if part]
+                if parts:
+                    parsed_entity = parts[0]
+                if len(parts) >= 2:
+                    parsed_project = parts[1]
+        elif entity.startswith("wandb.ai/"):
+            parts = [part for part in entity.split("/")[1:] if part]
+            if parts:
+                parsed_entity = parts[0]
+            if len(parts) >= 2:
+                parsed_project = parts[1]
+        elif "/" in entity:
+            parts = [part for part in entity.split("/") if part]
+            if parts:
+                parsed_entity = parts[0]
+            if len(parts) >= 2:
+                parsed_project = parts[1]
+
+    normalized_entity = parsed_entity or entity
+    normalized_project = explicit_project or default_project
+    if parsed_project is not None and normalized_project == default_project:
+        normalized_project = parsed_project
+    return normalized_entity, normalized_project
+
+
 def load_bootstrap_config(env: Mapping[str, str] | None = None) -> BootstrapConfig:
     env_map = env or environ
     rl_root = repo_root()
     workspace = workspace_root()
     artifacts_root = rl_root / "artifacts"
+    wandb_entity, wandb_project = _normalize_wandb_target(
+        entity_value=env_map.get("WANDB_ENTITY"),
+        project_value=env_map.get("WANDB_PROJECT"),
+    )
     return BootstrapConfig(
         rl_repo=Path(env_map.get("RL_REPO", str(rl_root))),
         sim_repo=Path(env_map.get("FIGHT_CAVES_RL_REPO", str(workspace / "fight-caves-RL"))),
@@ -58,8 +103,8 @@ def load_bootstrap_config(env: Mapping[str, str] | None = None) -> BootstrapConf
             PUFFERLIB_BASELINE_DISTRIBUTION,
         ),
         pufferlib_version=env_map.get("PUFFERLIB_VERSION", PUFFERLIB_BASELINE_VERSION),
-        wandb_project=env_map.get("WANDB_PROJECT", "fight-caves-rl"),
-        wandb_entity=_optional_env(env_map.get("WANDB_ENTITY")),
+        wandb_project=wandb_project,
+        wandb_entity=wandb_entity,
         wandb_group=_optional_env(env_map.get("WANDB_GROUP", "smoke")),
         wandb_mode=env_map.get("WANDB_MODE", "offline"),
         wandb_resume=env_map.get("WANDB_RESUME", "allow"),
