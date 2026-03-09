@@ -1,5 +1,16 @@
 ## 2026-03-09
 
+- Added a repo-owned native-Linux Phase 0 workflow in `RL`:
+  - `.github/workflows/phase0_native_linux.yml`
+  - the correct target topology is `self-hosted, linux` against the existing `/home/jordan/code` workspace so the run sees the local sibling repos and the already-restored game cache
+- Verified the first `RL` native-Linux workflow push created a queued run rather than a completed packet:
+  - run `22841124553`
+  - status: `queued`
+  - implication: the self-hosted Linux runner path exists in config but is not currently available to execute the Phase 0 gate
+- Recorded the resulting Phase 0 status:
+  - Phase 1 remains blocked
+  - the remaining blocker is native-Linux host availability, not WSL measurement coverage
+
 - Started Phase 0 optimization implementation work from the approved workspace-level optimization plan.
 - Added repo-owned Phase 0 packet tooling in RL:
   - `scripts/refresh_phase0_packet.py`
