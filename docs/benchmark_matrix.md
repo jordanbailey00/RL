@@ -52,6 +52,19 @@ Current refreshed rows from `/tmp/fc_phase0_packet_clean`:
 | Training | `scripts/benchmark_train.py --env-count 16 --total-timesteps 1024 --logging-modes disabled` | 16 | `96.53` SPS |
 | Training | `scripts/benchmark_train.py --env-count 64 --total-timesteps 1024 --logging-modes disabled` | 64 | `91.62` SPS |
 
+Hosted native-Linux source-of-truth gate summary:
+
+| Layer | Command | Env count | Result |
+| --- | --- | ---: | --- |
+| Standalone sim single-slot | hosted `:game:headlessPerformanceReport` | 1 | `30532.58` ticks/s |
+| Standalone sim batched | hosted `:game:headlessPerformanceReport` | 16 | `404635.41` env steps/s |
+| Phase 0 gate | hosted `scripts/refresh_phase0_packet.py` | `1 / 16 / 64` bridge, `1 / 16 / 64` vecenv, `4 / 16 / 64` train | `phase1_unblocked = true`, `workers_needed_for_100k = 1` |
+
+Updated gate interpretation:
+- WSL remains useful for local packet refresh and detailed regression comparison
+- native Linux is now the approved performance source of truth
+- the hosted native-Linux packet satisfies the Phase 0 hard gate and authorizes Phase 1 design work
+
 ## Measured Rows
 
 | Layer | Command | Config | Env count | Worker topology | Worker count | Envs / worker | Dashboard | W&B | Replay/artifacts | Result |

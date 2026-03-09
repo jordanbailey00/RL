@@ -48,14 +48,22 @@ Current-host WSL packet refreshed from those entrypoints:
   - `16 env`: disabled `96.53` SPS
   - `64 env`: disabled `91.62` SPS
 
-Phase 0 gate status from `/tmp/fc_phase0_packet_clean/phase0_packet.json`:
-- only remaining blocker: `native_linux_source_of_truth_missing`
-- bridge / vecenv / train rows are now complete on one host class
-- clean pure-JVM and clean batched headless artifacts now exist
+Phase 0 gate status now has both:
+- a complete current-host WSL packet at `/tmp/fc_phase0_packet_clean/phase0_packet.json`
+- a hosted native-Linux source-of-truth packet published via `codex/phase0-results`
+
+Native-Linux gate summary:
+- benchmark host class: `linux_native`
+- performance source of truth: `true`
+- native-Linux source of truth: `true`
+- bridge / vecenv / train rows: complete
+- clean pure-JVM and clean batched headless artifacts: present
+- per-worker sim estimate: about `404.6k` batched env steps/s, `1` worker needed for `100k`
+- Phase 1 gate result: `unblocked`
 
 Interpretation:
 - the old `8.9k` direct-sim artifact was materially under-representing the current headless runtime ceiling because it came from the older Step 11 test-harness path
-- the new clean standalone harness makes `100k+` look plausible from the sim-side ceiling perspective
+- the new clean standalone harness and native-Linux gate both make `100k+` look plausible from the sim-side ceiling perspective
 - the RL outer stack is now even more clearly the dominant current bottleneck because train SPS still sits around `92-97` while the clean batched sim report is in the `473k` env-steps/s range on the same WSL host
 
 ## Summary Table

@@ -1,5 +1,17 @@
 ## 2026-03-09
 
+- Hosted native-Linux Phase 0 gate passed via the `fight-caves-RL` fallback workflow:
+  - published results branch now contains a native-Linux source-of-truth packet for run `22842056526`
+  - gate summary reports:
+    - `benchmark_host_class = linux_native`
+    - `phase1_unblocked = true`
+    - `per_worker_sim_env_steps_per_second = 404635.41`
+    - `workers_needed_for_100k = 1`
+- Updated RL Phase 0 status docs to reflect that the optimization program is no longer blocked on native-Linux confirmation:
+  - `docs/performance_plan.md`
+  - `docs/performance_decomposition_report.md`
+  - `docs/benchmark_matrix.md`
+
 - Hardened the self-hosted native-Linux Phase 0 workflow so it no longer relies on a stale prebuilt headless artifact:
   - `.github/workflows/phase0_native_linux.yml` now builds the canonical `:game:headlessDistZip` artifact before `scripts/refresh_phase0_packet.py`
   - this aligns the self-hosted gate with the canonical headless artifact contract used by the RL bridge and benchmark path

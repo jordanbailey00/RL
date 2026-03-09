@@ -107,19 +107,26 @@ Current refreshed WSL packet highlights:
   - `16 envs`: about `96.5` SPS
   - `64 envs`: about `91.6` SPS
 
-Gate status:
+Native-Linux source-of-truth gate summary from the hosted Phase 0 packet:
 
+- benchmark host class: `linux_native`
+- performance source of truth: `true`
+- native-Linux source of truth: `true`
 - clean pure-JVM artifact: present
 - clean batched sim artifact: present
 - bridge / vecenv / train rows on one host class: present
 - per-worker ceiling estimate: present
-- remaining blocker before Phase 1: `native_linux_source_of_truth_missing`
+- standalone sim single-slot throughput: about `30.5k` ticks/sec
+- standalone sim batched throughput: about `404.6k` env steps/sec
+- workers needed for `100k`: `1`
+- Phase 1 gate result: `unblocked`
 
 Interpretation:
 
 - the Phase 0 refresh materially improved confidence in the sim-side ceiling
 - the refreshed packet reinforces that the RL outer stack is the current dominant bottleneck
-- Phase 1 implementation remains blocked until the same packet is refreshed on native Linux and reviewed against the approved gate
+- the hosted native-Linux packet now satisfies the approved Phase 0 hard gate
+- Phase 1 may begin, but only on the approved raw-vs-flat contract/design scope
 
 ## Stage Gate A - Correctness Baseline
 
