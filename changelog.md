@@ -1,5 +1,14 @@
 ## 2026-03-09
 
+- Completed `WC-P1-02` and `WC-P1-03` from the workspace optimization plan.
+- Froze the first flat-path design as a conservative sim-owned schema that intentionally mirrors the current shipped `134`-feature trainer tensor layout.
+- Added the RL-side ingestion design source of truth:
+  - `docs/flat_observation_ingestion.md`
+- Updated RL-side contract docs for the future flat path:
+  - `docs/bridge_contract.md` now documents the planned flat-path handshake additions
+  - `docs/run_manifest.md` now documents the future flat-schema manifest fields
+  - `docs/observation_mapping.md` now explicitly ties the first flat schema to the current trainer tensor layout
+
 - Completed `WC-P1-01` from the workspace optimization plan.
 - Froze the RL-side raw-vs-flat contract consumption rules for the upcoming performance-path redesign:
   - updated `docs/observation_mapping.md` so the future flat path is explicitly constrained to remain a semantically equivalent projection of the raw sim contract

@@ -176,6 +176,22 @@ The bridge must validate these before stepping:
 - `pufferlib_distribution`
 - `pufferlib_version`
 
+## Planned Phase 1 Flat-Path Handshake Additions
+
+The current shipped bridge handshake is raw-path oriented.
+
+Once the flat training path lands, Production Training Mode should additionally validate:
+
+- `observation_path_mode`
+- `flat_observation_schema_id`
+- `flat_observation_schema_version`
+- `flat_observation_dtype`
+- `flat_observation_feature_count`
+- `flat_observation_max_visible_npcs`
+
+These are planned additions for the future flat-path worker contract.
+They are not yet part of the currently shipped handshake surface.
+
 ## Versioning Rule
 
 - PR 3 correctness mode recorded `fight_caves_bridge_v0`

@@ -122,6 +122,11 @@ The current Gym/Puffer policy-input encoding is:
 This is an RL-local encoding for trainer input only.
 The raw sim payload above remains authoritative and is still validated before encoding.
 
+Phase 1 design note:
+
+- the first future sim-owned flat training schema is intentionally designed to mirror this current trainer layout so RL can remove Python raw-object reconstruction without simultaneously redesigning the policy feature set
+- see [flat_training_observation_schema.md](/home/jordan/code/fight-caves-RL/docs/flat_training_observation_schema.md) and [flat_observation_ingestion.md](/home/jordan/code/RL/docs/flat_observation_ingestion.md)
+
 ### Constants dropped after validation
 
 The PR5 policy vector does not include:
