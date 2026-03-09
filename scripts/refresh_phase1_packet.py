@@ -87,7 +87,8 @@ def main() -> None:
 
 
 def _run_python_profile(output_path: Path) -> None:
-    config = load_smoke_train_config(Path("configs/benchmark/vecenv_256env_v0.yaml"))
+    root = repo_root()
+    config = load_smoke_train_config(root / "configs" / "benchmark" / "vecenv_256env_v0.yaml")
     config["num_envs"] = 16
     vecenv = make_vecenv(config, backend="embedded")
     seed = int(config["train"]["seed"])
