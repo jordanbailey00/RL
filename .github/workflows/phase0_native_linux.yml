@@ -16,53 +16,46 @@ on:
 
 jobs:
   phase0-native-linux:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - linux
     steps:
-      - name: Checkout RL
-        uses: actions/checkout@v4
-
-      - name: Checkout fight-caves-RL
-        uses: actions/checkout@v4
-        with:
-          repository: jordanbailey00/fight-caves-RL
-          path: _workspace/fight-caves-RL
-
-      - name: Checkout RSPS
-        uses: actions/checkout@v4
-        with:
-          repository: jordanbailey00/void-rsps-v2-5-0
-          path: _workspace/RSPS
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Verify workspace layout
+        run: |
+          test -f /home/jordan/code/.workspace-env.sh
+          test -d /home/jordan/code/RL
+          test -d /home/jordan/code/fight-caves-RL
+          test -d /home/jordan/code/RSPS
 
       - name: Sync RL dependencies
-        run: uv sync --group dev --group train --python 3.11
+        shell: bash
+        working-directory: /home/jordan/code/RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          uv sync --group dev --group train --python 3.11
 
       - name: Run standalone sim report
-        working-directory: _workspace/fight-caves-RL
-        run: ./gradlew --no-daemon :game:headlessPerformanceReport
+        shell: bash
+        working-directory: /home/jordan/code/fight-caves-RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          ./gradlew --no-daemon :game:headlessPerformanceReport
 
       - name: Run standalone sim profile
-        working-directory: _workspace/fight-caves-RL
-        run: ./gradlew --no-daemon :game:headlessPerformanceProfile
+        shell: bash
+        working-directory: /home/jordan/code/fight-caves-RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          ./gradlew --no-daemon :game:headlessPerformanceProfile
 
       - name: Refresh native Linux Phase 0 packet
+        shell: bash
+        working-directory: /home/jordan/code/RL
         env:
-          FIGHT_CAVES_RL_REPO: ${{ github.workspace }}/_workspace/fight-caves-RL
-          RSPS_REPO: ${{ github.workspace }}/_workspace/RSPS
+          FIGHT_CAVES_RL_REPO: /home/jordan/code/fight-caves-RL
+          RSPS_REPO: /home/jordan/code/RSPS
         run: |
+          source /home/jordan/code/.workspace-env.sh
           uv run python scripts/refresh_phase0_packet.py \
             --output-dir "${RUNNER_TEMP}/fc_phase0_packet_linux"
 
@@ -77,7 +70,7 @@ jobs:
 
           packet_dir = Path(os.environ["PACKET_DIR"])
           packet = json.loads((packet_dir / "phase0_packet.json").read_text())
-          sim = json.loads((Path(os.environ["GITHUB_WORKSPACE"]) / "_workspace" / "fight-caves-RL" / "docs" / "performance_benchmark.json").read_text())
+          sim = json.loads(Path("/home/jordan/code/fight-caves-RL/docs/performance_benchmark.json").read_text())
 
           gate = packet["gate_status"]
           summary = {
@@ -111,9 +104,9 @@ jobs:
           name: phase0-native-linux-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/fc_phase0_packet_linux
-            _workspace/fight-caves-RL/docs/performance_benchmark.log
-            _workspace/fight-caves-RL/docs/performance_benchmark.json
-            _workspace/fight-caves-RL/game/build/reports/headless-performance
+            /home/jordan/code/fight-caves-RL/docs/performance_benchmark.log
+            /home/jordan/code/fight-caves-RL/docs/performance_benchmark.json
+            /home/jordan/code/fight-caves-RL/game/build/reports/headless-performance
 
       - name: Enforce Phase 0 gate
         env:
