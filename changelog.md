@@ -1,5 +1,11 @@
 ## 2026-03-09
 
+- Hardened the self-hosted native-Linux Phase 0 workflow so it no longer relies on a stale prebuilt headless artifact:
+  - `.github/workflows/phase0_native_linux.yml` now builds the canonical `:game:headlessDistZip` artifact before `scripts/refresh_phase0_packet.py`
+  - this aligns the self-hosted gate with the canonical headless artifact contract used by the RL bridge and benchmark path
+- Decision recorded:
+  - Phase 0 packet generation must treat the packaged headless distribution as an explicit prerequisite, not an implicit leftover from prior local builds
+
 - Added a repo-owned native-Linux Phase 0 workflow in `RL`:
   - `.github/workflows/phase0_native_linux.yml`
   - the correct target topology is `self-hosted, linux` against the existing `/home/jordan/code` workspace so the run sees the local sibling repos and the already-restored game cache

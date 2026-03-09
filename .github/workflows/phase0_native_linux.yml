@@ -48,6 +48,13 @@ jobs:
           source /home/jordan/code/.workspace-env.sh
           ./gradlew --no-daemon :game:headlessPerformanceProfile
 
+      - name: Build canonical headless distribution
+        shell: bash
+        working-directory: /home/jordan/code/fight-caves-RL
+        run: |
+          source /home/jordan/code/.workspace-env.sh
+          ./gradlew --no-daemon :game:headlessDistZip
+
       - name: Refresh native Linux Phase 0 packet
         shell: bash
         working-directory: /home/jordan/code/RL
