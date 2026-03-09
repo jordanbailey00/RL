@@ -259,3 +259,27 @@
   - `fight_caves_rl/logging/wandb_client.py`
   - `scripts/benchmark_env.py`
 - Added PR11 performance smoke coverage:
+## 2026-03-09
+
+- Started the Phase 1 flat-observation implementation batch and replaced the Production Training Mode hot path with the sim-owned flat schema:
+  - added direct flat observation accessors and flat-row helpers in `fight_caves_rl/envs/observation_views.py`
+  - extended the bridge/runtime contract to `fight_caves_bridge_v2`
+  - added flat observation handshake/manifests fields:
+    - `observation_path_mode`
+    - `flat_observation_schema_id`
+    - `flat_observation_schema_version`
+    - `flat_observation_dtype`
+    - `flat_observation_feature_count`
+    - `flat_observation_max_visible_npcs`
+- Shifted Production Training Mode batch stepping onto the flat path while keeping Certification/reference paths on the raw path:
+  - `HeadlessBatchClient.step_batch(...)` now consumes sim-emitted flat observations when future leakage is disabled
+  - `HeadlessBatchClient.step_reference(...)` remains raw-path for certification/reference parity
+- Added the first RL-side raw-vs-flat certification coverage:
+  - `fight_caves_rl/tests/unit/test_observation_views.py`
+  - `fight_caves_rl/tests/integration/test_flat_observation_matches_raw_projection.py`
+- Re-ran the Phase 1 local WSL packet:
+  - bridge `64 env`: about `11.94k` env/s
+  - vecenv `64 env`: about `7.34k` env/s
+  - steady-state raw object conversion is no longer the dominant Python cost center
+- Refreshed the stale parity-canary semantic digest baselines for the Jad-healer and Tz-Kek scenarios after the protected observation cue set expanded.
+- Phase 1 local preview meets the planning thresholds numerically, but the final continue-vs-pivot decision remains blocked on the hosted native-Linux Phase 1 packet review.

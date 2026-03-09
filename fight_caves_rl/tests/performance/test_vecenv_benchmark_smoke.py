@@ -28,7 +28,7 @@ def test_vecenv_benchmark_smoke(tmp_path: Path):
         )
 
     payload = load_json(output)
-    assert payload["bridge_protocol_id"] == "fight_caves_bridge_v1"
-    assert int(payload["bridge_protocol_version"]) == 1
+    assert payload["bridge_protocol_id"] == "fight_caves_bridge_v2"
+    assert int(payload["bridge_protocol_version"]) == 2
     assert int(payload["env_count"]) == 8
     assert float(payload["measurement"]["env_steps_per_second"]) > 0.0

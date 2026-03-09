@@ -4,11 +4,20 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Any, Callable, Mapping
 
+import numpy as np
+
 from fight_caves_rl.bridge.contracts import HeadlessBootstrapConfig, HeadlessEpisodeConfig, HeadlessPlayerConfig
 from fight_caves_rl.bridge.debug_client import HeadlessDebugClient
 from fight_caves_rl.envs.action_mapping import NormalizedAction, normalize_action
+from fight_caves_rl.envs.observation_views import (
+    observation_player_hitpoints_current,
+    observation_remaining,
+    observation_tick,
+    observation_wave,
+)
 
-RewardFn = Callable[[dict[str, Any] | None, dict[str, Any], dict[str, Any], bool, bool], float]
+ObservationLike = Mapping[str, Any] | np.ndarray
+RewardFn = Callable[[ObservationLike | None, dict[str, Any], ObservationLike, bool, bool], float]
 
 
 def _zero_reward(
@@ -127,20 +136,18 @@ class FightCavesCorrectnessEnv:
 
 
 def infer_terminal_state(
-    observation: Mapping[str, Any],
+    observation: ObservationLike,
     episode_start_tick: int | None,
     tick_cap: int,
 ) -> tuple[bool, bool, str | None]:
-    player = observation["player"]
-    wave = observation["wave"]
-    if int(player["hitpoints_current"]) <= 0:
+    if observation_player_hitpoints_current(observation) <= 0:
         return True, False, "player_death"
-    if int(wave["wave"]) == 63 and int(wave["remaining"]) == 0:
+    if observation_wave(observation) == 63 and observation_remaining(observation) == 0:
         return True, False, "cave_complete"
 
     if episode_start_tick is None:
         return False, False, None
-    ticks_elapsed = int(observation["tick"]) - int(episode_start_tick)
+    ticks_elapsed = observation_tick(observation) - int(episode_start_tick)
     if ticks_elapsed >= tick_cap:
         return False, True, "max_tick_cap"
     return False, False, None

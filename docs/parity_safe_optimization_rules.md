@@ -54,7 +54,7 @@ At minimum:
 - `scripts/replay_eval.py` on a known checkpoint
 - benchmark packet rows affected by the optimization
 
-For the future flat training path specifically:
+For the current flat training path specifically:
 
 - source-side raw-vs-flat equivalence gate from [raw_flat_equivalence_plan.md](/home/jordan/code/fight-caves-RL/docs/raw_flat_equivalence_plan.md)
 - RL-side consumer equivalence and fail-fast checks from [flat_observation_ingestion.md](/home/jordan/code/RL/docs/flat_observation_ingestion.md)

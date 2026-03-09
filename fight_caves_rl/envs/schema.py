@@ -68,6 +68,16 @@ class BenchmarkProfileContract:
     required_manifest_fields: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class FlatObservationSchemaContract:
+    identity: VersionedContract
+    dtype: str
+    feature_count: int
+    max_visible_npcs: int
+    base_field_count: int
+    npc_slot_field_count: int
+
+
 HEADLESS_OBSERVATION_SCHEMA = VersionedContract(
     contract_id="headless_observation_v1",
     version=1,
@@ -119,6 +129,19 @@ HEADLESS_ACTION_REJECT_REASONS = (
     "PrayerPointsDepleted",
     "InsufficientRunEnergy",
     "NoMovementRequired",
+)
+
+HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA = FlatObservationSchemaContract(
+    identity=VersionedContract(
+        contract_id="headless_training_flat_observation_v1",
+        version=1,
+        compatibility_policy="replace_on_shape_or_semantic_change",
+    ),
+    dtype="float32",
+    feature_count=134,
+    max_visible_npcs=8,
+    base_field_count=30,
+    npc_slot_field_count=13,
 )
 
 FIGHT_CAVE_EPISODE_START_CONTRACT = EpisodeStartContract(
@@ -176,8 +199,8 @@ FIGHT_CAVE_EPISODE_START_CONTRACT = EpisodeStartContract(
 
 FIGHT_CAVES_BRIDGE_CONTRACT = BridgeContract(
     identity=VersionedContract(
-        contract_id="fight_caves_bridge_v1",
-        version=1,
+        contract_id="fight_caves_bridge_v2",
+        version=2,
         compatibility_policy="bump_on_transport_or_handshake_change",
     ),
     mode_a_transport="embedded_jvm_direct_runtime",
@@ -206,6 +229,12 @@ FIGHT_CAVES_BRIDGE_CONTRACT = BridgeContract(
     required_handshake_fields=(
         "observation_schema_id",
         "observation_schema_version",
+        "observation_path_mode",
+        "flat_observation_schema_id",
+        "flat_observation_schema_version",
+        "flat_observation_dtype",
+        "flat_observation_feature_count",
+        "flat_observation_max_visible_npcs",
         "action_schema_id",
         "action_schema_version",
         "episode_start_contract_id",
@@ -245,8 +274,14 @@ OFFICIAL_BENCHMARK_PROFILE = BenchmarkProfileContract(
         "sim_artifact_path",
         "bridge_protocol_id",
         "bridge_protocol_version",
+        "observation_path_mode",
         "observation_schema_id",
         "observation_schema_version",
+        "flat_observation_schema_id",
+        "flat_observation_schema_version",
+        "flat_observation_dtype",
+        "flat_observation_feature_count",
+        "flat_observation_max_visible_npcs",
         "action_schema_id",
         "action_schema_version",
         "episode_start_contract_id",

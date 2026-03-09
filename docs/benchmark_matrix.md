@@ -64,6 +64,33 @@ Updated gate interpretation:
 - WSL remains useful for local packet refresh and detailed regression comparison
 - native Linux is now the approved performance source of truth
 - the hosted native-Linux packet satisfies the Phase 0 hard gate and authorizes Phase 1 design work
+- the hosted native-Linux packet remains the source-of-truth baseline that the Phase 1 post-implementation gate must compare against
+
+## Phase 1 Local Preview
+
+Standardized local refresh entrypoint:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/refresh_phase1_packet.py --output-dir /tmp/fc_phase1_packet_local
+```
+
+Current local WSL preview rows from `/tmp/fc_phase1_packet_local`:
+
+| Layer | Command | Env count | Result |
+| --- | --- | ---: | --- |
+| Bridge | `scripts/benchmark_bridge.py --config bridge_64env_v0 --env-count 16` | 16 | `10809.00` env/s |
+| Bridge | `scripts/benchmark_bridge.py --config bridge_64env_v0 --env-count 64` | 64 | `11936.49` env/s in packet gate summary |
+| VecEnv | `scripts/benchmark_env.py --config vecenv_256env_v0 --env-count 16` | 16 | `6263.67` env/s |
+| VecEnv | `scripts/benchmark_env.py --config vecenv_256env_v0 --env-count 64` | 64 | `7336.43` env/s in packet gate summary |
+| Python profile | `scripts/refresh_phase1_packet.py` steady-state profile | 16 | `raw_object_conversion_still_dominant = false` |
+
+Local preview interpretation:
+
+- Phase 1 local rows clear the planning thresholds numerically
+- the flat-path implementation appears to have removed the intended bottleneck
+- the Phase 1 decision is still pending because the hosted native-Linux packet has not yet been reviewed
 
 ## Measured Rows
 

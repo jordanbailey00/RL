@@ -2,14 +2,16 @@
 
 Date: 2026-03-09
 
-This document defines the Phase 1 RL-side ingestion design for the future sim-owned flat training observation schema.
+This document defines the Phase 1 RL-side ingestion design and current implementation for the sim-owned flat training observation schema.
 
 ## Purpose
 
-The goal is to consume the future flat training path without reconstructing raw objects in Python.
+The goal is to consume the flat training path without reconstructing raw objects in Python.
 
-This design is for `WC-P1-03`.
-It is design-frozen, not implemented yet.
+This document now covers both:
+
+- the design frozen in `WC-P1-03`
+- the current shipped implementation state from the Phase 1 implementation batch
 
 The corresponding sim-owned schema design is:
 
@@ -17,7 +19,7 @@ The corresponding sim-owned schema design is:
 
 ## Input Contract
 
-RL will consume:
+RL consumes:
 
 - `schema_id = headless_training_flat_observation_v1`
 - `schema_version = 1`
@@ -135,9 +137,30 @@ Target behavior:
 
 The vecenv should continue to keep reward, terminal flags, and non-hot-path infos outside the observation batch.
 
+## Current Implementation Status
+
+The current shipped Phase 1 implementation does the following:
+
+- `HeadlessBatchClient.step_batch(...)` consumes sim-emitted flat observations in Production Training Mode
+- `HeadlessBatchClient.step_reference(...)` remains raw-path and is used for certification/reference comparisons
+- `HeadlessDebugClient.observe_flat(...)` exposes the sim-owned flat schema directly to RL
+- `flat_observation_to_numpy(...)` converts the JVM `float[]` payload into the direct `numpy.ndarray` row without reconstructing raw nested objects
+- RL-side helper accessors reconstruct only the minimal scalar/NPC views needed by terminal, reward, and info bookkeeping instead of rebuilding the full raw observation tree
+
+The current hot path therefore removes:
+
+- `_pythonize`
+- recursive raw dict/list reconstruction
+- raw-path policy encoding in Production Training Mode
+
+The current hot path still retains:
+
+- flat row unpacking for a narrow set of reward/terminal/info consumers
+- subprocess transport overhead, which remains the next Phase 2 target
+
 ## Manifest And Provenance Requirements
 
-When the flat path lands, RL manifests should additionally record:
+RL manifests now additionally record:
 
 - `observation_path_mode` (`raw` or `flat`)
 - `flat_observation_schema_id`
@@ -162,9 +185,10 @@ Equivalence checks must prove that the flat row carries the same `idle / magic_w
 
 ## Exit Condition For WC-P1-03
 
-This design chunk is complete when:
+This chunk is now complete for both design and initial implementation when:
 
 - RL has a frozen consumer shape for the first flat schema
 - startup/handshake validation requirements are explicit
 - Certification Mode and Production Training Mode responsibilities are explicit
 - the design guarantees that the target state removes `_pythonize` and raw dict reconstruction from the training hot path
+- the shipped implementation satisfies that target in the batch step path

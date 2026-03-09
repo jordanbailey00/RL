@@ -112,9 +112,9 @@ Why PR7 stays in-process:
 - PR7’s goal is to freeze batch semantics, slot failure handling, and benchmarkable behavior before a later transport swap
 - this keeps PR7 aligned with the sim as golden runtime instead of inventing a speculative subprocess server API
 
-Current PR7 guarantees:
+Current bridge guarantees:
 
-- bridge protocol incremented to `fight_caves_bridge_v1`
+- bridge protocol incremented to `fight_caves_bridge_v2`
 - per-slot resets still call `resetFightCaveEpisode(...)` directly
 - per-step semantics are:
   - apply slot actions
@@ -122,6 +122,19 @@ Current PR7 guarantees:
   - observe all slots
 - schema/version drift fails fast before batch stepping
 - single-slot trace benchmarking reuses the sim-side `runFightCaveBatch(...)` helper directly
+
+Current Phase 1 flat-path note:
+
+- Production Training Mode batch stepping now uses the sim-owned flat observation path by default when `include_future_leakage = false`
+- Certification/reference stepping still uses the raw observation path
+- the shipped bridge handshake now additionally validates:
+  - `observation_path_mode`
+  - `flat_observation_schema_id`
+  - `flat_observation_schema_version`
+  - `flat_observation_dtype`
+  - `flat_observation_feature_count`
+  - `flat_observation_max_visible_npcs`
+- `fight_caves_bridge_v2` is therefore the current shipped flat-path worker contract
 
 Not landed yet in PR7:
 
@@ -176,11 +189,9 @@ The bridge must validate these before stepping:
 - `pufferlib_distribution`
 - `pufferlib_version`
 
-## Planned Phase 1 Flat-Path Handshake Additions
+## Current Phase 1 Flat-Path Handshake Fields
 
-The current shipped bridge handshake is raw-path oriented.
-
-Once the flat training path lands, Production Training Mode should additionally validate:
+Production Training Mode now additionally validates:
 
 - `observation_path_mode`
 - `flat_observation_schema_id`
@@ -189,11 +200,11 @@ Once the flat training path lands, Production Training Mode should additionally 
 - `flat_observation_feature_count`
 - `flat_observation_max_visible_npcs`
 
-These are planned additions for the future flat-path worker contract.
-They are not yet part of the currently shipped handshake surface.
+These are part of the currently shipped flat-path worker contract.
 
 ## Versioning Rule
 
 - PR 3 correctness mode recorded `fight_caves_bridge_v0`
 - PR 7 increments the bridge contract to `fight_caves_bridge_v1` because the batch envelope and lockstep semantics are now part of the explicit bridge contract
-- if PR 7 changes the batch envelope, transport semantics, or handshake surface materially, the bridge protocol version must increment rather than drifting silently
+- Phase 1 increments the bridge contract to `fight_caves_bridge_v2` because the worker handshake and observation-path semantics now include the flat training path
+- if bridge batch semantics, transport semantics, or handshake surface change materially, the bridge protocol version must increment rather than drifting silently

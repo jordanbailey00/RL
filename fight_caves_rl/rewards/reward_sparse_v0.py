@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
+from fight_caves_rl.envs.observation_views import (
+    observation_player_hitpoints_current,
+    observation_remaining,
+    observation_wave,
+)
 from fight_caves_rl.rewards.registry import RewardConfig
 
 
@@ -11,9 +18,9 @@ def build_reward_fn(config: RewardConfig):
     player_death = float(config.coefficients.get("player_death", -1.0))
 
     def reward_fn(
-        previous_observation: dict[str, Any] | None,
+        previous_observation: dict[str, Any] | np.ndarray | None,
         action_result: dict[str, Any],
-        observation: dict[str, Any],
+        observation: dict[str, Any] | np.ndarray,
         terminated: bool,
         truncated: bool,
     ) -> float:
@@ -30,19 +37,22 @@ def build_reward_fn(config: RewardConfig):
     return reward_fn
 
 
-def _wave_delta(previous_observation: dict[str, Any] | None, observation: dict[str, Any]) -> float:
+def _wave_delta(
+    previous_observation: dict[str, Any] | np.ndarray | None,
+    observation: dict[str, Any] | np.ndarray,
+) -> float:
     if previous_observation is None:
         return 0.0
-    return float(int(observation["wave"]["wave"]) - int(previous_observation["wave"]["wave"]))
+    return float(observation_wave(observation) - observation_wave(previous_observation))
 
 
-def _is_success(observation: dict[str, Any]) -> bool:
+def _is_success(observation: dict[str, Any] | np.ndarray) -> bool:
     return (
-        int(observation["wave"]["wave"]) == 63
-        and int(observation["wave"]["remaining"]) == 0
-        and int(observation["player"]["hitpoints_current"]) > 0
+        observation_wave(observation) == 63
+        and observation_remaining(observation) == 0
+        and observation_player_hitpoints_current(observation) > 0
     )
 
 
-def _is_death(observation: dict[str, Any]) -> bool:
-    return int(observation["player"]["hitpoints_current"]) <= 0
+def _is_death(observation: dict[str, Any] | np.ndarray) -> bool:
+    return observation_player_hitpoints_current(observation) <= 0

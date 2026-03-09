@@ -51,10 +51,19 @@ Every manifest records the PR2/PR5 contract identities:
 - policy observation schema id/version
 - policy action schema id/version
 
-Future flat-path note:
+Current flat-path note:
 
-- once the sim-owned flat training path lands, manifests must also record the flat observation schema id/version and whether the run used the raw/debug path or the flat production path
+- manifests now record the flat observation schema id/version and whether the run used the raw/debug path or the flat production path
 - the raw sim observation schema remains the semantic reference even after the flat path becomes the production data plane
+
+Current flat-path manifest fields:
+
+- `observation_path_mode`
+- `flat_observation_schema_id`
+- `flat_observation_schema_version`
+- `flat_observation_dtype`
+- `flat_observation_feature_count`
+- `flat_observation_max_visible_npcs`
 
 ## Run-Mode Fields
 

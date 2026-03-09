@@ -9,7 +9,7 @@ def test_batch_protocol_fails_fast_on_schema_or_version_drift():
     mutated = BridgeHandshake(
         values={
             **dict(handshake.values),
-            "bridge_protocol_version": int(handshake.values["bridge_protocol_version"]) + 1,
+            "flat_observation_schema_version": int(handshake.values["flat_observation_schema_version"]) + 1,
         }
     )
 

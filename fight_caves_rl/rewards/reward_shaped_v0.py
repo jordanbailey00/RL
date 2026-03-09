@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
+from fight_caves_rl.envs.observation_views import (
+    observation_consumable_value,
+    observation_npc_health_projection,
+    observation_player_hitpoints_current,
+)
 from fight_caves_rl.rewards.registry import RewardConfig
 from fight_caves_rl.rewards.reward_sparse_v0 import build_reward_fn as build_sparse_reward_fn
 
@@ -16,9 +23,9 @@ def build_reward_fn(config: RewardConfig):
     step_penalty = float(config.coefficients.get("step_penalty", -0.0005))
 
     def reward_fn(
-        previous_observation: dict[str, Any] | None,
+        previous_observation: dict[str, Any] | np.ndarray | None,
         action_result: dict[str, Any],
-        observation: dict[str, Any],
+        observation: dict[str, Any] | np.ndarray,
         terminated: bool,
         truncated: bool,
     ) -> float:
@@ -48,16 +55,12 @@ def build_reward_fn(config: RewardConfig):
 
     return reward_fn
 
-
-def _npc_damage_delta(previous_observation: dict[str, Any], observation: dict[str, Any]) -> float:
-    previous = {
-        (int(npc["npc_index"]), str(npc["id"])): int(npc["hitpoints_current"])
-        for npc in previous_observation.get("npcs", [])
-    }
-    current = {
-        (int(npc["npc_index"]), str(npc["id"])): int(npc["hitpoints_current"])
-        for npc in observation.get("npcs", [])
-    }
+def _npc_damage_delta(
+    previous_observation: dict[str, Any] | np.ndarray,
+    observation: dict[str, Any] | np.ndarray,
+) -> float:
+    previous = observation_npc_health_projection(previous_observation)
+    current = observation_npc_health_projection(observation)
     dealt = 0
     for key, previous_hp in previous.items():
         current_hp = current.get(key)
@@ -67,17 +70,20 @@ def _npc_damage_delta(previous_observation: dict[str, Any], observation: dict[st
     return float(dealt)
 
 
-def _player_damage_delta(previous_observation: dict[str, Any], observation: dict[str, Any]) -> float:
-    previous_hp = int(previous_observation["player"]["hitpoints_current"])
-    current_hp = int(observation["player"]["hitpoints_current"])
+def _player_damage_delta(
+    previous_observation: dict[str, Any] | np.ndarray,
+    observation: dict[str, Any] | np.ndarray,
+) -> float:
+    previous_hp = observation_player_hitpoints_current(previous_observation)
+    current_hp = observation_player_hitpoints_current(observation)
     return float(max(0, previous_hp - current_hp))
 
 
 def _consumable_delta(
-    previous_observation: dict[str, Any],
-    observation: dict[str, Any],
+    previous_observation: dict[str, Any] | np.ndarray,
+    observation: dict[str, Any] | np.ndarray,
     key: str,
 ) -> float:
-    previous_value = int(previous_observation["player"]["consumables"][key])
-    current_value = int(observation["player"]["consumables"][key])
+    previous_value = observation_consumable_value(previous_observation, key)
+    current_value = observation_consumable_value(observation, key)
     return float(max(0, previous_value - current_value))

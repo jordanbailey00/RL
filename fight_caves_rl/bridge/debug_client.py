@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from fight_caves_rl.bridge.contracts import (
     BridgeHandshake,
     HeadlessBootstrapConfig,
@@ -20,6 +22,7 @@ from fight_caves_rl.bridge.launcher import (
     discover_headless_runtime_paths,
 )
 from fight_caves_rl.envs.action_mapping import NormalizedAction, TileCoordinates, normalize_action
+from fight_caves_rl.envs.observation_views import coerce_flat_observation_row
 from fight_caves_rl.envs.observation_mapping import validate_observation_contract
 
 
@@ -126,6 +129,11 @@ class HeadlessDebugClient:
         observation = self.observe_jvm(player, include_future_leakage=include_future_leakage)
         return pythonize_observation(observation)
 
+    def observe_flat(self, player: Any) -> np.ndarray:
+        self._ensure_runtime_open()
+        observation = self.observe_flat_jvm(player)
+        return flat_observation_to_numpy(observation)
+
     def visible_targets(self, player: Any) -> list[dict[str, Any]]:
         self._ensure_runtime_open()
         targets = []
@@ -187,6 +195,10 @@ class HeadlessDebugClient:
     def observe_jvm(self, player: Any, include_future_leakage: bool = False) -> Any:
         self._ensure_runtime_open()
         return self._runtime.observeFightCave(player, include_future_leakage)
+
+    def observe_flat_jvm(self, player: Any) -> Any:
+        self._ensure_runtime_open()
+        return self._runtime.observeFightCaveFlat(player)
 
     def run_action_trace(
         self,
@@ -472,3 +484,8 @@ def pythonize_observation(observation: Any) -> dict[str, Any]:
     mapped = _pythonize(observation.toOrderedMap())
     validate_observation_contract(mapped)
     return mapped
+
+
+def flat_observation_to_numpy(observation: Any) -> np.ndarray:
+    values = np.asarray(observation.getValues(), dtype=np.float32)
+    return coerce_flat_observation_row(values)

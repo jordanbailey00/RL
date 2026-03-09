@@ -26,8 +26,8 @@ def test_bridge_benchmark_smoke(tmp_path: Path):
         )
 
     payload = load_json(output)
-    assert payload["bridge_protocol_id"] == "fight_caves_bridge_v1"
-    assert int(payload["bridge_protocol_version"]) == 1
+    assert payload["bridge_protocol_id"] == "fight_caves_bridge_v2"
+    assert int(payload["bridge_protocol_version"]) == 2
     assert float(payload["reference"]["env_steps_per_second"]) > 0.0
     assert float(payload["batch"]["env_steps_per_second"]) > 0.0
     assert float(payload["speedup_vs_reference"]) > 1.0

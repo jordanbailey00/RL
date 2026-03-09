@@ -5,6 +5,8 @@ from random import Random
 from time import perf_counter_ns
 from typing import Any, Callable, Mapping, Sequence
 
+import numpy as np
+
 from fight_caves_rl.bridge.contracts import (
     HeadlessBootstrapConfig,
     HeadlessEpisodeConfig,
@@ -28,9 +30,14 @@ from fight_caves_rl.bridge.protocol import (
 )
 from fight_caves_rl.envs.action_mapping import NormalizedAction
 from fight_caves_rl.envs.correctness_env import infer_terminal_state
-from fight_caves_rl.envs.observation_mapping import visible_targets_from_observation
+from fight_caves_rl.envs.observation_views import (
+    observation_tick,
+    observation_visible_target_count,
+    observation_visible_targets,
+)
 
-RewardFn = Callable[[dict[str, Any] | None, dict[str, Any], dict[str, Any], bool, bool], float]
+ObservationLike = dict[str, Any] | np.ndarray
+RewardFn = Callable[[ObservationLike | None, dict[str, Any], ObservationLike, bool, bool], float]
 
 
 def zero_reward(
@@ -64,7 +71,7 @@ class _SlotState:
     episode_start_tick: int | None = None
     episode_steps: int = 0
     episode_return: float = 0.0
-    last_observation: dict[str, Any] | None = None
+    last_observation: ObservationLike | None = None
 
 
 class HeadlessBatchClient:
@@ -126,17 +133,21 @@ class HeadlessBatchClient:
                     slot.player,
                     include_future_leakage=self.config.include_future_leakage,
                 )
+                flat_observation = self.client.observe_flat(slot.player)
             except Exception as exc:  # pragma: no cover - live bridge failures are integration-tested
                 raise BatchSlotExecutionError(spec.slot_index, "reset", str(exc)) from exc
 
-            slot.episode_start_tick = int(observation["tick"])
+            slot.episode_start_tick = observation_tick(flat_observation)
             slot.episode_steps = 0
             slot.episode_return = 0.0
-            slot.last_observation = observation
+            slot.last_observation = (
+                observation if self.config.include_future_leakage else flat_observation
+            )
             results.append(
                 BatchSlotResetResult(
                     slot_index=spec.slot_index,
                     observation=observation,
+                    flat_observation=flat_observation,
                     info={
                         "episode_state": episode_state,
                         "bridge_handshake": dict(self.client.handshake.values),
@@ -178,6 +189,7 @@ class HeadlessBatchClient:
         results = self._collect_step_results(
             request.actions,
             action_results=action_results,
+            use_raw_observe=True,
         )
         return BatchStepResponse(
             protocol=self.protocol,
@@ -213,7 +225,7 @@ class HeadlessBatchClient:
         results = self._collect_step_results(
             request.actions,
             action_results=action_results,
-            use_raw_observe=True,
+            use_flat_observe=not self.config.include_future_leakage,
         )
         return BatchStepResponse(
             protocol=self.protocol,
@@ -251,30 +263,39 @@ class HeadlessBatchClient:
         *,
         action_results: Mapping[int, dict[str, Any]],
         use_raw_observe: bool = False,
+        use_flat_observe: bool = False,
     ) -> list[BatchSlotStepResult]:
         results: list[BatchSlotStepResult] = []
         for spec in action_specs:
             slot = self._slot(spec.slot_index)
             previous_observation = slot.last_observation
             try:
-                if use_raw_observe:
+                if use_flat_observe:
+                    flat_observation = self.client.observe_flat(slot.player)
+                    observation = None
+                    observation_for_semantics: ObservationLike = flat_observation
+                elif use_raw_observe:
                     observation = pythonize_observation(
                         self.client.observe_jvm(
                             slot.player,
                             include_future_leakage=self.config.include_future_leakage,
                         )
                     )
+                    flat_observation = None
+                    observation_for_semantics = observation
                 else:
                     observation = self.client.observe(
                         slot.player,
                         include_future_leakage=self.config.include_future_leakage,
                     )
+                    flat_observation = None
+                    observation_for_semantics = observation
             except Exception as exc:  # pragma: no cover - live bridge failures are integration-tested
                 raise BatchSlotExecutionError(spec.slot_index, "observe", str(exc)) from exc
 
             slot.episode_steps += 1
             terminated, truncated, terminal_reason = infer_terminal_state(
-                observation=observation,
+                observation=observation_for_semantics,
                 episode_start_tick=slot.episode_start_tick,
                 tick_cap=self.config.tick_cap,
             )
@@ -283,27 +304,32 @@ class HeadlessBatchClient:
                 self.reward_fn(
                     previous_observation,
                     action_result,
-                    observation,
+                    observation_for_semantics,
                     terminated,
                     truncated,
                 )
             )
             slot.episode_return += reward
-            slot.last_observation = observation
-            visible_targets = visible_targets_from_observation(observation)
+            slot.last_observation = observation_for_semantics
+            visible_targets = observation_visible_targets(observation_for_semantics)
             info = {
                 "action_result": action_result,
                 "visible_targets": visible_targets,
+                "visible_target_count": observation_visible_target_count(
+                    observation_for_semantics
+                ),
                 "episode_steps": slot.episode_steps,
                 "episode_return": slot.episode_return,
                 "terminal_reason": terminal_reason,
                 "terminal_reason_inferred": terminal_reason is not None,
+                "observation_path_mode": "flat" if use_flat_observe else "raw",
             }
             results.append(
                 BatchSlotStepResult(
                     slot_index=spec.slot_index,
                     action=spec.action,
                     observation=observation,
+                    flat_observation=flat_observation,
                     reward=reward,
                     terminated=terminated,
                     truncated=truncated,

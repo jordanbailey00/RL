@@ -6,6 +6,13 @@ from typing import Sequence
 import numpy as np
 
 from fight_caves_rl.bridge.protocol import BatchSlotResetResult, BatchSlotStepResult
+from fight_caves_rl.envs.observation_views import (
+    coerce_flat_observation_row,
+    observation_episode_seed,
+    observation_remaining,
+    observation_visible_target_count,
+    observation_wave,
+)
 from fight_caves_rl.envs.puffer_encoding import encode_observation_for_policy
 from fight_caves_rl.envs.schema import HEADLESS_ACTION_REJECT_REASONS
 
@@ -51,24 +58,24 @@ class BatchStepBuffers:
 
 def build_reset_buffers(results: Sequence[BatchSlotResetResult]) -> BatchResetBuffers:
     ordered = sorted(results, key=lambda result: result.slot_index)
-    observations = [encode_observation_for_policy(result.observation) for result in ordered]
+    observations = [_policy_observation(result) for result in ordered]
     return BatchResetBuffers(
         slot_indices=np.asarray([result.slot_index for result in ordered], dtype=np.int32),
         policy_observations=np.stack(observations, axis=0).astype(np.float32, copy=False),
         episode_seeds=np.asarray(
-            [int(result.observation["episode_seed"]) for result in ordered],
+            [observation_episode_seed(_semantic_observation(result)) for result in ordered],
             dtype=np.int64,
         ),
         waves=np.asarray(
-            [int(result.observation["wave"]["wave"]) for result in ordered],
+            [observation_wave(_semantic_observation(result)) for result in ordered],
             dtype=np.int32,
         ),
         remaining=np.asarray(
-            [int(result.observation["wave"]["remaining"]) for result in ordered],
+            [observation_remaining(_semantic_observation(result)) for result in ordered],
             dtype=np.int32,
         ),
         visible_target_counts=np.asarray(
-            [len(result.observation["npcs"]) for result in ordered],
+            [observation_visible_target_count(_semantic_observation(result)) for result in ordered],
             dtype=np.int32,
         ),
     )
@@ -76,7 +83,7 @@ def build_reset_buffers(results: Sequence[BatchSlotResetResult]) -> BatchResetBu
 
 def build_step_buffers(results: Sequence[BatchSlotStepResult]) -> BatchStepBuffers:
     ordered = sorted(results, key=lambda result: result.slot_index)
-    observations = [encode_observation_for_policy(result.observation) for result in ordered]
+    observations = [_policy_observation(result) for result in ordered]
     return BatchStepBuffers(
         slot_indices=np.asarray([result.slot_index for result in ordered], dtype=np.int32),
         policy_observations=np.stack(observations, axis=0).astype(np.float32, copy=False),
@@ -108,15 +115,31 @@ def build_step_buffers(results: Sequence[BatchSlotStepResult]) -> BatchStepBuffe
             dtype=np.float32,
         ),
         waves=np.asarray(
-            [int(result.observation["wave"]["wave"]) for result in ordered],
+            [observation_wave(_semantic_observation(result)) for result in ordered],
             dtype=np.int32,
         ),
         remaining=np.asarray(
-            [int(result.observation["wave"]["remaining"]) for result in ordered],
+            [observation_remaining(_semantic_observation(result)) for result in ordered],
             dtype=np.int32,
         ),
         visible_target_counts=np.asarray(
-            [len(result.info["visible_targets"]) for result in ordered],
+            [int(result.info["visible_target_count"]) for result in ordered],
             dtype=np.int32,
         ),
     )
+
+
+def _policy_observation(result: BatchSlotResetResult | BatchSlotStepResult) -> np.ndarray:
+    if result.flat_observation is not None:
+        return coerce_flat_observation_row(result.flat_observation)
+    if result.observation is None:
+        raise ValueError("Batch result is missing both raw and flat observations.")
+    return encode_observation_for_policy(result.observation)
+
+
+def _semantic_observation(result: BatchSlotResetResult | BatchSlotStepResult):
+    if result.flat_observation is not None:
+        return result.flat_observation
+    if result.observation is None:
+        raise ValueError("Batch result is missing both raw and flat observations.")
+    return result.observation

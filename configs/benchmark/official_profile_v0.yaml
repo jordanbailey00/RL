@@ -23,8 +23,14 @@ required_manifest_fields:
   - sim_artifact_path
   - bridge_protocol_id
   - bridge_protocol_version
+  - observation_path_mode
   - observation_schema_id
   - observation_schema_version
+  - flat_observation_schema_id
+  - flat_observation_schema_version
+  - flat_observation_dtype
+  - flat_observation_feature_count
+  - flat_observation_max_visible_npcs
   - action_schema_id
   - action_schema_version
   - episode_start_contract_id

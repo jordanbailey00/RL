@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fight_caves_rl.bridge.batch_client import BatchClientConfig, HeadlessBatchClient
+from fight_caves_rl.envs.observation_views import reconstruct_raw_observation_from_flat
 from fight_caves_rl.replay.trace_packs import (
     project_episode_state_for_determinism,
     project_observation_for_determinism,
@@ -70,13 +71,18 @@ def collect_trace(*, mode: str, env_count: int) -> dict[str, Any]:
             slot_payloads: list[dict[str, Any]] = []
             for result in response.results:
                 episode_start = episode_starts[result.slot_index]
+                observation = (
+                    result.observation
+                    if result.observation is not None
+                    else reconstruct_raw_observation_from_flat(result.flat_observation)
+                )
                 slot_payloads.append(
                     {
                         "slot_index": result.slot_index,
                         "action": serialize_action(result.action),
                         "action_result": result.info["action_result"],
                         "semantic_observation": project_observation_for_determinism(
-                            result.observation,
+                            observation,
                             episode_start_tick=episode_start["tick"],
                             episode_start_tile=episode_start["tile"],
                         ),

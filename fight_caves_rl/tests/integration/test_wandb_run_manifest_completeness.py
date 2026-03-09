@@ -49,9 +49,15 @@ def test_train_and_eval_manifests_record_required_contracts(tmp_path: Path):
     assert train_manifest["run_kind"] == "train"
     assert train_manifest["config_id"] == "smoke_ppo_v0"
     assert train_manifest["benchmark_profile_id"] == "official_profile_v0"
-    assert train_manifest["bridge_protocol_id"] == "fight_caves_bridge_v1"
+    assert train_manifest["bridge_protocol_id"] == "fight_caves_bridge_v2"
+    assert train_manifest["observation_path_mode"] == "flat"
     assert train_manifest["episode_start_contract_id"] == "fight_cave_episode_start_v1"
     assert train_manifest["observation_schema_id"] == "headless_observation_v1"
+    assert train_manifest["flat_observation_schema_id"] == "headless_training_flat_observation_v1"
+    assert train_manifest["flat_observation_schema_version"] == 1
+    assert train_manifest["flat_observation_dtype"] == "float32"
+    assert train_manifest["flat_observation_feature_count"] == 134
+    assert train_manifest["flat_observation_max_visible_npcs"] == 8
     assert train_manifest["action_schema_id"] == "headless_action_v1"
     assert train_manifest["policy_observation_schema_id"] == "puffer_policy_observation_v1"
     assert train_manifest["policy_action_schema_id"] == "puffer_policy_action_v0"

@@ -11,6 +11,11 @@ from fight_caves_rl.bridge.batch_client import BatchClientConfig, HeadlessBatchC
 from fight_caves_rl.bridge.buffers import build_reset_buffers, build_step_buffers
 from fight_caves_rl.bridge.contracts import HeadlessBootstrapConfig
 from fight_caves_rl.envs.action_mapping import NormalizedAction
+from fight_caves_rl.envs.observation_views import (
+    observation_episode_seed,
+    observation_remaining,
+    observation_wave,
+)
 from fight_caves_rl.envs.puffer_encoding import (
     build_policy_action_space,
     build_policy_observation_space,
@@ -224,12 +229,12 @@ class HeadlessBatchVecEnv:
         return decode_action_from_policy(np.asarray(action, dtype=np.int64))
 
     def _build_reset_info(self, result: Any) -> dict[str, Any]:
-        observation = result.observation
+        observation = result.flat_observation if result.flat_observation is not None else result.observation
         return {
             "slot_index": int(result.slot_index),
-            "episode_seed": int(observation["episode_seed"]),
-            "wave": int(observation["wave"]["wave"]),
-            "remaining": int(observation["wave"]["remaining"]),
+            "episode_seed": observation_episode_seed(observation),
+            "wave": observation_wave(observation),
+            "remaining": observation_remaining(observation),
             "vecenv_event": "reset",
             **dict(result.info),
         }
@@ -239,9 +244,13 @@ class HeadlessBatchVecEnv:
         return {
             "slot_index": int(result.slot_index),
             "action_id": int(result.action.action_id),
-            "visible_target_count": int(len(result.info["visible_targets"])),
-            "wave": int(result.observation["wave"]["wave"]),
-            "remaining": int(result.observation["wave"]["remaining"]),
+            "visible_target_count": int(result.info["visible_target_count"]),
+            "wave": observation_wave(
+                result.flat_observation if result.flat_observation is not None else result.observation
+            ),
+            "remaining": observation_remaining(
+                result.flat_observation if result.flat_observation is not None else result.observation
+            ),
             "reward": float(result.reward),
             "action_applied": int(bool(action_result["action_applied"])),
             "rejection_reason": action_result["rejection_reason"],

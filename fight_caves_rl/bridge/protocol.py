@@ -11,13 +11,14 @@ from fight_caves_rl.envs.schema import (
     FIGHT_CAVES_BRIDGE_CONTRACT,
     HEADLESS_ACTION_SCHEMA,
     HEADLESS_OBSERVATION_SCHEMA,
+    HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA,
 )
 
 BATCH_TRANSPORT_MODE = "embedded_jvm_lockstep_batch"
 BATCH_TICK_POLICY = "apply_all_then_shared_tick"
 BATCH_SLOT_ISOLATION = "fight_cave_dynamic_instance"
-BATCH_OBSERVATION_SOURCE = "observeFightCave"
-BATCH_VISIBLE_TARGET_SOURCE = "observation.npcs"
+BATCH_OBSERVATION_SOURCE = "observeFightCaveFlat"
+BATCH_VISIBLE_TARGET_SOURCE = "flat_observation_projection"
 BATCH_TICK_STRIDE = 1
 
 
@@ -33,6 +34,12 @@ class BatchBridgeProtocol:
     tick_stride: int
     observation_schema_id: str
     observation_schema_version: int
+    observation_path_mode: str
+    flat_observation_schema_id: str
+    flat_observation_schema_version: int
+    flat_observation_dtype: str
+    flat_observation_feature_count: int
+    flat_observation_max_visible_npcs: int
     action_schema_id: str
     action_schema_version: int
     episode_start_contract_id: str
@@ -70,7 +77,8 @@ class BatchStepRequest:
 @dataclass(frozen=True)
 class BatchSlotResetResult:
     slot_index: int
-    observation: dict[str, Any]
+    observation: dict[str, Any] | None
+    flat_observation: Any
     info: dict[str, Any]
 
 
@@ -89,7 +97,8 @@ class BatchResetResponse:
 class BatchSlotStepResult:
     slot_index: int
     action: NormalizedAction
-    observation: dict[str, Any]
+    observation: dict[str, Any] | None
+    flat_observation: Any
     reward: float
     terminated: bool
     truncated: bool
@@ -119,6 +128,32 @@ def build_batch_protocol(handshake: BridgeHandshake) -> BatchBridgeProtocol:
     _expect_field(values, "bridge_protocol_version", FIGHT_CAVES_BRIDGE_CONTRACT.identity.version)
     _expect_field(values, "observation_schema_id", HEADLESS_OBSERVATION_SCHEMA.contract_id)
     _expect_field(values, "observation_schema_version", HEADLESS_OBSERVATION_SCHEMA.version)
+    _expect_field(values, "observation_path_mode", "flat")
+    _expect_field(
+        values,
+        "flat_observation_schema_id",
+        HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.contract_id,
+    )
+    _expect_field(
+        values,
+        "flat_observation_schema_version",
+        HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.version,
+    )
+    _expect_field(
+        values,
+        "flat_observation_dtype",
+        HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.dtype,
+    )
+    _expect_field(
+        values,
+        "flat_observation_feature_count",
+        HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.feature_count,
+    )
+    _expect_field(
+        values,
+        "flat_observation_max_visible_npcs",
+        HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.max_visible_npcs,
+    )
     _expect_field(values, "action_schema_id", HEADLESS_ACTION_SCHEMA.contract_id)
     _expect_field(values, "action_schema_version", HEADLESS_ACTION_SCHEMA.version)
     _expect_field(
@@ -142,6 +177,12 @@ def build_batch_protocol(handshake: BridgeHandshake) -> BatchBridgeProtocol:
         tick_stride=BATCH_TICK_STRIDE,
         observation_schema_id=str(values["observation_schema_id"]),
         observation_schema_version=int(values["observation_schema_version"]),
+        observation_path_mode=str(values["observation_path_mode"]),
+        flat_observation_schema_id=str(values["flat_observation_schema_id"]),
+        flat_observation_schema_version=int(values["flat_observation_schema_version"]),
+        flat_observation_dtype=str(values["flat_observation_dtype"]),
+        flat_observation_feature_count=int(values["flat_observation_feature_count"]),
+        flat_observation_max_visible_npcs=int(values["flat_observation_max_visible_npcs"]),
         action_schema_id=str(values["action_schema_id"]),
         action_schema_version=int(values["action_schema_version"]),
         episode_start_contract_id=str(values["episode_start_contract_id"]),

@@ -20,6 +20,7 @@ from fight_caves_rl.envs.schema import (
     FIGHT_CAVES_BRIDGE_CONTRACT,
     HEADLESS_ACTION_SCHEMA,
     HEADLESS_OBSERVATION_SCHEMA,
+    HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA,
     OFFICIAL_BENCHMARK_PROFILE,
 )
 from fight_caves_rl.manifests.versions import resolve_pufferlib_runtime_version
@@ -117,6 +118,12 @@ def build_bridge_handshake(paths: HeadlessRuntimePaths) -> BridgeHandshake:
     values = {
         "observation_schema_id": HEADLESS_OBSERVATION_SCHEMA.contract_id,
         "observation_schema_version": HEADLESS_OBSERVATION_SCHEMA.version,
+        "observation_path_mode": "flat",
+        "flat_observation_schema_id": HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.contract_id,
+        "flat_observation_schema_version": HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.version,
+        "flat_observation_dtype": HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.dtype,
+        "flat_observation_feature_count": HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.feature_count,
+        "flat_observation_max_visible_npcs": HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.max_visible_npcs,
         "action_schema_id": HEADLESS_ACTION_SCHEMA.contract_id,
         "action_schema_version": HEADLESS_ACTION_SCHEMA.version,
         "episode_start_contract_id": FIGHT_CAVE_EPISODE_START_CONTRACT.identity.contract_id,

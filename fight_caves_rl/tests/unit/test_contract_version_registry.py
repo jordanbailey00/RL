@@ -6,6 +6,7 @@ from fight_caves_rl.envs.schema import (
     HEADLESS_ACTION_SCHEMA,
     HEADLESS_OBSERVATION_SCHEMA,
     HEADLESS_OBSERVATION_TOP_LEVEL_FIELDS,
+    HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA,
     OFFICIAL_BENCHMARK_PROFILE,
     PUFFER_POLICY_OBSERVATION_SCHEMA,
 )
@@ -22,10 +23,12 @@ def test_contract_registry_exports_expected_core_versions():
     assert HEADLESS_ACTION_SCHEMA.version == 1
     assert FIGHT_CAVE_EPISODE_START_CONTRACT.identity.contract_id == "fight_cave_episode_start_v1"
     assert FIGHT_CAVE_EPISODE_START_CONTRACT.identity.version == 1
-    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.contract_id == "fight_caves_bridge_v1"
-    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.version == 1
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.contract_id == "fight_caves_bridge_v2"
+    assert FIGHT_CAVES_BRIDGE_CONTRACT.identity.version == 2
     assert OFFICIAL_BENCHMARK_PROFILE.identity.contract_id == "official_profile_v0"
     assert OFFICIAL_BENCHMARK_PROFILE.identity.version == 0
+    assert HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.contract_id == "headless_training_flat_observation_v1"
+    assert HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.identity.version == 1
     assert PUFFER_POLICY_OBSERVATION_SCHEMA.contract_id == "puffer_policy_observation_v1"
     assert PUFFER_POLICY_OBSERVATION_SCHEMA.version == 1
 
@@ -44,6 +47,8 @@ def test_contract_registry_keeps_expected_schema_shapes():
     assert [action.action_id for action in HEADLESS_ACTION_DEFINITIONS] == list(range(7))
     assert HEADLESS_ACTION_DEFINITIONS[2].name == "attack_visible_npc"
     assert "AlreadyActedThisTick" in HEADLESS_ACTION_REJECT_REASONS
+    assert HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.dtype == "float32"
+    assert HEADLESS_TRAINING_FLAT_OBSERVATION_SCHEMA.feature_count == 134
 
 
 def test_pufferlib_baseline_metadata_stays_aligned_with_contract_work():

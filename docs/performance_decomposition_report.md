@@ -9,6 +9,27 @@ Repos and SHAs:
 
 This report decomposes the current stack into separate layers and records the measurements collected in this audit pass. Facts and hypotheses are separated explicitly.
 
+## Phase 1 Implementation Preview
+
+The active Phase 1 implementation batch is no longer design-only.
+
+Current local WSL Phase 1 packet at `/tmp/fc_phase1_packet_local/phase1_packet.json` shows:
+
+- bridge `64 env`: `11936.49` env/s
+- vecenv `64 env`: `7336.43` env/s
+- steady-state raw object conversion still dominant: `false`
+
+Compared with the active Phase 0 WSL packet:
+
+- bridge `64 env`: `1606.92 -> 11936.49` env/s, about `7.43x`
+- vecenv `64 env`: `1426.81 -> 7336.43` env/s, about `5.14x`
+
+Interpretation:
+
+- the flat-path implementation moved the correct boundary locally
+- the bridge and vecenv rows now clear the Phase 1 planning thresholds on WSL
+- the remaining decision-gate blocker is source-of-truth host class, not local measurement quality
+
 ## Topology Used
 
 - Host: WSL2 on Windows, AMD Ryzen 5 5600G, 6 cores / 12 threads, 15 GiB RAM, CPU-only
@@ -83,7 +104,7 @@ All rows below are single measured runs unless otherwise noted, so the reported 
 | End-to-end train | `benchmark_train.py` | `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 64 --total-timesteps 1024 --logging-modes disabled --output /tmp/fc_perf_audit/train_64_disabled_run1.json` | `train_1024env_v0` | 64 | 1 parent + 1 subprocess worker | `1024 timesteps` | `87.93` SPS disabled | 1 | not collected |
 | End-to-end train with W&B online | direct `train.py` wall-clock probe | inline subprocess probe to `scripts/train.py` with `WANDB_MODE=online` | `train_baseline_v0` | 4 | 1 parent + 1 subprocess worker | `256 timesteps` | `11.87` wall SPS | 1 | not collected |
 
-The original audit table above remains useful as the pre-Phase-0 packet snapshot. The `Phase 0 Gate Refresh` section is the newer current-host baseline and should be treated as the active measurement reference for optimization work.
+The original audit table above remains useful as the pre-Phase-0 packet snapshot. The `Phase 0 Gate Refresh` section is the newer current-host baseline and should be treated as the pre-Phase-1 reference for optimization work.
 
 ## Layer-by-Layer Breakdown
 

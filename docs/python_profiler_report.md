@@ -180,12 +180,31 @@ Interpretation:
 - Environment collection time is much larger than learner-update time in these runs.
 - Online W&B hurts wall-clock much more than the in-loop `train/SPS` samples suggest, which means overhead outside the trainer sample window matters too.
 
+## Phase 1 Flat-Path Preview
+
+The current local Phase 1 steady-state profile at `/tmp/fc_phase1_packet_local/python_vec16_steady.prof` materially changes the attribution story.
+
+Key summary values from the packet:
+
+- `step_batch_cumulative_seconds = 0.1762`
+- `flat_observe_cumulative_seconds = 0.0790`
+- `raw_conversion_cumulative_seconds = 0.0255`
+- `build_step_buffers_cumulative_seconds = 0.0130`
+- `raw_object_conversion_still_dominant = false`
+
+Interpretation:
+
+- the dominant Phase 0 hot spot, raw observation pythonization, is no longer the dominant steady-state cost in the Phase 1 local profile
+- the major remaining Python costs now center around batch collection, flat observation fetch, and downstream flat-row handling
+- this is the intended Phase 1 outcome and is the main reason the local bridge and vecenv rows improved materially
+
 ## Facts
 
-- Observation pythonization is the largest Python hot spot in steady-state env stepping.
-- Action decode, reward logic, and observation flattening are secondary.
-- The vecenv shell is not the main embedded-path problem.
+- Observation pythonization is the largest Python hot spot in the pre-Phase-1 steady-state env stepping path.
+- Action decode, reward logic, and observation flattening are secondary in the pre-Phase-1 path.
+- The vecenv shell is not the main embedded-path problem in the pre-Phase-1 path.
 - The learner is not the main current bottleneck in the shipped baseline runs.
+- In the current local Phase 1 preview, raw object conversion is no longer the dominant steady-state Python cost center.
 
 ## What This Rules Out
 

@@ -107,8 +107,14 @@ class RunManifest:
     sim_artifact_path: str
     bridge_protocol_id: str
     bridge_protocol_version: int
+    observation_path_mode: str
     observation_schema_id: str
     observation_schema_version: int
+    flat_observation_schema_id: str
+    flat_observation_schema_version: int
+    flat_observation_dtype: str
+    flat_observation_feature_count: int
+    flat_observation_max_visible_npcs: int
     action_schema_id: str
     action_schema_version: int
     episode_start_contract_id: str
@@ -301,8 +307,14 @@ def _build_run_manifest(
         sim_artifact_path=str(handshake.values["sim_artifact_path"]),
         bridge_protocol_id=str(handshake.values["bridge_protocol_id"]),
         bridge_protocol_version=int(handshake.values["bridge_protocol_version"]),
+        observation_path_mode=str(handshake.values["observation_path_mode"]),
         observation_schema_id=str(handshake.values["observation_schema_id"]),
         observation_schema_version=int(handshake.values["observation_schema_version"]),
+        flat_observation_schema_id=str(handshake.values["flat_observation_schema_id"]),
+        flat_observation_schema_version=int(handshake.values["flat_observation_schema_version"]),
+        flat_observation_dtype=str(handshake.values["flat_observation_dtype"]),
+        flat_observation_feature_count=int(handshake.values["flat_observation_feature_count"]),
+        flat_observation_max_visible_npcs=int(handshake.values["flat_observation_max_visible_npcs"]),
         action_schema_id=str(handshake.values["action_schema_id"]),
         action_schema_version=int(handshake.values["action_schema_version"]),
         episode_start_contract_id=str(handshake.values["episode_start_contract_id"]),

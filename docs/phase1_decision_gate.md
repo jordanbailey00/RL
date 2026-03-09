@@ -6,6 +6,12 @@ This document defines the exact benchmark and profiling packet that must be reru
 
 This is the source-of-truth deliverable for optimization `WC-P1-05`.
 
+Current execution status:
+
+- local WSL Phase 1 packet has been executed successfully
+- the local packet shows that raw object conversion is no longer the dominant Python hot-path cost
+- the native-Linux source-of-truth rerun remains the final gate before Phase 2 can be approved
+
 ## Purpose
 
 Phase 1 is successful only if it moves the correct boundary:
@@ -38,6 +44,13 @@ Runs are only comparable if they match on:
 - benchmark profile metadata
 
 ## Required Packet After Phase 1 Implementation
+
+Standard automation paths:
+
+- local/manual refresh:
+  - `uv run python scripts/refresh_phase1_packet.py --output-dir <phase1-output>`
+- hosted native-Linux refresh:
+  - `fight-caves-RL/.github/workflows/phase1_native_linux_packet.yml`
 
 ### 1. Bridge Packet
 
@@ -181,6 +194,20 @@ The Phase 1 review packet should include:
 - the new benchmark rows
 - the updated profiler interpretation
 - an explicit continue-or-pivot statement
+
+## Local Preview Status
+
+The current local WSL preview packet at `/tmp/fc_phase1_packet_local/phase1_packet.json` shows:
+
+- `bridge_64_env_steps_per_second = 11936.49`
+- `vecenv_64_env_steps_per_second = 7336.43`
+- `raw_object_conversion_still_dominant = false`
+
+Interpretation:
+
+- the local preview already meets the numeric planning thresholds for bridge and vecenv throughput
+- however, the local packet is not the source-of-truth gate because it is WSL and was run without the published native-Linux Phase 0 baseline directory
+- therefore the Phase 1 decision remains pending until the hosted native-Linux packet is reviewed
 
 ## Output Of WC-P1-05
 
