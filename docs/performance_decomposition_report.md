@@ -21,6 +21,43 @@ This report decomposes the current stack into separate layers and records the me
 - W&B modes used in this packet: `disabled`, `offline`, `online`
 - Dashboard modes used in this packet: `disabled` and `enabled` where noted
 
+## Phase 0 Gate Refresh
+
+The Phase 0 measurement gate now has a repo-owned refresh path:
+
+- clean standalone sim benchmark: `./gradlew --no-daemon :game:headlessPerformanceReport`
+- clean standalone sim profile: `./gradlew --no-daemon :game:headlessPerformanceProfile`
+- unified RL packet refresh: `uv run python scripts/refresh_phase0_packet.py --output-dir /tmp/fc_phase0_packet_clean`
+
+Current-host WSL packet refreshed from those entrypoints:
+
+- sim standalone report:
+  - single-slot throughput: `30509.78` ticks/s
+  - batched headless throughput (`16` envs): `473574.60` env steps/s
+  - per-worker estimate for `100k`: `1` worker on this host-class measurement
+- bridge:
+  - `1 env`: reference `1074.71`, batch `23615.07` env/s
+  - `16 env`: reference `1297.72`, batch `1573.98` env/s
+  - `64 env`: reference `1655.51`, batch `1606.92` env/s
+- vecenv:
+  - `1 env`: wrapper `751.55`, vecenv `980.31` env/s
+  - `16 env`: wrapper `903.61`, vecenv `1459.51` env/s
+  - `64 env`: wrapper `1038.82`, vecenv `1426.81` env/s
+- end-to-end training:
+  - `4 env`: disabled `96.66` SPS
+  - `16 env`: disabled `96.53` SPS
+  - `64 env`: disabled `91.62` SPS
+
+Phase 0 gate status from `/tmp/fc_phase0_packet_clean/phase0_packet.json`:
+- only remaining blocker: `native_linux_source_of_truth_missing`
+- bridge / vecenv / train rows are now complete on one host class
+- clean pure-JVM and clean batched headless artifacts now exist
+
+Interpretation:
+- the old `8.9k` direct-sim artifact was materially under-representing the current headless runtime ceiling because it came from the older Step 11 test-harness path
+- the new clean standalone harness makes `100k+` look plausible from the sim-side ceiling perspective
+- the RL outer stack is now even more clearly the dominant current bottleneck because train SPS still sits around `92-97` while the clean batched sim report is in the `473k` env-steps/s range on the same WSL host
+
 ## Summary Table
 
 All rows below are single measured runs unless otherwise noted, so the reported throughput is the observed median for `n=1`. The current harnesses do not emit per-round latency distributions, so `p95` is not available in this packet.
@@ -37,6 +74,8 @@ All rows below are single measured runs unless otherwise noted, so the reported 
 | End-to-end train | `benchmark_train.py` | `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 16 --total-timesteps 1024 --logging-modes disabled,standard --output /tmp/fc_perf_audit/train_16_disabled_standard_run2.json` | `train_1024env_v0` | 16 | 1 parent + 1 subprocess worker | `1024 timesteps` | `82.84` SPS disabled, `91.66` SPS offline | 1 each | not collected |
 | End-to-end train | `benchmark_train.py` | `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 64 --total-timesteps 1024 --logging-modes disabled --output /tmp/fc_perf_audit/train_64_disabled_run1.json` | `train_1024env_v0` | 64 | 1 parent + 1 subprocess worker | `1024 timesteps` | `87.93` SPS disabled | 1 | not collected |
 | End-to-end train with W&B online | direct `train.py` wall-clock probe | inline subprocess probe to `scripts/train.py` with `WANDB_MODE=online` | `train_baseline_v0` | 4 | 1 parent + 1 subprocess worker | `256 timesteps` | `11.87` wall SPS | 1 | not collected |
+
+The original audit table above remains useful as the pre-Phase-0 packet snapshot. The `Phase 0 Gate Refresh` section is the newer current-host baseline and should be treated as the active measurement reference for optimization work.
 
 ## Layer-by-Layer Breakdown
 

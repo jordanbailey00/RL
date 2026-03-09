@@ -11,6 +11,8 @@ Repos and SHAs:
 
 - OS: `Linux DESKTOP-61IQ04T 6.6.87.2-microsoft-standard-WSL2`
 - Topology: WSL2 guest on Windows host
+- Benchmark host class: `wsl2`
+- Performance source of truth on this host: `false`
 - CPU: `AMD Ryzen 5 5600G with Radeon Graphics`
 - Physical cores: `6`
 - Logical CPUs: `12`
@@ -73,6 +75,12 @@ Facts:
 - this machine is not obviously memory-starved
 - this machine is not using GPU acceleration
 - the current RL worker topology uses only one env worker process
+- the current benchmark metadata now records:
+  - `host_class`
+  - `is_wsl`
+  - `performance_source_of_truth`
+  - `java_runtime_version`
+  - `java_vm_name`
 
 Hypothesis:
 - WSL2 adds some overhead, but the measured bridge and vecenv saturation points are low enough that the main issue is the current architecture, not merely host under-provisioning
@@ -81,3 +89,12 @@ Reason:
 - bridge and vecenv top out around `1.5k` env steps/s before the learner dominates
 - training plateaus around `88` SPS by `64 envs`
 - those numbers are too low to blame primarily on minor host effects
+
+## Phase 0 Gate Note
+
+- clean standalone sim and clean standalone JFR artifacts now exist on this host class
+- the refreshed Phase 0 packet is complete for:
+  - bridge `1 / 16 / 64`
+  - vecenv `1 / 16 / 64`
+  - train `4 / 16 / 64`
+- the remaining Phase 0 blocker is not missing instrumentation; it is that this host class is still `wsl2`, not native Linux

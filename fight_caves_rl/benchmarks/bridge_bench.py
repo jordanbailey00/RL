@@ -82,13 +82,17 @@ def run_bridge_benchmark(
     config_path: str | Path,
     *,
     rounds_override: int | None = None,
+    env_count_override: int | None = None,
 ) -> BridgeBenchmarkReport:
     config = load_bridge_benchmark_config(config_path)
-    if rounds_override is not None:
+    if rounds_override is not None or env_count_override is not None:
         config = BridgeBenchmarkConfig(
             **{
                 **asdict(config),
-                "rounds": int(rounds_override),
+                "rounds": int(rounds_override if rounds_override is not None else config.rounds),
+                "env_count": int(
+                    env_count_override if env_count_override is not None else config.env_count
+                ),
             }
         )
 

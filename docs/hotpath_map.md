@@ -9,6 +9,10 @@ Repos and SHAs:
 
 This is the concrete runtime hot path for one training step on the current shipped RL stack.
 
+Legacy bridge-mode labels still used elsewhere in the repo:
+- `Mode A`: embedded correctness / direct bridge path inside one Python process
+- `Mode C`: subprocess-isolated training path with one embedded JVM worker
+
 Measured training topology for this map:
 - parent process: `scripts/train.py` + `ConfigurablePuffeRL`
 - child process: `SubprocessHeadlessBatchVecEnv`

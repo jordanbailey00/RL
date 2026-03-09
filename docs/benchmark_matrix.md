@@ -8,6 +8,50 @@ Repos and SHAs:
 
 This matrix freezes the benchmark packet used in this audit. It separates measured rows from standard-but-not-yet-run rows.
 
+## Phase 0 Gate Refresh
+
+Standardized refresh entrypoint:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/refresh_phase0_packet.py --output-dir /tmp/fc_phase0_packet_clean
+```
+
+Supporting clean sim-side entrypoints:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/fight-caves-RL
+./gradlew --no-daemon :game:headlessPerformanceReport
+./gradlew --no-daemon :game:headlessPerformanceProfile
+```
+
+Current Phase 0 gate status on this host class:
+- host class: `wsl2`
+- benchmark source of truth: `false`
+- gate blocker: `native_linux_source_of_truth_missing`
+- bridge rows complete: `1 / 16 / 64`
+- vecenv rows complete: `1 / 16 / 64`
+- train rows complete: `4 / 16 / 64`
+- clean pure-JVM and clean batched headless sim artifacts: present
+
+Current refreshed rows from `/tmp/fc_phase0_packet_clean`:
+
+| Layer | Command | Env count | Result |
+| --- | --- | ---: | --- |
+| Standalone sim single-slot | `:game:headlessPerformanceReport` | 1 | `30509.78` ticks/s |
+| Standalone sim batched | `:game:headlessPerformanceReport` | 16 | `473574.60` env steps/s |
+| Bridge reference vs batch | `scripts/benchmark_bridge.py --config bridge_1env_v0 --env-count 1` | 1 | reference `1074.71`, batch `23615.07` env/s |
+| Bridge reference vs batch | `scripts/benchmark_bridge.py --config bridge_64env_v0 --env-count 16` | 16 | reference `1297.72`, batch `1573.98` env/s |
+| Bridge reference vs batch | `scripts/benchmark_bridge.py --config bridge_64env_v0 --env-count 64` | 64 | reference `1655.51`, batch `1606.92` env/s |
+| Wrapper vs vecenv | `scripts/benchmark_env.py --env-count 1` | 1 | wrapper `751.55`, vecenv `980.31` env/s |
+| Wrapper vs vecenv | `scripts/benchmark_env.py --env-count 16` | 16 | wrapper `903.61`, vecenv `1459.51` env/s |
+| Wrapper vs vecenv | `scripts/benchmark_env.py --env-count 64` | 64 | wrapper `1038.82`, vecenv `1426.81` env/s |
+| Training | `scripts/benchmark_train.py --env-count 4 --total-timesteps 1024 --logging-modes disabled` | 4 | `96.66` SPS |
+| Training | `scripts/benchmark_train.py --env-count 16 --total-timesteps 1024 --logging-modes disabled` | 16 | `96.53` SPS |
+| Training | `scripts/benchmark_train.py --env-count 64 --total-timesteps 1024 --logging-modes disabled` | 64 | `91.62` SPS |
+
 ## Measured Rows
 
 | Layer | Command | Config | Env count | Worker topology | Worker count | Envs / worker | Dashboard | W&B | Replay/artifacts | Result |
@@ -68,5 +112,9 @@ This matrix freezes the benchmark packet used in this audit. It separates measur
 
 - `1 env -> 64 env` bridge scaling is currently poor.
 - Embedded vecenv throughput tracks bridge throughput closely.
-- Training throughput plateaus by `16-64 envs`.
+- Training throughput still plateaus by `4-64 envs` in the refreshed Phase 0 packet.
 - That makes `256` and `1024` env training runs low-value before the bridge and transport path changes.
+- Benchmark hygiene for future reruns:
+  - compare only runs from the same host class
+  - use `disabled` logging for the core Phase 0 train row
+  - treat native Linux as the go/no-go source of truth, not WSL

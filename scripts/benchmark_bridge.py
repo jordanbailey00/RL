@@ -15,10 +15,15 @@ def main() -> None:
         default=Path("configs/benchmark/bridge_1env_v0.yaml"),
     )
     parser.add_argument("--rounds", type=int, default=None)
+    parser.add_argument("--env-count", type=int, default=None)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    report = run_bridge_benchmark(args.config, rounds_override=args.rounds)
+    report = run_bridge_benchmark(
+        args.config,
+        rounds_override=args.rounds,
+        env_count_override=args.env_count,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(report.to_dict(), indent=2, sort_keys=True) + "\n",

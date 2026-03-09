@@ -80,6 +80,47 @@ Interpretation:
 - the stability-first subprocess training fix adds extra IPC overhead but prevents the reset-boundary segfault in the shipped training path
 - online W&B overhead is meaningful, but it is not the primary reason the stack is far from `100,000-1,000,000+` SPS
 
+## Phase 0 Gate Execution Status
+
+Phase 0 measurement infrastructure now exists in repo-owned form:
+
+- `fight-caves-RL`
+  - `./gradlew --no-daemon :game:headlessPerformanceReport`
+  - `./gradlew --no-daemon :game:headlessPerformanceProfile`
+- `RL`
+  - `uv run python scripts/refresh_phase0_packet.py --output-dir /tmp/fc_phase0_packet_clean`
+
+Current refreshed WSL packet highlights:
+
+- standalone sim single-slot throughput: about `30.5k` ticks/sec
+- standalone sim batched throughput (`16 envs`): about `473.6k` env steps/sec
+- bridge:
+  - `1 env`: batch about `23.6k` env steps/sec
+  - `16 env`: batch about `1.57k` env steps/sec
+  - `64 env`: batch about `1.61k` env steps/sec
+- vecenv:
+  - `1 env`: about `980.3` env steps/sec
+  - `16 env`: about `1459.5` env steps/sec
+  - `64 env`: about `1426.8` env steps/sec
+- train:
+  - `4 envs`: about `96.7` SPS
+  - `16 envs`: about `96.5` SPS
+  - `64 envs`: about `91.6` SPS
+
+Gate status:
+
+- clean pure-JVM artifact: present
+- clean batched sim artifact: present
+- bridge / vecenv / train rows on one host class: present
+- per-worker ceiling estimate: present
+- remaining blocker before Phase 1: `native_linux_source_of_truth_missing`
+
+Interpretation:
+
+- the Phase 0 refresh materially improved confidence in the sim-side ceiling
+- the refreshed packet reinforces that the RL outer stack is the current dominant bottleneck
+- Phase 1 implementation remains blocked until the same packet is refreshed on native Linux and reviewed against the approved gate
+
 ## Stage Gate A - Correctness Baseline
 
 - measure single-env wrapper throughput and reset/step latency

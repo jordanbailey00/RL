@@ -1,5 +1,30 @@
 ## 2026-03-09
 
+- Started Phase 0 optimization implementation work from the approved workspace-level optimization plan.
+- Added repo-owned Phase 0 packet tooling in RL:
+  - `scripts/refresh_phase0_packet.py`
+  - `fight_caves_rl/benchmarks/phase0_packet.py`
+- Hardened benchmark metadata for comparability:
+  - benchmark hardware profiles now record `host_class`, `is_wsl`, `performance_source_of_truth`, `java_runtime_version`, and `java_vm_name`
+  - bridge benchmark CLI now supports `--env-count` overrides so the Phase 0 packet can standardize `1 / 16 / 64` rows
+- Added RL unit coverage for the new Phase 0 metadata/gate logic:
+  - `fight_caves_rl/tests/unit/test_benchmark_context.py`
+  - `fight_caves_rl/tests/unit/test_phase0_packet_gate.py`
+- Executed the current-host WSL Phase 0 packet via:
+  - `uv run python scripts/refresh_phase0_packet.py --output-dir /tmp/fc_phase0_packet_clean`
+- Recorded the refreshed WSL packet outcome:
+  - bridge rows complete: `1 / 16 / 64`
+  - vecenv rows complete: `1 / 16 / 64`
+  - train rows complete: `4 / 16 / 64`
+  - current train plateau remains about `91-97` SPS with disabled logging
+  - Phase 0 gate still blocks Phase 1 because `native_linux_source_of_truth_missing`
+- Updated RL performance docs to reflect the new Phase 0 packet and the current gate state:
+  - `docs/performance_decomposition_report.md`
+  - `docs/benchmark_matrix.md`
+  - `docs/runtime_topology.md`
+  - `docs/performance_plan.md`
+  - `docs/hotpath_map.md`
+
 - Added a measurement-first performance audit packet in RL:
   - `docs/performance_decomposition_report.md`
   - `docs/hotpath_map.md`
