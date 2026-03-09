@@ -9,6 +9,7 @@ This document defines what future performance work is allowed to change and what
 - Episode-start contract must remain identical to the sim-owned reset contract.
 - Action semantics must remain identical.
 - Observation semantics must remain identical unless the observation schema version is intentionally changed and revalidated.
+- Decision-critical combat cues already present in the raw contract, including `jad_telegraph_state`, must retain identical onset, duration, and meaning unless intentionally versioned and revalidated.
 - Fight-caves headless runtime remains the golden runtime dependency.
 - RSPS remains the oracle/reference path, not the RL hot path.
 - Deterministic replay expectations must be preserved for the same schema / contract / seed version.
@@ -33,6 +34,7 @@ This document defines what future performance work is allowed to change and what
 - changing tick stride or action timing
 - changing terminal conditions
 - changing observation field meaning, even if the final tensor shape stays the same
+- changing the meaning or timing window of `jad_telegraph_state` or any equivalent combat telegraph cue
 - changing any logic that could alter headless-to-headed transfer behavior
 
 ## Determinism Expectations

@@ -101,6 +101,12 @@ RL may flatten or vectorize the observation later, but it may not:
 - change the visible-NPC target alignment
 - include `debug_future_leakage` by default
 
+Future flat-path rule:
+
+- the future training-flat path must remain a semantically equivalent projection of this raw contract
+- decision-critical combat cues already present in the raw contract, including `jad_telegraph_state`, must retain identical onset window and meaning in any future flat layout
+- Certification Mode must prove raw-vs-flat equivalence before RL trusts the flat path in Production Training Mode
+
 Allowed later wrapper behavior:
 
 - booleans may be converted to `0/1` at the last possible wrapper boundary

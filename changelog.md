@@ -1,5 +1,12 @@
 ## 2026-03-09
 
+- Completed `WC-P1-01` from the workspace optimization plan.
+- Froze the RL-side raw-vs-flat contract consumption rules for the upcoming performance-path redesign:
+  - updated `docs/observation_mapping.md` so the future flat path is explicitly constrained to remain a semantically equivalent projection of the raw sim contract
+  - updated `docs/parity_safe_optimization_rules.md` so decision-critical combat cues already present in the raw contract, including `jad_telegraph_state`, are treated as parity-sensitive optimization inputs
+- Recorded the downstream implication of the Jad telegraph rework for optimization Phase 1:
+  - the Jad cue is now protected raw semantic content that future flat-schema work must preserve exactly
+
 - Integrated the parity-preserving Jad telegraph cue into the RL-side observation contract.
 - Kept the raw sim observation contract on additive `headless_observation_v1` and consumed the new NPC field `jad_telegraph_state` as an additive raw feature.
 - Version-bumped the RL-local trainer tensor layout from `puffer_policy_observation_v0` to `puffer_policy_observation_v1` because the policy input schema now includes the Jad telegraph feature.
