@@ -49,24 +49,36 @@ Current PR11 implementation note:
   - `scripts/benchmark_env.py`
   - `scripts/benchmark_train.py`
 
-Current measured local baseline gap (2026-03-08, Ryzen 5 5600G / WSL):
+Current measured local baseline gap (2026-03-09 audit packet, Ryzen 5 5600G / WSL):
 
-- `fight-caves-RL/docs/performance_report.md` currently records about `8.9k` ticks/sec for the existing wait-only sim benchmark
+- canonical audit packet sources:
+  - `docs/performance_decomposition_report.md`
+  - `docs/benchmark_matrix.md`
+  - `docs/python_profiler_report.md`
+  - `docs/transport_and_copy_ledger.md`
+- direct-JVM repo artifact in `fight-caves-RL/docs/performance_report.md`:
+  - throughput benchmark: about `8.9k` ticks/sec
+  - important caveat: this is a current-repo artifact from a Windows-native context, not a current-host WSL throughput rerun
 - RL local bridge measurements on this workspace host:
-  - `bridge_1env_v0` batch trace: about `18.3k` env steps/sec
-  - `bridge_64env_v0` lockstep batch: about `1.33k` env steps/sec total
-- RL local vecenv measurement on this workspace host (`4 envs`, embedded direct backend, constant wait action, no reset pressure): about `742` env steps/sec total
-- RL local stable training measurement on this workspace host (`train_baseline_v0`, `4 envs`, subprocess-isolated worker backend):
-  - W&B disabled: about `39.5` train SPS
-  - W&B online: about `13.1` train SPS
+  - `bridge_1env_v0` batch trace: about `23.8k` env steps/sec
+  - `bridge_64env_v0` lockstep batch: about `1.48k` env steps/sec total
+- RL local embedded vecenv measurements on this workspace host:
+  - `4 envs`: about `906.6` env steps/sec total
+  - `16 envs`: about `1232.6` env steps/sec total
+  - `64 envs`: about `1492.1` env steps/sec total
+- RL local stable training measurements on this workspace host:
+  - `4 envs`, W&B disabled: about `36.4` train SPS
+  - `16 envs`, W&B disabled: about `82.8` train SPS
+  - `64 envs`, W&B disabled: about `87.9` train SPS
+  - `4 envs`, W&B online wall-clock probe: about `11.9` train SPS
 
 Interpretation:
 
 - the current bottleneck is not one thing
-- the simulator itself is still far below the end goal
+- the simulator itself is still far below the end goal even before RL overhead
 - the current Python bridge/vector layer collapses throughput further, especially at higher env counts
 - the stability-first subprocess training fix adds extra IPC overhead but prevents the reset-boundary segfault in the shipped training path
-- W&B overhead is meaningful, but it is not the primary reason the stack is far from `100,000-1,000,000+` SPS
+- online W&B overhead is meaningful, but it is not the primary reason the stack is far from `100,000-1,000,000+` SPS
 
 ## Stage Gate A - Correctness Baseline
 

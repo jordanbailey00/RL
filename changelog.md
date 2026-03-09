@@ -1,3 +1,55 @@
+## 2026-03-09
+
+- Added a measurement-first performance audit packet in RL:
+  - `docs/performance_decomposition_report.md`
+  - `docs/hotpath_map.md`
+  - `docs/benchmark_matrix.md`
+  - `docs/python_profiler_report.md`
+  - `docs/transport_and_copy_ledger.md`
+  - `docs/observation_action_cost_report.md`
+  - `docs/runtime_topology.md`
+  - `docs/logging_overhead_report.md`
+  - `docs/parity_safe_optimization_rules.md`
+- Added the matching sim-side profiler report in:
+  - `../fight-caves-RL/docs/sim_profiler_report.md`
+- Expanded the audit packet after the first draft so the docs now capture:
+  - exact repo SHAs on the packet docs
+  - reset-path transport and payload measurements in addition to step-path measurements
+  - worker-count / env-per-worker details in the benchmark matrix
+  - the current-host 2026-03-09 baseline as the active summary in `docs/performance_plan.md`
+- Collected current-host benchmark evidence on the shipped stack:
+  - bridge:
+    - `1 env` batch trace about `23.8k` env steps/s
+    - `64 env` lockstep batch about `1.48k` env steps/s total
+  - embedded vecenv:
+    - `4 env` about `906.6` env steps/s
+    - `16 env` about `1232.6` env steps/s
+    - `64 env` about `1492.1` env steps/s
+  - end-to-end train:
+    - `4 env` about `36.4` SPS disabled
+    - `16 env` about `82.8` SPS disabled
+    - `64 env` about `87.9` SPS disabled
+  - online W&B wall-clock probe:
+    - `4 env` about `11.9` wall SPS
+- Collected steady-state Python profiles showing the dominant embedded-path hot spot is observation pythonization:
+  - `pythonize_observation` / `_pythonize` dominate worker-side cumulative time
+  - raw `observe_jvm`, `tick`, and `apply_action_jvm` are much smaller
+  - action decode, reward bookkeeping, and policy flattening are not the main current bottlenecks
+- Collected subprocess payload-size measurements for the current transport:
+  - `1 env` step payload about `1261` pickled bytes
+  - `4 env` step payload about `3047` pickled bytes
+  - `16 env` step payload about `10187` pickled bytes
+  - conclusion: bytes alone are not the main problem; repeated object construction and copying are
+- Verified one important scaling result:
+  - embedded vecenv throughput closely tracks embedded bridge throughput at `64 envs`
+  - current training throughput plateaus by `16-64 envs`
+  - this points to the bridge/observation/transport architecture as the main current limiter, not PufferLib vectorization alone
+- Attempted direct JVM profiling on the current host:
+  - embedded-JVM JFR dumponexit failed to dump cleanly from the Python-launched benchmark
+  - Gradle/JUnit JFR capture succeeded but was dominated by Gradle / JUnit / JaCoCo harness noise and did not yield clean headless-symbol CPU samples
+  - `jcmd -l` did not expose the embedded JPype JVM as an attachable target
+  - the sim profiler report records this limitation explicitly instead of overclaiming function-level JVM hotspots
+
 # changelog.md
 
 ## 2026-03-08
@@ -118,463 +170,3 @@
   - `fight_caves_rl/logging/wandb_client.py`
   - `scripts/benchmark_env.py`
 - Added PR11 performance smoke coverage:
-  - `fight_caves_rl/tests/performance/test_env_benchmark_smoke.py`
-  - `fight_caves_rl/tests/performance/test_train_benchmark_smoke.py`
-- Found and fixed one real PR11 env-benchmark stability issue:
-  - wrapper and vecenv measurements cannot safely share one Python process because the embedded-JVM lifecycle is process-global
-  - `fight_caves_rl/benchmarks/env_bench.py` now collects wrapper and vecenv measurements in separate child processes
-- Found and fixed one real PR11 train-benchmark smoke issue:
-  - tiny smoke overrides on `train_1024env_v0` inherited oversized batch/minibatch settings and could stall or stop making useful progress
-  - `fight_caves_rl/benchmarks/train_bench.py` now clamps child train batch settings for tiny benchmark runs and enforces explicit subprocess timeouts
-- Re-verified the PR11 benchmark acceptance set:
-  - `uv run pytest fight_caves_rl/tests/performance/test_vecenv_benchmark_smoke.py -q`
-  - `uv run pytest fight_caves_rl/tests/performance/test_env_benchmark_smoke.py -q`
-  - `uv run pytest fight_caves_rl/tests/performance/test_train_benchmark_smoke.py -q`
-  - `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench_smoke.json`
-- Re-verified the full current RL suite after PR11:
-  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q` -> passed
-- Started and completed PR 10 replay/eval artifact work in RL.
-- Added the PR10 replay package:
-  - `fight_caves_rl/replay/replay_export.py`
-  - `fight_caves_rl/replay/replay_index.py`
-  - `fight_caves_rl/replay/eval_runner.py`
-- Added the canonical PR10 replay entrypoint:
-  - `scripts/replay_eval.py`
-  - retained `scripts/eval.py` as a compatibility alias to the same eval runner
-- Expanded eval output from summary-only to replay-grade artifacts:
-  - `eval_summary.json`
-  - `replay_pack.json`
-  - `replay_index.json`
-  - `run_manifest.json`
-- Added replay artifact categories and manifest documentation for:
-  - `replay_pack`
-  - `replay_index`
-- Added the PR10 replay tests:
-  - `fight_caves_rl/tests/integration/test_replay_generation_smoke.py`
-  - `fight_caves_rl/tests/integration/test_replay_manifest_integrity.py`
-  - `fight_caves_rl/tests/determinism/test_replay_eval_equivalence.py`
-- Froze the initial replay export density control as `replay_step_cadence` in `configs/eval/replay_eval_v0.yaml`.
-- Kept the PR4 thin canary utilities and trace/seed pack contract intact while moving the real checkpoint eval path onto replay-grade artifacts.
-- Started and completed PR 9 reward/curriculum scaffolding in RL.
-- Added config-backed reward and curriculum registries:
-  - `fight_caves_rl/rewards/registry.py`
-  - `fight_caves_rl/rewards/reward_sparse_v0.py`
-  - `fight_caves_rl/rewards/reward_shaped_v0.py`
-  - `fight_caves_rl/curriculum/registry.py`
-  - `fight_caves_rl/curriculum/curriculum_disabled_v0.py`
-  - `fight_caves_rl/curriculum/curriculum_wave_progression_v0.py`
-- Expanded the repo-owned config surfaces:
-  - `configs/reward/reward_sparse_v0.yaml`
-  - `configs/reward/reward_shaped_v0.yaml`
-  - `configs/curriculum/curriculum_disabled_v0.yaml`
-  - `configs/curriculum/curriculum_wave_progression_v0.yaml`
-  - `configs/eval/replay_eval_v0.yaml`
-- Kept reward/curriculum selection config-driven in the existing train/eval path without changing simulator semantics:
-  - `fight_caves_rl/puffer/factory.py`
-  - `fight_caves_rl/puffer/trainer.py`
-  - `fight_caves_rl/envs/vector_env.py`
-- Kept the current benchmark/parity-safe defaults on `reward_sparse_v0` plus `curriculum_disabled_v0`.
-- Added PR9 docs and unit coverage:
-  - `docs/reward_configs.md`
-  - `fight_caves_rl/tests/unit/test_reward_reproducibility.py`
-  - `fight_caves_rl/tests/unit/test_reward_no_future_leakage.py`
-  - `fight_caves_rl/tests/unit/test_curriculum_config_loading.py`
-- Verified the post-PR9 suite split:
-  - `uv run pytest fight_caves_rl/tests/unit -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/train -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/integration -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/smoke -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q` -> passed
-- Started and completed PR 8 vectorized backend work in RL.
-- Replaced the temporary PR5 single-env vecenv shim with the shipped batch-backed vector env:
-  - `fight_caves_rl/envs/vector_env.py`
-  - deterministic slot seeding now lives in the vecenv layer
-  - the production train path now steps the PR7 batched bridge instead of one Python env call per slot per tick
-- Added the PR8 benchmark/config surfaces:
-  - `configs/train/train_baseline_v0.yaml`
-  - `configs/benchmark/vecenv_256env_v0.yaml`
-  - `scripts/benchmark_env.py`
-  - `fight_caves_rl/benchmarks/vector_env_bench.py`
-- Added the PR8 vecenv smoke harness:
-  - `scripts/run_vecenv_smoke.py`
-  - `fight_caves_rl/tests/smoke/test_vecenv_reset_step_smoke.py`
-  - `fight_caves_rl/tests/smoke/test_multi_worker_smoke.py`
-  - `fight_caves_rl/tests/smoke/test_long_run_vector_stability.py`
-  - `fight_caves_rl/tests/performance/test_vecenv_benchmark_smoke.py`
-- Found and fixed one real PR8 bridge regression:
-  - the vectorized trainer path can emit `walk_to_tile`, and the JVM hot path was constructing `HeadlessAction.WalkToTile` incorrectly for the Kotlin inline `Tile` value type
-  - `fight_caves_rl/bridge/debug_client.py` now selects the private inline-value constructor reflectively and uses it for `WalkToTile`
-- Found and fixed one PR8 smoke-harness stability issue:
-  - running the live vecenv smokes in the same pytest process as the other subprocess-heavy smoke tests was still fragile because the embedded JVM lifecycle is process-global
-  - `test_vecenv_reset_step_smoke.py` and `test_long_run_vector_stability.py` now run through `scripts/run_vecenv_smoke.py` so each smoke gets a fresh child process
-- Verified the post-PR8 suite split:
-  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/train -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/integration -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/performance -q` -> passed
-  - `uv run pytest fight_caves_rl/tests/smoke -q` -> passed
-  - `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/vecenv_benchmark_smoke.json` -> passed
-- Aligned the RL episode-start source-of-truth docs to the current sim-side contract without changing the RL contract id/version:
-  - removed the stale `Defence: 50` / `Amulet of glory` wording from `RLspec.md`
-  - normalized the episode-start loadout and stat block to the current headless reset contract
-- Split RL validation policy into explicit buckets:
-  - dev-only unit bootstrap
-  - train-bootstrap import plus self-contained train tests
-  - local pre-merge live-runtime suites
-  - manual/scheduled performance validation
-- Moved the train-dependent dashboard test out of `fight_caves_rl/tests/unit` into `fight_caves_rl/tests/train`.
-- Narrowed the bootstrap manifest import path so dev-only unit collection no longer pulls in `gymnasium` or `torch` indirectly through train-only modules.
-- Updated GitHub Actions to match the approved PR-CI boundary:
-  - `unit-dev` runs the dev-only unit suite
-  - `train-bootstrap` runs the train-group import smoke plus `fight_caves_rl/tests/train`
-- Re-verified the approved bootstrap boundaries:
-  - `uv sync --group dev --python 3.11`
-  - `uv run pytest fight_caves_rl/tests/unit` -> `21 passed`
-  - `uv sync --group dev --group train --python 3.11`
-  - `uv run python -c "import pufferlib, torch, fight_caves_rl"`
-  - `uv run pytest fight_caves_rl/tests/train` -> `3 passed`
-- Resolved the aggregate-suite subprocess stall in RL and re-established the repo-wide aggregate pytest sweep as a normal verification path.
-- Started and completed PR 7 batched-bridge baseline work in RL.
-- Incremented the bridge contract from `fight_caves_bridge_v0` to `fight_caves_bridge_v1` because PR7 makes the batch envelope and lockstep slot semantics explicit.
-- Added the PR7 batch bridge core:
-  - `fight_caves_rl/bridge/protocol.py`
-  - `fight_caves_rl/bridge/buffers.py`
-  - `fight_caves_rl/bridge/batch_client.py`
-- Added the PR7 bridge benchmark harness:
-  - `fight_caves_rl/benchmarks/bridge_bench.py`
-  - `configs/benchmark/bridge_1env_v0.yaml`
-  - `configs/benchmark/bridge_64env_v0.yaml`
-  - `scripts/benchmark_bridge.py`
-- Added the subprocess-isolated PR7 parity collector:
-  - `scripts/collect_batch_trace.py`
-- Chose the first concrete PR7 batch topology:
-  - embedded JVM runtime
-  - many player slots per runtime
-  - apply all slot actions
-  - tick the runtime once
-  - observe all slots
-- Reused the upstream sim helper `runFightCaveBatch(...)` for the single-slot trace benchmark path instead of recreating that trace runner in Python.
-- Added PR7 live coverage:
-  - `fight_caves_rl/tests/integration/test_bridge_batch_step_parity.py`
-  - `fight_caves_rl/tests/integration/test_bridge_schema_fail_fast.py`
-  - `fight_caves_rl/tests/performance/test_bridge_benchmark_smoke.py`
-- Updated the core bridge docs:
-  - `docs/bridge_contract.md`
-  - `docs/hotpath_map.md`
-  - `docs/performance_plan.md`
-- Verified the PR7 targeted suite:
-  - `uv run pytest fight_caves_rl/tests/integration/test_bridge_schema_fail_fast.py fight_caves_rl/tests/integration/test_bridge_batch_step_parity.py fight_caves_rl/tests/performance/test_bridge_benchmark_smoke.py -q` -> passed
-- Re-verified the PR6 targeted suite after the bridge-version change:
-  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q` -> passed
-- Re-verified the updated contract registry/unit subset:
-  - `uv run pytest fight_caves_rl/tests/unit/test_contract_version_registry.py fight_caves_rl/tests/unit/test_config_loader.py fight_caves_rl/tests/unit/test_run_manifest_basics.py -q` -> passed
-- Discovered one remaining verification gap:
-  - a monolithic aggregate pytest run across unit/integration/determinism/parity/smoke/performance stalled in the existing PR6 manifest smoke
-  - targeted PR6 and PR7 suites passed independently, so the current unresolved issue was in aggregate-suite stability rather than in the PR7 bridge code path
-- Resolved the aggregate-suite subprocess stall in follow-up work:
-  - added `ConfigurablePuffeRL` plus `should_enable_dashboard(...)` so RL only renders the local dashboard when the config requests it and stdout/stderr are attached to an interactive TTY
-  - added `configs/logging/headless_quiet_logback.xml` and now launch the embedded JVM with `-Dlogback.configurationFile=...` so headless smoke/train/eval subprocesses do not leak Java/logback console output past Python capture
-  - added a default timeout to `fight_caves_rl/tests/smoke/_helpers.py::run_script(...)` so future subprocess hangs fail fast instead of stalling the suite indefinitely
-  - added `FC_RL_TRACE_DIR` child-process tracing plus `fight_caves_rl/tests/train/test_trainer_dashboard_control.py`
-- Re-verified the previously bad PR6 pair after the fix:
-  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py -q` -> passed
-- Re-verified the full current RL sweep after the fix:
-  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke fight_caves_rl/tests/performance -q` -> passed
-
-- Started and completed PR 6 W&B integration and run-manifest wiring in RL.
-- Added the PR6 logging package:
-  - `fight_caves_rl/logging/wandb_client.py`
-  - `fight_caves_rl/logging/metrics.py`
-  - `fight_caves_rl/logging/artifact_naming.py`
-- Expanded `fight_caves_rl/manifests/run_manifest.py` from the bootstrap manifest into full train/eval manifests carrying:
-  - RL/sim/RSPS repo SHAs
-  - PufferLib distribution metadata plus import drift fields
-  - W&B project/group/mode/resume/tags/dir metadata
-  - PR2 bridge/schema/episode-start/benchmark identities
-  - PR5 policy schema ids/versions
-  - reward/curriculum/policy ids
-  - checkpoint/eval summary fields
-  - hardware profile
-  - artifact records
-- Added PR6 docs:
-  - `docs/wandb_logging_contract.md`
-  - updated `docs/run_manifest.md`
-- Expanded bootstrap configuration and `.env.example` with:
-  - `WANDB_ENTITY`
-  - `WANDB_GROUP`
-  - `WANDB_RESUME`
-  - `WANDB_RUN_PREFIX`
-  - `WANDB_TAGS`
-  - `WANDB_DIR`
-  - `WANDB_DATA_DIR`
-  - `WANDB_CACHE_DIR`
-- Chose a repo-owned RL W&B logger instead of directly using `pufferlib.pufferl.WandbLogger` because PR6 needs:
-  - repo-owned run ids
-  - manifest-to-W&B config synchronization
-  - explicit artifact naming/versioning
-  - stable WSL startup settings that suppress console/system-monitor side effects
-- Added PR6 tests:
-  - `fight_caves_rl/tests/unit/test_artifact_naming_versioning.py`
-  - `fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py`
-  - `fight_caves_rl/tests/integration/test_wandb_offline_smoke.py`
-- Found and fixed two PR6 subprocess-harness issues:
-  - live subprocess tests were unstable under pytest fd capture
-  - inheriting the full parent pytest environment caused live child processes to become order-sensitive when PR6 W&B initialization was active
-- Hardened the live subprocess harness:
-  - added `fight_caves_rl/tests/conftest.py` to suspend fd capture for run-script-based live tests
-  - updated `fight_caves_rl/tests/smoke/_helpers.py` to use `stdin=DEVNULL`
-  - switched child processes onto an allowlisted hermetic environment
-  - moved smoke tests onto per-test offline W&B directories instead of repo-global defaults
-- Verified the PR6-targeted suite:
-  - `uv run pytest fight_caves_rl/tests/integration/test_wandb_run_manifest_completeness.py fight_caves_rl/tests/integration/test_wandb_offline_smoke.py fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py fight_caves_rl/tests/smoke/test_eval_loop_smoke.py fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py -q` -> passed
-- Re-verified the full current RL suite after the PR6 harness fixes:
-  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke -q` -> passed (`25` collected tests)
-
-- Started and completed PR 5 PufferLib smoke integration in RL.
-- Added the PR5 Puffer/Gym policy-input encoding registry:
-  - `fight_caves_rl/envs/puffer_encoding.py`
-  - `puffer_policy_observation_v0`
-  - `puffer_policy_action_v0`
-- Froze the PR5 smoke baseline observation/action encoding rules:
-  - fixed visible-NPC cap `8`
-  - explicit ammo-id and Fight Caves NPC-id dictionaries
-  - full absolute-tile `MultiDiscrete` action heads for correctness-first smoke bring-up
-- Confirmed that the stock `pufferlib.vector.Serial` backend is not viable for the selected Mode A bridge because it constructs the env twice and the second embedded-runtime bootstrap collides with one-shot Kotlin script registration.
-- Added a repo-local single-env Mode A vecenv shim that still feeds the stock `pufferlib.pufferl.PuffeRL` training loop without changing simulator semantics.
-- Added PR5 integration code:
-  - `fight_caves_rl/puffer/factory.py`
-  - `fight_caves_rl/puffer/trainer.py`
-  - `fight_caves_rl/puffer/callbacks.py`
-  - `fight_caves_rl/policies/mlp.py`
-  - `fight_caves_rl/policies/checkpointing.py`
-  - `scripts/train.py`
-  - `scripts/eval.py`
-  - `scripts/smoke_scripted.py`
-- Expanded PR5 configs:
-  - `configs/train/smoke_ppo_v0.yaml`
-  - `configs/eval/replay_eval_v0.yaml`
-- Added checkpoint sidecar metadata carrying:
-  - sim observation/action schema ids and versions
-  - episode-start contract id/version
-  - PR5 policy observation/action schema ids and versions
-  - PufferLib distribution/version from distribution metadata
-- Added PR5 smoke coverage:
-  - `fight_caves_rl/tests/smoke/test_puffer_smoke_train_loop.py`
-  - `fight_caves_rl/tests/smoke/test_checkpoint_save_load_smoke.py`
-  - `fight_caves_rl/tests/smoke/test_eval_loop_smoke.py`
-  - `fight_caves_rl/tests/smoke/test_scripted_baseline_smoke.py`
-- Verified that the scripted PR5 smoke path matches the existing PR4 parity canary digest for `parity_single_wave_v0`.
-- Verified the PR5 acceptance matrix:
-  - `uv run pytest fight_caves_rl/tests/unit fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity fight_caves_rl/tests/smoke -q` -> passed
-
-- Started PR 3 correctness-wrapper implementation in RL.
-- Added `jpype1>=1.6.0` to the RL baseline dependencies so the embedded JVM bridge is part of the normal repo bootstrap path.
-- Corrected the frozen sim artifact assumption from a single fixed path to the verified distribution glob:
-  - `game/build/distributions/fight-caves-headless*.zip`
-  - current verified dev artifact: `fight-caves-headless-dev.zip`
-- Verified that the current packaged headless artifact still requires the checked-out sibling sim workspace root at runtime:
-  - `FCspec.md`
-  - `config/headless_data_allowlist.toml`
-  - `config/headless_manifest.toml`
-  - `config/headless_scripts.txt`
-  - `data/cache/main_file_cache.dat2`
-- Implemented the PR3 bridge/env code:
-  - `fight_caves_rl/bridge/contracts.py`
-  - `fight_caves_rl/bridge/errors.py`
-  - `fight_caves_rl/bridge/launcher.py`
-  - `fight_caves_rl/bridge/debug_client.py`
-  - `fight_caves_rl/envs/action_mapping.py`
-  - `fight_caves_rl/envs/observation_mapping.py`
-  - `fight_caves_rl/envs/correctness_env.py`
-  - `scripts/smoke_random.py`
-- Implemented PR3 unit and integration coverage:
-  - `test_action_schema_version_compatibility.py`
-  - `test_observation_flattening_determinism.py`
-  - `test_bridge_launcher_preflight.py`
-  - `test_wrapper_reset_matches_sim_contract.py`
-  - `test_wrapper_step_matches_sim_trace.py`
-- Verified Kotlin/JVM interop details for the selected Mode A bridge:
-  - embedded JVM startup via `jpype1`
-  - Kotlin value-class `Tile` creation via synthetic `constructor-impl` / `box-impl`
-  - synthetic `Player` construction via reflection
-  - Koin-backed `AccountManager` resolution via the engine `get(...)` helper
-  - action-object construction for the frozen headless action surface
-- Added launcher/runtime preflight behavior so missing sim prerequisites fail fast with explicit errors instead of raw bootstrap exceptions.
-- Verified current PR3 execution subset:
-  - `uv lock --python 3.11`
-  - `uv sync --group dev --group train --python 3.11`
-  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
-  - `uv run pytest fight_caves_rl/tests/integration/test_wrapper_reset_matches_sim_contract.py fight_caves_rl/tests/integration/test_wrapper_step_matches_sim_trace.py` -> `2 skipped`
-  - `uv run python scripts/smoke_random.py --max-steps 1` -> exits early with the explicit missing-cache prerequisite error
-- Recorded the remaining PR3 live blocker in RL docs/plan:
-  - `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2` is missing in the current workspace
-  - live reset/step/full-episode acceptance remains blocked until that cache prerequisite is restored
-- Recorded the current termination-handling constraint:
-  - the selected Mode A sim runtime surface does not yet expose a dedicated terminal-reason envelope
-  - the correctness env currently labels only provisional inferred outcomes for `player_death`, `cave_complete`, and `max_tick_cap`
-- Restored the missing sim cache into the active WSL workspace:
-  - `/home/jordan/code/fight-caves-RL/data/cache/main_file_cache.dat2`
-  - sibling `main_file_cache.idx*` files under the same cache root
-- Fixed embedded JVM startup for PR3 live bring-up by pinning `user.dir` at JVM startup instead of relying on Python-side `chdir()` after JVM initialization.
-- Fixed Java boxed primitive coercion in `fight_caves_rl/bridge/debug_client.py` so live observations normalize boxed booleans/numbers into Python-native scalars.
-- Added `scripts/collect_step_trace.py` and updated the step-equivalence integration path to compare wrapper-vs-raw traces from separate Python processes with fresh embedded JVM runtimes.
-- Verified the unblocked PR3 live acceptance set:
-  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
-  - `uv run pytest fight_caves_rl/tests/integration` -> `2 passed`
-  - `uv run python scripts/smoke_random.py --max-steps 256` -> live smoke passes
-  - `uv run python scripts/smoke_random.py --max-steps 20000` -> reaches `truncated=True` with `terminal_reason='max_tick_cap'`
-- Closed the original PR3 workspace blocker:
-  - live reset/step validation is no longer blocked by the missing cache in the active workspace
-  - the remaining PR3 gap is semantic, not bootstrap-related: Mode A still does not receive a dedicated terminal-reason envelope from the sim runtime
-- Started and completed PR 4 determinism/parity bring-up in RL.
-- Added PR4 replay/eval support files:
-  - `fight_caves_rl/replay/seed_packs.py`
-  - `fight_caves_rl/replay/trace_packs.py`
-  - `fight_caves_rl/utils/seeding.py`
-  - `scripts/collect_reset_repro.py`
-  - `scripts/collect_trajectory_trace.py`
-  - `scripts/collect_seedpack_eval.py`
-- Added PR4 docs/configs:
-  - `docs/eval_and_replay.md`
-  - `docs/parity_canaries.md`
-  - `configs/eval/parity_canary_v0.yaml`
-  - expanded `configs/eval/eval_seedpack_v0.yaml`
-- Locked the PR4 determinism/parity comparison rule:
-  - compare semantic projections, not raw absolute instance ids or raw absolute ticks
-  - normalize player/NPC tiles relative to the episode start tile
-  - express trace packs in per-tick RL env action space
-  - expand sim-side replay traces with `ticksAfter > 1` into repeated per-tick RL actions
-- Found and fixed the PR4 suite-order bootstrap issue:
-  - repeated embedded-runtime bootstraps inside the pytest process are not a reliable live-test pattern
-  - moved the remaining live reset/repro validation onto subprocess-isolated helpers so the full suite follows the documented one-runtime-per-process Mode A rule
-- Added PR4 test coverage:
-  - `fight_caves_rl/tests/determinism/test_fixed_seed_reset_reproducibility.py`
-  - `fight_caves_rl/tests/determinism/test_wrapper_vs_raw_sim_trajectory_agreement.py`
-  - `fight_caves_rl/tests/determinism/test_deterministic_eval_same_checkpoint_same_seed_pack.py`
-  - `fight_caves_rl/tests/parity/test_parity_canary_smoke.py`
-  - `fight_caves_rl/tests/parity/test_replay_to_trace_equivalence_smoke.py`
-- Froze the first thin parity canary digest in `parity_single_wave_v0`:
-  - `expected_semantic_digest = 50f696569ed20307aa247a29aa84bf29ddeb3ba2a4886d561813cdb650a504f3`
-  - `expected_final_relative_tick = 40`
-- Verified the PR4 live suite:
-  - `uv run pytest fight_caves_rl/tests/unit` -> `19 passed`
-  - `uv run pytest fight_caves_rl/tests/integration fight_caves_rl/tests/determinism fight_caves_rl/tests/parity -vv --maxfail=1` -> `7 passed`
-
-- Verified current upstream package state for the RL baseline decision:
-  - `pufferlib` remains `3.0.0` on PyPI and is still the source-only package path
-  - `pufferlib-core` is available as `3.0.17` and is the current wheel-backed candidate path
-  - official upstream docs still recommend `pip install pufferlib`
-- Built an isolated Python `3.11` validation matrix for `pufferlib==3.0.0` and `pufferlib-core==3.0.17`.
-- Confirmed that `pufferlib-core==3.0.17` exposes the RL-facing surfaces required by the plan:
-  - `pufferlib.pufferl.PuffeRL`
-  - `pufferlib.pufferl.WandbLogger`
-  - `pufferlib.vector.make`
-  - `pufferlib.emulation`
-  - compiled `pufferlib._C`
-- Confirmed the key upstream drift that affects RL integration and reproducibility:
-  - the installed `pufferlib-core==3.0.17` distribution imports with `pufferlib.__version__ == "3.0.3"`
-  - `pufferlib==3.0.0` creates an import-time `resources` symlink in the current working directory
-  - `pufferlib-core==3.0.17` has a materially smaller dependency footprint than `pufferlib==3.0.0`
-- Adopted `pufferlib-core==3.0.17` as the RL baseline distribution and updated:
-  - `pyproject.toml`
-  - `uv.lock`
-  - `.env.example`
-  - `README.md`
-  - `RLspec.md`
-  - `RLplan.md`
-  - `docs/run_manifest.md`
-- Added `fight_caves_rl/manifests/versions.py` so baseline/runtime PufferLib distribution metadata can be resolved without trusting the imported version string.
-- Updated the bootstrap config and bootstrap manifest schema to record `pufferlib_distribution` alongside `pufferlib_version`.
-- Added unit coverage for the new version utility and updated bootstrap config/manifest tests to reflect the new baseline.
-- Updated CI so GitHub Actions now validates the train-group package path with a `pufferlib`/`torch`/`fight_caves_rl` import smoke job.
-- Updated downstream RL planning so later PRs build on the new baseline correctly:
-  - PR 2 now extends the existing `fight_caves_rl/manifests/versions.py` and treats PufferLib distribution metadata as canonical
-  - PR 6 now explicitly records the PufferLib distribution/version pair in manifests and W&B config instead of trusting `pufferlib.__version__`
-- Completed PR 2 contract freeze work against the verified sim sources in `/home/jordan/code/fight-caves-RL`:
-  - added `docs/rl_integration_contract.md`
-  - added `docs/bridge_contract.md`
-  - added `docs/observation_mapping.md`
-  - added `docs/action_mapping.md`
-  - added `docs/hotpath_map.md`
-  - added `docs/performance_plan.md`
-  - added `fight_caves_rl/envs/schema.py`
-- Froze the canonical sim artifact policy for RL:
-  - default artifact task `:game:headlessDistZip`
-  - fallback/validation task `:game:packageHeadless`
-  - default artifact path `fight-caves-RL/game/build/distributions/fight-caves-headless.zip`
-- Froze the PR 3 Mode A bridge direction around the current direct-runtime surface:
-  - embedded JVM direct-runtime bridge
-  - `HeadlessMain.bootstrap(...)` entrypoint
-  - player provisioning aligned to the sim's headless test-support setup/spawn/viewport path
-- Froze the provisional Mode B/C direction around a dedicated batched subprocess bridge and lower-copy vector backend path.
-- Expanded `configs/benchmark/official_profile_v0.yaml` into a real benchmark contract with env-count ladder and required manifest fields.
-- Updated `docs/run_manifest.md` so PR 2 contract/version fields are now part of the documented future manifest surface.
-- Added PR 2 unit coverage:
-  - `test_contract_version_registry.py`
-  - `test_required_docs_exist.py`
-  - `test_episode_start_contract_registry.py`
-  - `test_official_benchmark_profile_registry.py`
-- Verified PR 2 with `uv run pytest fight_caves_rl/tests/unit`: `13 passed`.
-- Re-ran the RL acceptance set after the baseline decision:
-  - `uv lock --python 3.11`
-  - `uv sync --group dev --python 3.11`
-  - `uv sync --group dev --group train --python 3.11`
-  - `uv run pytest fight_caves_rl/tests/unit`
-  - `uv run python -c \"import pufferlib, torch, fight_caves_rl\"`
-- Verified the current validated RL environment resolves:
-  - `pufferlib-core==3.0.17`
-  - `pufferlib.__version__ == "3.0.3"`
-  - `torch==2.10.0+cpu`
-  - no import-time `resources` symlink side effect in a clean temporary working directory
-
-## 2026-03-07
-
-- Adopted canonical RL root filenames: `RLspec.md` and `RLplan.md`.
-- Added PR1 bootstrap scaffolding:
-  - `pyproject.toml`
-  - `uv.lock`
-  - `.env.example`
-  - `README.md`
-  - baseline configs
-  - `docs/run_manifest.md`
-  - package skeleton under `fight_caves_rl/`
-  - baseline CI workflow
-- Installed workspace-local `uv` and workspace-local Python `3.11`.
-- Verified the default dev bootstrap path with:
-  - `uv lock --python 3.11`
-  - `uv sync --group dev --python 3.11`
-  - `uv run pytest fight_caves_rl/tests/unit`
-- Added baseline unit tests for config loading and bootstrap run-manifest generation.
-- Discovered and documented that `pufferlib==3.0.0` requires `numpy<2.0`; bootstrap pin adjusted to `numpy>=1.26.4,<2.0`.
-- Discovered and documented that `pufferlib==3.0.0` builds from source in this WSL environment and currently requires a C++ build toolchain.
-- Kept `pufferlib==3.0.0` pinned in the lockfile under the `train` dependency group while leaving the default dev bootstrap path usable without the missing compiler.
-- Added a workspace-local LLVM/Clang toolchain and exported `CC`, `CXX`, `AR`, and `RANLIB` through `/home/jordan/code/.workspace-env.sh`.
-- Chose the CPU-only `torch` wheel index for the RL bootstrap path so Linux does not resolve the CUDA-heavy default wheels during PR 1 setup.
-- Verified that the reduced `NO_OCEAN=1` install path currently fails because the published `pufferlib==3.0.0` `setup.py` references `c_extension_paths` outside the `NO_OCEAN` guard.
-- Added a workspace-local GCC 13 sysroot path in WSL, including wrapper binaries under `/home/jordan/code/.workspace-tools/bin` and sysroot libraries under `/home/jordan/code/.workspace-tools/sysroot`.
-- Updated `/home/jordan/code/.workspace-env.sh` so the shared workspace shell exports the sysroot include/library paths, `LD_LIBRARY_PATH`, and `TMPDIR` required by the native build path.
-- Verified the full train bootstrap path with:
-  - `uv sync --group dev --group train --python 3.11`
-  - `uv run pytest fight_caves_rl/tests/unit`
-  - `uv run python -c "import pufferlib, torch, fight_caves_rl"`
-- Added `scripts/bootstrap_wsl_toolchain.sh` so the current WSL-native toolchain path is repo-owned and repeatable.
-- Researched an upstream long-term alternative to the source-only `pufferlib==3.0.0` package:
-  - `pufferlib-core==3.0.18` ships manylinux wheels for Python `3.11`/`3.12`
-  - the wheel provides the same `pufferlib` import namespace and includes `pufferlib.pufferl`, `pufferlib.vector`, `pufferlib.emulation`, and the compiled `_C` extension
-  - official docs at `https://puffer.ai/docs.html` still recommend `pip install pufferlib`
-  - the imported `pufferlib.__version__` from the `3.0.18` wheel currently reports `3.0.17`
-  - core module sources differ from the current `pufferlib==3.0.0` install, so migration needs targeted validation before changing the repo pin
-- Documented the exact next resume chunk in `RLplan.md` and updated `RLspec.md` / `README.md` so the current state is explicit:
-  - current live baseline remains `pufferlib==3.0.0`
-  - `pufferlib-core==3.0.18` is the leading permanent replacement candidate
-  - the next chunk is to validate that migration and either adopt it cleanly or reject it explicitly
-- Documented that `/home/jordan/code/RL` is not yet a Git-backed repository in this workspace, so RL-side branch hygiene, pushes, and manifest commit-SHA capture remain blocked until repo initialization/remote setup is done.
-- Reviewed current PufferLib surfaces and recorded that later PRs should reuse:
-  - `pufferlib.pufferl.PuffeRL`
-  - `pufferlib.pufferl.WandbLogger`
-  - `pufferlib.vector.make`
-  - `pufferlib.emulation`
-  - PufferLib dashboard printing
-- Created the canonical GitHub repo for RL at `https://github.com/jordanbailey00/RL`.
-- Initialized `/home/jordan/code/RL` as a Git-backed repository and tied `origin` to `git@github.com:jordanbailey00/RL.git`.
-- Updated `RLspec.md` and `RLplan.md` so the repo-initialization gap is marked resolved and later work can assume RL commit-SHA capture is infrastructure-ready.
-- Replaced an environment-local `resources` symlink into `.venv` with a repo-owned placeholder directory so the RL tree stays portable when committed.
