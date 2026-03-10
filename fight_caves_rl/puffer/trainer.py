@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 import os
 from pathlib import Path
 import sys
+import time
+from time import perf_counter
 from typing import Any
 
+import numpy as np
+import pufferlib
 import pufferlib.pufferl
+import torch
 from fight_caves_rl.envs.shared_memory_transport import PIPE_PICKLE_TRANSPORT_MODE
 from fight_caves_rl.logging.wandb_client import WandbRunLogger
 from fight_caves_rl.manifests.run_manifest import (
@@ -28,17 +34,401 @@ from fight_caves_rl.replay.eval_runner import run_replay_eval
 from fight_caves_rl.utils.config import load_bootstrap_config
 
 
+TrainerInstrumentationSnapshot = dict[str, dict[str, float | int]]
+
+
+class _TrainerInstrumentation:
+    def __init__(self) -> None:
+        self._seconds: defaultdict[str, float] = defaultdict(float)
+        self._calls: defaultdict[str, int] = defaultdict(int)
+
+    def record(self, bucket: str, seconds: float) -> None:
+        self._seconds[str(bucket)] += max(0.0, float(seconds))
+        self._calls[str(bucket)] += 1
+
+    def snapshot(self) -> TrainerInstrumentationSnapshot:
+        return {
+            name: {
+                "seconds": float(self._seconds[name]),
+                "calls": int(self._calls[name]),
+            }
+            for name in sorted(self._seconds)
+        }
+
+
 class ConfigurablePuffeRL(pufferlib.pufferl.PuffeRL):
     """Thin PuffeRL wrapper that keeps dashboard rendering opt-in and TTY-bound."""
 
-    def __init__(self, *args: Any, dashboard_enabled: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        dashboard_enabled: bool = True,
+        checkpointing_enabled: bool = True,
+        profiling_enabled: bool = True,
+        utilization_enabled: bool = True,
+        logging_enabled: bool = True,
+        instrumentation_enabled: bool = False,
+        **kwargs: Any,
+    ) -> None:
         self._dashboard_enabled = bool(dashboard_enabled)
+        self._checkpointing_enabled = bool(checkpointing_enabled)
+        self._profiling_enabled = bool(profiling_enabled)
+        self._utilization_enabled = bool(utilization_enabled)
+        self._logging_enabled = bool(logging_enabled)
+        self._instrumentation_enabled = bool(instrumentation_enabled)
+        self._instrumentation = (
+            _TrainerInstrumentation() if self._instrumentation_enabled else None
+        )
         super().__init__(*args, **kwargs)
+        if not self._profiling_enabled:
+            self.profile = _NullProfile()
+        if not self._utilization_enabled:
+            self.utilization.stop()
+            self.utilization = _NullUtilization()
+        if not self._logging_enabled:
+            # Suppress periodic mean_and_log work in benchmark-only runs.
+            self.last_log_time = float("inf")
 
     def print_dashboard(self, *args: Any, **kwargs: Any) -> None:
         if not self._dashboard_enabled:
             return
         super().print_dashboard(*args, **kwargs)
+
+    def mean_and_log(self) -> dict[str, Any] | None:
+        started = perf_counter()
+        if not self._logging_enabled:
+            self._record_instrumentation("trainer_mean_and_log_skipped", perf_counter() - started)
+            return {}
+        result = super().mean_and_log()
+        self._record_instrumentation("trainer_mean_and_log", perf_counter() - started)
+        return result
+
+    def instrumentation_snapshot(self) -> TrainerInstrumentationSnapshot:
+        instrumentation = getattr(self, "_instrumentation", None)
+        if instrumentation is None:
+            return {}
+        return instrumentation.snapshot()
+
+    def _record_instrumentation(self, bucket: str, seconds: float) -> None:
+        instrumentation = getattr(self, "_instrumentation", None)
+        if instrumentation is None:
+            return
+        instrumentation.record(bucket, seconds)
+
+    @pufferlib.pufferl.record
+    def evaluate(self):
+        if not self._instrumentation_enabled:
+            return super().evaluate()
+
+        profile = self.profile
+        epoch = self.epoch
+        profile("eval", epoch)
+        profile("eval_misc", epoch, nest=True)
+        evaluate_started = perf_counter()
+
+        config = self.config
+        device = config["device"]
+
+        if config["use_rnn"]:
+            reset_started = perf_counter()
+            for k in self.lstm_h:
+                self.lstm_h[k].zero_()
+                self.lstm_c[k].zero_()
+            self._record_instrumentation("eval_rnn_reset", perf_counter() - reset_started)
+
+        self.full_rows = 0
+        while self.full_rows < self.segments:
+            recv_started = perf_counter()
+            profile("env", epoch)
+            o, r, d, t, ta, info, env_id, mask = self.vecenv.recv()
+            self._record_instrumentation("eval_env_recv", perf_counter() - recv_started)
+
+            misc_started = perf_counter()
+            profile("eval_misc", epoch)
+            env_id = slice(env_id[0], env_id[-1] + 1)
+            done_mask = d + t
+            self.global_step += int(mask.sum())
+            self._record_instrumentation("eval_misc", perf_counter() - misc_started)
+
+            copy_started = perf_counter()
+            profile("eval_copy", epoch)
+            o = torch.as_tensor(o)
+            o_device = o.to(device)
+            r = torch.as_tensor(r).to(device)
+            d = torch.as_tensor(d).to(device)
+            self._record_instrumentation("eval_tensor_copy", perf_counter() - copy_started)
+
+            forward_started = perf_counter()
+            profile("eval_forward", epoch)
+            with torch.no_grad(), self.amp_context:
+                state = dict(
+                    reward=r,
+                    done=d,
+                    env_id=env_id,
+                    mask=mask,
+                )
+
+                if config["use_rnn"]:
+                    state["lstm_h"] = self.lstm_h[env_id.start]
+                    state["lstm_c"] = self.lstm_c[env_id.start]
+
+                logits, value = self.policy.forward_eval(o_device, state)
+                action, logprob, _ = pufferlib.pytorch.sample_logits(logits)
+                r = torch.clamp(r, -1, 1)
+            self._record_instrumentation("eval_policy_forward", perf_counter() - forward_started)
+
+            write_started = perf_counter()
+            profile("eval_copy", epoch)
+            with torch.no_grad():
+                if config["use_rnn"]:
+                    self.lstm_h[env_id.start] = state["lstm_h"]
+                    self.lstm_c[env_id.start] = state["lstm_c"]
+
+                l = self.ep_lengths[env_id.start].item()
+                batch_rows = slice(
+                    self.ep_indices[env_id.start].item(),
+                    1 + self.ep_indices[env_id.stop - 1].item(),
+                )
+
+                if config["cpu_offload"]:
+                    self.observations[batch_rows, l] = o
+                else:
+                    self.observations[batch_rows, l] = o_device
+
+                self.actions[batch_rows, l] = action
+                self.logprobs[batch_rows, l] = logprob
+                self.rewards[batch_rows, l] = r
+                self.terminals[batch_rows, l] = d.float()
+                self.values[batch_rows, l] = value.flatten()
+
+                self.ep_lengths[env_id] += 1
+                if l + 1 >= config["bptt_horizon"]:
+                    num_full = env_id.stop - env_id.start
+                    self.ep_indices[env_id] = self.free_idx + torch.arange(
+                        num_full,
+                        device=config["device"],
+                    ).int()
+                    self.ep_lengths[env_id] = 0
+                    self.free_idx += num_full
+                    self.full_rows += num_full
+            self._record_instrumentation("eval_rollout_write", perf_counter() - write_started)
+
+            action_started = perf_counter()
+            with torch.no_grad():
+                action = action.cpu().numpy()
+                if isinstance(logits, torch.distributions.Normal):
+                    action = np.clip(
+                        action,
+                        self.vecenv.action_space.low,
+                        self.vecenv.action_space.high,
+                    )
+            self._record_instrumentation("eval_action_to_numpy", perf_counter() - action_started)
+
+            stats_started = perf_counter()
+            profile("eval_misc", epoch)
+            for i in info:
+                for k, v in pufferlib.unroll_nested_dict(i):
+                    if isinstance(v, np.ndarray):
+                        v = v.tolist()
+                    elif isinstance(v, (list, tuple)):
+                        self.stats[k].extend(v)
+                    else:
+                        self.stats[k].append(v)
+            self._record_instrumentation("eval_info_stats", perf_counter() - stats_started)
+
+            send_started = perf_counter()
+            profile("env", epoch)
+            self.vecenv.send(action)
+            self._record_instrumentation("eval_env_send", perf_counter() - send_started)
+
+            done_started = perf_counter()
+            _ = done_mask
+            self._record_instrumentation("eval_done_mask", perf_counter() - done_started)
+
+        reset_started = perf_counter()
+        profile("eval_misc", epoch)
+        self.free_idx = self.total_agents
+        self.ep_indices = torch.arange(self.total_agents, device=device, dtype=torch.int32)
+        self.ep_lengths.zero_()
+        self._record_instrumentation("eval_reset_state", perf_counter() - reset_started)
+        self._record_instrumentation("eval_total", perf_counter() - evaluate_started)
+        profile.end()
+        return self.stats
+
+    @pufferlib.pufferl.record
+    def train(self):
+        if self._logging_enabled:
+            return super().train()
+
+        profile = self.profile
+        epoch = self.epoch
+        profile("train", epoch)
+        config = self.config
+        device = config["device"]
+        train_started = perf_counter()
+
+        b0 = config["prio_beta0"]
+        a = config["prio_alpha"]
+        clip_coef = config["clip_coef"]
+        vf_clip = config["vf_clip_coef"]
+        anneal_beta = b0 + (1 - b0) * a * self.epoch / self.total_epochs
+        self.ratio[:] = 1
+
+        for mb in range(self.total_minibatches):
+            profile("train_misc", epoch, nest=True)
+            self.amp_context.__enter__()
+
+            shape = self.values.shape
+            bucket_started = perf_counter()
+            advantages = torch.zeros(shape, device=device)
+            advantages = pufferlib.pufferl.compute_puff_advantage(
+                self.values,
+                self.rewards,
+                self.terminals,
+                self.ratio,
+                advantages,
+                config["gamma"],
+                config["gae_lambda"],
+                config["vtrace_rho_clip"],
+                config["vtrace_c_clip"],
+            )
+            self._record_instrumentation("train_advantage", perf_counter() - bucket_started)
+
+            bucket_started = perf_counter()
+            profile("train_copy", epoch)
+            adv = advantages.abs().sum(axis=1)
+            prio_weights = torch.nan_to_num(adv**a, 0, 0, 0)
+            prio_probs = (prio_weights + 1e-6) / (prio_weights.sum() + 1e-6)
+            idx = torch.multinomial(prio_probs, self.minibatch_segments)
+            mb_prio = (self.segments * prio_probs[idx, None]) ** -anneal_beta
+            mb_obs = self.observations[idx]
+            mb_actions = self.actions[idx]
+            mb_logprobs = self.logprobs[idx]
+            mb_values = self.values[idx]
+            mb_returns = advantages[idx] + mb_values
+            mb_advantages = advantages[idx]
+            self._record_instrumentation("train_minibatch_prepare", perf_counter() - bucket_started)
+
+            bucket_started = perf_counter()
+            profile("train_forward", epoch)
+            if not config["use_rnn"]:
+                mb_obs = mb_obs.reshape(-1, *self.vecenv.single_observation_space.shape)
+
+            state = dict(
+                action=mb_actions,
+                lstm_h=None,
+                lstm_c=None,
+            )
+
+            logits, newvalue = self.policy(mb_obs, state)
+            _, newlogprob, entropy = pufferlib.pytorch.sample_logits(logits, action=mb_actions)
+            self._record_instrumentation("train_policy_forward", perf_counter() - bucket_started)
+
+            bucket_started = perf_counter()
+            profile("train_misc", epoch)
+            newlogprob = newlogprob.reshape(mb_logprobs.shape)
+            logratio = newlogprob - mb_logprobs
+            ratio = logratio.exp()
+            self.ratio[idx] = ratio.detach()
+
+            adv = mb_prio * (mb_advantages - mb_advantages.mean()) / (mb_advantages.std() + 1e-8)
+
+            pg_loss1 = -adv * ratio
+            pg_loss2 = -adv * torch.clamp(ratio, 1 - clip_coef, 1 + clip_coef)
+            pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
+            newvalue = newvalue.view(mb_returns.shape)
+            v_clipped = mb_values + torch.clamp(newvalue - mb_values, -vf_clip, vf_clip)
+            v_loss_unclipped = (newvalue - mb_returns) ** 2
+            v_loss_clipped = (v_clipped - mb_returns) ** 2
+            v_loss = 0.5 * torch.max(v_loss_unclipped, v_loss_clipped).mean()
+
+            entropy_loss = entropy.mean()
+
+            loss = pg_loss + config["vf_coef"] * v_loss - config["ent_coef"] * entropy_loss
+            self.amp_context.__enter__()
+
+            self.values[idx] = newvalue.detach().float()
+            self._record_instrumentation("train_loss_compute", perf_counter() - bucket_started)
+
+            bucket_started = perf_counter()
+            profile("learn", epoch)
+            loss.backward()
+            self._record_instrumentation("train_backward", perf_counter() - bucket_started)
+
+            if (mb + 1) % self.accumulate_minibatches == 0:
+                bucket_started = perf_counter()
+                torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config["max_grad_norm"])
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+                self._record_instrumentation("train_optimizer_step", perf_counter() - bucket_started)
+
+        bucket_started = perf_counter()
+        profile("train_misc", epoch)
+        if config["anneal_lr"]:
+            self.scheduler.step()
+        self._record_instrumentation("train_scheduler", perf_counter() - bucket_started)
+
+        bucket_started = perf_counter()
+        self.losses = {}
+        self.epoch += 1
+        done_training = self.global_step >= config["total_timesteps"]
+        if done_training:
+            self.stats = defaultdict(list)
+            self.last_log_time = time.time()
+            self.last_log_step = self.global_step
+            profile.clear()
+        self._record_instrumentation("train_done_cleanup", perf_counter() - bucket_started)
+
+        if self.epoch % config["checkpoint_interval"] == 0 or done_training:
+            checkpoint_started = perf_counter()
+            self.save_checkpoint()
+            self._record_instrumentation("train_checkpoint", perf_counter() - checkpoint_started)
+            self.msg = f"Checkpoint saved at update {self.epoch}"
+
+        self._record_instrumentation("train_total", perf_counter() - train_started)
+        return None
+
+    def save_checkpoint(self) -> str:
+        started = perf_counter()
+        if self._checkpointing_enabled:
+            path = super().save_checkpoint()
+            self._record_instrumentation("trainer_save_checkpoint", perf_counter() - started)
+            return path
+        path = os.path.join(self.config["data_dir"], f"{self.logger.run_id}.pt")
+        self._record_instrumentation("trainer_save_checkpoint_skipped", perf_counter() - started)
+        return path
+
+    def close(self) -> str:
+        started = perf_counter()
+        if self._checkpointing_enabled:
+            path = super().close()
+            self._record_instrumentation("trainer_close", perf_counter() - started)
+            return path
+        self.vecenv.close()
+        self.utilization.stop()
+        path = os.path.join(self.config["data_dir"], f"{self.logger.run_id}.pt")
+        self._record_instrumentation("trainer_close", perf_counter() - started)
+        return path
+
+
+class _NullProfile:
+    def __iter__(self):
+        return iter(())
+
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+    def end(self) -> None:
+        return None
+
+    def clear(self) -> None:
+        return None
+
+
+class _NullUtilization:
+    def stop(self) -> None:
+        return None
 
 
 @dataclass(frozen=True)
