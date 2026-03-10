@@ -2,7 +2,7 @@
 
 Date: 2026-03-10
 
-This document records the `WC-P2-13` decision for the first Phase 2 production-trainer prototype and the current local `WC-P2-14` gate outcome.
+This document records the `WC-P2-13` decision for the first Phase 2 production-trainer prototype, the local `WC-P2-14` gate outcome, and the now-complete hosted native-Linux rerun.
 
 It answers one narrow question:
 
@@ -65,14 +65,45 @@ Local interpretation:
 - the learner-ceiling companion remains in the same `~145` env-steps/s band
 - the next step should be a native-Linux rerun of the corrected prototype packet before any further local redesign, transport, or topology decision
 
+## Hosted Native-Linux Gate Outcome
+
+The source-of-truth native-Linux rerun is now complete.
+
+Hosted production fast-path rows:
+
+- `16 env`: `469.92` production SPS
+- `64 env`: `341.43` production SPS
+- `64 vs 16 = 0.7266x`
+
+Hosted learner-ceiling companions:
+
+- `16 env`: `81.64` env-steps/s
+- `64 env`: `73.39` env-steps/s
+- `64 vs 16 = 0.8989x`
+
+Hosted interpretation:
+
+- the packaging blocker is resolved:
+  - local contract testing reproduced the issue under workflow-style env vars
+  - the root cause was unsanitized `GITHUB_REF_NAME` in shared Gradle versioning
+  - the hosted workflow now validates the packaged artifact with the repo-owned contract harness before benchmarking
+- the source-of-truth production row is materially strong at `16 env`
+- the source-of-truth `64 env` row regresses sharply enough that topology is not the next move
+- the shipped synchronous learner ceiling is both low and negatively scaling, which keeps Phase 2 focused on trainer-path replacement
+
 Explicit restart point:
 
-- next pickup is the native-Linux rerun of the corrected prototype packet
-- immediate objective: confirm the new prototype row family on the source-of-truth host class
+- next pickup is a deeper trainer-redesign continuation inside the prototype path
+- immediate objective:
+  - reduce native-Linux `rollout_policy_forward` and `rollout_env_recv` in the prototype path
+  - reduce native-Linux `eval_policy_forward`, `train_backward`, and `train_policy_forward` in the shipped synchronous learner path
+- Phase 3 decision status:
+  - not approved
+  - blocked on materially healthier source-of-truth scaling after further trainer redesign
 - not tomorrow's objective:
-  - another blind local trainer rewrite
   - transport promotion
   - actor/learner split
+  - topology work
 
 ## Components To Keep
 

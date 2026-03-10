@@ -254,14 +254,23 @@ Current trainer-bound pivot status:
   - latest local interpretation:
     - the prototype is now materially faster than the previous local gate and above the old `250` SPS escalation bar
     - scaling is still flat enough that topology is not yet justified
+  - hosted native-Linux rerun status:
+    - local contract testing reproduced the packaging bug and traced it to unsanitized shared build versioning
+    - the corrected hosted packet completed successfully on `ubuntu-latest`
+    - source-of-truth production rows:
+      - `16 env`: `469.92` production SPS
+      - `64 env`: `341.43` production SPS
+      - `64 vs 16 = 0.7266x`
+    - source-of-truth learner-ceiling companions:
+      - `16 env`: `81.64` env-steps/s
+      - `64 env`: `73.39` env-steps/s
+      - `64 vs 16 = 0.8989x`
   - next active Phase 2 work:
-    - rerun the corrected prototype packet on native Linux
-    - keep the packet fixed to:
-      - production fast-trainer `16 env`
-      - production fast-trainer `64 env`
-      - learner ceiling `16 env`
-      - learner ceiling `64 env`
-    - revisit transport or topology only after that source-of-truth rerun
+    - continue the prototype-side trainer redesign on the source-of-truth host evidence
+    - target the current native-Linux dominant buckets:
+      - production: `rollout_policy_forward`, `rollout_env_recv`
+      - learner ceiling: `eval_policy_forward`, `train_backward`, `train_policy_forward`
+    - do not revisit transport or topology until those trainer-path costs move materially
 
 Current `WC-P2-10` local instrumentation result:
 

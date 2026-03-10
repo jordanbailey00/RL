@@ -1,5 +1,30 @@
 ## 2026-03-10
 
+- Completed the hosted native-Linux Phase 2 prototype packet after validating the packaging contract locally first:
+  - reproduced the hosted artifact bug locally with a repo-owned contract harness under workflow-style env vars
+  - traced the root cause to unsanitized `GITHUB_REF_NAME` in `fight-caves-RL/buildSrc/src/main/kotlin/shared.gradle.kts`
+  - fixed the shared Gradle version sanitization and switched the workflow to the repo-owned contract harness
+  - hosted source-of-truth production rows:
+    - `16 env`: `469.92` production SPS
+    - `64 env`: `341.43` production SPS
+    - scaling: `0.7266x`
+  - hosted source-of-truth learner-ceiling rows:
+    - `16 env`: `81.64` env-steps/s
+    - `64 env`: `73.39` env-steps/s
+    - scaling: `0.8989x`
+  - recorded the source-of-truth decision:
+    - continue trainer redesign
+    - do not revisit transport promotion yet
+    - do not activate topology work yet
+- Attempted the hosted native-Linux Phase 2 prototype rerun sequence:
+  - hardened the workflow to bootstrap cache assets from a checked-out branch instead of raw GitHub downloads
+  - made result publishing skip cleanly when the packet is absent
+  - added a post-build headless-distribution resolver to prove whether `fight-caves-headless*.zip` exists after `:game:headlessDistZip`
+  - intermediate hosted outcome:
+    - cache-bootstrap timeout is fixed
+    - the packet is still blocked because `ubuntu-latest` reports `:game:headlessDistZip` success without producing any `fight-caves-headless*.zip`
+  - current next step:
+    - fix the hosted headless distribution output/discovery discrepancy, then rerun the native-Linux prototype packet
 - Landed the `PR Batch G` follow-on trainer-core slice locally:
   - replaced the padded multi-discrete prototype sampling/logprob path with a project-owned direct per-head implementation
   - latest local WSL corrected production rows:

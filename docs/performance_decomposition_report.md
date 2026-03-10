@@ -265,6 +265,55 @@ Interpretation:
 - the production row is now above the old local `250` SPS escalation bar, which is enough to justify a source-of-truth rerun before more local redesign work
 - scaling is still flat enough that transport and topology should remain deferred until the native-Linux rerun confirms whether that flatness persists on the source-of-truth host
 
+## Hosted Native-Linux Prototype Packet
+
+The hosted native-Linux packet is now complete.
+
+Hosted production rows:
+
+- `16 env`: `469.92` production SPS
+- `64 env`: `341.43` production SPS
+- `64 vs 16 = 0.7266x`
+
+Hosted learner-ceiling rows:
+
+- `16 env`: `81.64` env-steps/s
+- `64 env`: `73.39` env-steps/s
+- `64 vs 16 = 0.8989x`
+
+Hosted production decomposition:
+
+- `16 env` dominant buckets:
+  - `rollout_policy_forward = 4.89s`
+  - `update_backward = 2.02s`
+  - `rollout_env_recv = 0.94s`
+  - `update_policy_forward = 0.60s`
+- `64 env` dominant buckets:
+  - `rollout_env_recv = 4.99s`
+  - `rollout_policy_forward = 4.36s`
+  - `update_backward = 1.95s`
+  - `update_policy_forward = 0.52s`
+
+Hosted learner-ceiling decomposition:
+
+- `16 env` dominant buckets:
+  - `eval_policy_forward = 45.05s`
+  - `train_backward = 32.64s`
+  - `train_policy_forward = 22.47s`
+- `64 env` dominant buckets:
+  - `eval_policy_forward = 52.75s`
+  - `train_backward = 32.19s`
+  - `train_policy_forward = 26.63s`
+
+Interpretation:
+
+- the hosted packaging blocker is resolved and no longer blocks Phase 2 evidence collection
+- the project-owned production prototype is now fast enough to matter on native Linux
+- the next blocker is still trainer-bound, not transport-bound:
+  - production scaling regresses at `64 env`
+  - the shipped synchronous learner ceiling is low and also regresses at `64 env`
+- the correct post-gate move is to continue trainer redesign and keep Phase 3/topology deferred
+
 ## WC-P2-07 Local Trainer-Bound Reduction Preview
 
 The current local `WC-P2-07` batch has two benchmark-only slices:

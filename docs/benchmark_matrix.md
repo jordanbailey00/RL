@@ -297,6 +297,39 @@ Interpretation:
 - the prototype now clears the old local `250` SPS escalation bar
 - scaling is still flat enough that the next action should be a native-Linux rerun of this corrected packet, not a transport or topology pivot
 
+## Hosted Native-Linux Prototype Packet
+
+Hosted native-Linux source-of-truth rows:
+
+| Layer | Result |
+| --- | --- |
+| Prototype production `16 env` | `469.92` SPS |
+| Prototype production `64 env` | `341.43` SPS |
+| Prototype production scaling `64 vs 16` | `0.7266x` |
+| Learner ceiling `16 env` | `81.64` env-steps/s |
+| Learner ceiling `64 env` | `73.39` env-steps/s |
+| Learner ceiling scaling `64 vs 16` | `0.8989x` |
+
+Hosted prototype top buckets:
+
+- `16 env`:
+  - `rollout_policy_forward = 4.89s`
+  - `update_backward = 2.02s`
+  - `rollout_env_recv = 0.94s`
+  - `update_policy_forward = 0.60s`
+- `64 env`:
+  - `rollout_env_recv = 4.99s`
+  - `rollout_policy_forward = 4.36s`
+  - `update_backward = 1.95s`
+  - `update_policy_forward = 0.52s`
+
+Interpretation:
+
+- the hosted packet now completes successfully end-to-end after fixing the packaged headless-distribution contract
+- absolute `16 env` production throughput is strong, but `64 env` regresses materially on the source-of-truth host
+- the learner ceiling is both low and negatively scaling, so the next Phase 2 slice stays inside trainer redesign
+- Phase 3/topology remains blocked
+
 ## WC-P2-07 Local Preview Rows
 
 These rows are local-only and not decision-authoritative, but they are the current review state for `WC-P2-07`.
