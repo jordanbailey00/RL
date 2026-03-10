@@ -145,24 +145,46 @@ Interpretation:
 
 Hosted source-of-truth run:
 
-- [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+- [fight-caves-RL/actions/runs/22883118379](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22883118379)
 
 Current native-Linux gate rows:
 
 | Layer | Result |
 | --- | --- |
-| Transport `64 env` | pipe `7793.12`, `shared_memory_v1` `10906.45` env/s (`1.3995x`) |
-| Disabled train `16 env` | pipe `49.44`, `shared_memory_v1` `50.74` SPS |
-| Disabled train `64 env` | pipe `48.15`, `shared_memory_v1` `48.38` SPS (`1.0048x`) |
-| Shared-train scaling `64 vs 16` | `0.9534x` |
+| Transport `64 env` | pipe `10868.61`, `shared_memory_v1` `8340.91` env/s (`0.7674x`) |
+| Disabled train `16 env` | pipe `74.05`, `shared_memory_v1` `75.01` SPS |
+| Disabled train `64 env` | pipe `75.03`, `shared_memory_v1` `74.85` SPS (`0.9977x`) |
+| Shared-train scaling `64 vs 16` | `0.9979x` |
 | Decision | `wc_p2_03_unblocked = false` |
 
 Gate interpretation:
 
-- transport-only signal is strong enough
+- transport-only signal is no longer strong enough on the latest source-of-truth rerun
 - end-to-end training signal is too weak
 - `16 -> 64` shared-transport scaling is still unhealthy
 - `WC-P2-03` remains blocked
+
+## Learner Ceiling Rows
+
+Repo-owned diagnostic:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+WANDB_MODE=disabled uv run python scripts/benchmark_train_ceiling.py --config configs/benchmark/train_1024env_v0.yaml --env-counts 4,16,64 --total-timesteps 4096 --output /tmp/fc_train_ceiling_report.json
+```
+
+| Layer | Result |
+| --- | --- |
+| Fake-env train ceiling `4 env` | `154.45` env-steps/s |
+| Fake-env train ceiling `16 env` | `156.20` env-steps/s |
+| Fake-env train ceiling `64 env` | `144.43` env-steps/s |
+| `64 env` stage split | evaluate `15.83s`, train `24.87s`, final evaluate `16.02s` |
+
+Interpretation:
+
+- with the live sim removed entirely, the current train loop still tops out around `145-156` env-steps/s on this host
+- this makes the learner/update path the dominant current blocker for end-to-end training throughput
 
 ## Measured Rows
 

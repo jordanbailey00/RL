@@ -214,17 +214,20 @@ Current Phase 2 local prototype status:
 
 Current native-Linux pre-swap gate status:
 
-- workflow: [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+- workflow: [fight-caves-RL/actions/runs/22883118379](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22883118379)
 - result:
-  - transport `64 env`: `1.3995x`
-  - disabled train `64 env`: `1.0048x`
-  - shared-train scaling `64 vs 16`: `0.9534x`
+  - transport `64 env`: `0.7674x`
+  - disabled train `64 env`: `0.9977x`
+  - shared-train scaling `64 vs 16`: `0.9979x`
 - blockers:
+  - `transport_signal_too_weak`
   - `train_signal_too_weak`
   - `shared_train_scaling_too_weak`
 - decision:
   - `WC-P2-03` remains blocked
-  - another transport iteration or a justified escalation path is required before the production swap
+  - the current blocker is now trainer-bound as well as transport-bound
+  - another transport-only iteration is unlikely to clear the gate by itself
+  - see [phase2_blocker_diagnosis.md](/home/jordan/code/RL/docs/phase2_blocker_diagnosis.md)
 
 ## Mandatory Breakdown
 

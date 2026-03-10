@@ -56,21 +56,44 @@ The hosted native-Linux Phase 2 pre-swap gate completed successfully as a workfl
 
 Published native-Linux Phase 2 gate summary:
 
-- transport `64 env`: pipe `7793.12`, `shared_memory_v1` `10906.45` env/s, `1.3995x`
-- disabled train `16 env`: pipe `49.44`, `shared_memory_v1` `50.74` SPS
-- disabled train `64 env`: pipe `48.15`, `shared_memory_v1` `48.38` SPS, `1.0048x`
-- shared-train scaling ratio `64 vs 16`: `0.9534x`
+- transport `64 env`: pipe `10868.61`, `shared_memory_v1` `8340.91` env/s, `0.7674x`
+- disabled train `16 env`: pipe `74.05`, `shared_memory_v1` `75.01` SPS
+- disabled train `64 env`: pipe `75.03`, `shared_memory_v1` `74.85` SPS, `0.9977x`
+- shared-train scaling ratio `64 vs 16`: `0.9979x`
 - blockers:
+  - `transport_signal_too_weak`
   - `train_signal_too_weak`
   - `shared_train_scaling_too_weak`
 - `wc_p2_03_unblocked = false`
 
 Interpretation:
 
-- the low-copy transport improved the transport boundary itself on native Linux
-- that improvement did not survive end-to-end training
+- the latest source-of-truth rerun does not show a stable transport gain
+- end-to-end training remains effectively flat even after the info-payload trim
 - the current production subprocess path must not be replaced yet
 - the next Phase 2 move is another transport iteration or a justified escalation path, not `WC-P2-03`
+
+## Learner Ceiling Diagnostic
+
+The new repo-owned fake-env ceiling benchmark removes the live sim, bridge, and transport path while keeping the current policy and `PuffeRL` trainer loop intact.
+
+Local WSL ceiling rows from `scripts/benchmark_train_ceiling.py`:
+
+- `4 env`: `154.45` env-steps/s
+- `16 env`: `156.20` env-steps/s
+- `64 env`: `144.43` env-steps/s
+
+`64 env` stage breakdown:
+
+- rollout/evaluate: `15.83s`
+- PPO train/update: `24.87s`
+- final evaluate: `16.02s`
+
+Interpretation:
+
+- the current trainer loop is already mostly env-count invariant on a zero-cost vecenv
+- the PPO update path plus rollout/evaluate path now dominate enough wall clock to flatten transport-only wins
+- this is the clearest current explanation for why the transport improvement disappears in end-to-end training
 
 ## Topology Used
 

@@ -217,7 +217,8 @@ So the core Phase 1 profiler conclusion holds on the source-of-truth host class 
 - Observation pythonization is the largest Python hot spot in the pre-Phase-1 steady-state env stepping path.
 - Action decode, reward logic, and observation flattening are secondary in the pre-Phase-1 path.
 - The vecenv shell is not the main embedded-path problem in the pre-Phase-1 path.
-- The learner is not the main current bottleneck in the shipped baseline runs.
+- In the shipped pre-Phase-1 baseline, the learner was not the main bottleneck.
+- After the Phase 1 flat-path work, the new fake-env Phase 2 learner-ceiling benchmark shows the trainer loop is now a major end-to-end blocker even without live env cost.
 - In the current local Phase 1 preview, raw object conversion is no longer the dominant steady-state Python cost center.
 
 ## What This Rules Out

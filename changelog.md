@@ -1,5 +1,35 @@
 ## 2026-03-10
 
+- Continued Phase 2 troubleshooting after the first native-Linux transport-promotion rerun still failed.
+- Re-ran the hosted native-Linux Phase 2 gate after Production Training Mode info-payload minimization:
+  - latest run `22883118379`
+  - latest native-Linux result:
+    - transport `64 env`: pipe `10868.61`, `shared_memory_v1` `8340.91` env/s (`0.7674x`)
+    - disabled train `16 env`: pipe `74.05`, `shared_memory_v1` `75.01` SPS
+    - disabled train `64 env`: pipe `75.03`, `shared_memory_v1` `74.85` SPS (`0.9977x`)
+    - shared-train scaling `64 vs 16`: `0.9979x`
+    - blockers:
+      - `transport_signal_too_weak`
+      - `train_signal_too_weak`
+      - `shared_train_scaling_too_weak`
+- Added a repo-owned learner-ceiling benchmark to explain why the transport win disappears in training:
+  - `fight_caves_rl/benchmarks/train_ceiling_bench.py`
+  - `scripts/benchmark_train_ceiling.py`
+  - `fight_caves_rl/tests/unit/test_train_ceiling_bench.py`
+  - `fight_caves_rl/tests/performance/test_train_ceiling_benchmark_smoke.py`
+- Recorded the first learner-ceiling result on the current WSL host:
+  - fake-env train ceiling `4 env`: `154.45` env-steps/s
+  - fake-env train ceiling `16 env`: `156.20` env-steps/s
+  - fake-env train ceiling `64 env`: `144.43` env-steps/s
+  - `64 env` stage breakdown:
+    - evaluate: `15.83s`
+    - train: `24.87s`
+    - final evaluate: `16.02s`
+- Recorded the new Phase 2 implication:
+  - after Phase 1, the train loop itself is now a dominant wall-clock bottleneck
+  - transport-only improvements are currently too small to move the end-to-end training gate materially
+  - `WC-P2-03` remains blocked, but the blocker is now clearly trainer-bound rather than purely transport-bound
+
 - Started Phase 2 implementation locally after the clean Phase 1 gate pass.
 - Completed `WC-P2-01` and `WC-P2-02` in local review state:
   - transport decision: keep the existing subprocess topology, keep `Pipe` as the control plane, and prototype a lower-copy shared data plane first

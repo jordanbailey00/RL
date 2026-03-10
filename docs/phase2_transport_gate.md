@@ -101,7 +101,7 @@ If this gate fails:
 
 Hosted native-Linux run:
 
-- [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+- [fight-caves-RL/actions/runs/22883118379](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22883118379)
 
 Published gate summary:
 
@@ -111,26 +111,28 @@ Current result:
 
 - benchmark host class: `linux_native`
 - transport `64 env`:
-  - pipe: `7793.12` env/s
-  - `shared_memory_v1`: `10906.45` env/s
-  - speedup: `1.3995x`
+  - pipe: `10868.61` env/s
+  - `shared_memory_v1`: `8340.91` env/s
+  - speedup: `0.7674x`
 - disabled train `16 env`:
-  - pipe: `49.44` SPS
-  - `shared_memory_v1`: `50.74` SPS
+  - pipe: `74.05` SPS
+  - `shared_memory_v1`: `75.01` SPS
 - disabled train `64 env`:
-  - pipe: `48.15` SPS
-  - `shared_memory_v1`: `48.38` SPS
-  - speedup: `1.0048x`
-- shared-train scaling ratio `64 vs 16`: `0.9534x`
+  - pipe: `75.03` SPS
+  - `shared_memory_v1`: `74.85` SPS
+  - speedup: `0.9977x`
+- shared-train scaling ratio `64 vs 16`: `0.9979x`
 - gate result: `wc_p2_03_unblocked = false`
 
 Blockers:
 
+- `transport_signal_too_weak`
 - `train_signal_too_weak`
 - `shared_train_scaling_too_weak`
 
 Interpretation:
 
-- the low-copy transport materially improves the transport microbenchmark on native Linux
-- that benefit does not currently survive end-to-end training
+- the latest source-of-truth rerun does not show a stable transport win
+- end-to-end training remains effectively unchanged
 - `WC-P2-03` remains blocked for real performance reasons, not workflow/plumbing reasons
+- see also: [phase2_blocker_diagnosis.md](/home/jordan/code/RL/docs/phase2_blocker_diagnosis.md)
