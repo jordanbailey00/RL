@@ -328,6 +328,18 @@
   - disabled train `16 env`: about `1.03x` speedup
   - local WSL gate remains blocked, which is expected because native Linux is the source-of-truth promotion path
 - Added the hosted native-Linux Phase 2 packet/gate workflow contract in the docs; `WC-P2-03` remains blocked until that hosted gate clears.
+- Executed the hosted native-Linux Phase 2 pre-swap gate successfully through packet publication:
+  - transport `64 env`: pipe `7793.12`, `shared_memory_v1` `10906.45` env/s (`1.3995x`)
+  - disabled train `64 env`: pipe `48.15`, `shared_memory_v1` `48.38` SPS (`1.0048x`)
+  - shared-train scaling `64 vs 16`: `0.9534x`
+- Final Phase 2 pre-swap gate decision:
+  - `WC-P2-03` remains blocked
+  - blockers:
+    - `train_signal_too_weak`
+    - `shared_train_scaling_too_weak`
+  - interpretation:
+    - the low-copy transport helps the transport boundary itself
+    - the benefit does not currently survive end-to-end training
 
 - Started the Phase 1 flat-observation implementation batch and replaced the Production Training Mode hot path with the sim-owned flat schema:
   - added direct flat observation accessors and flat-row helpers in `fight_caves_rl/envs/observation_views.py`

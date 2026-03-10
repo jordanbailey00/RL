@@ -212,6 +212,20 @@ Current Phase 2 local prototype status:
   - the benefit is currently too small to justify a production transport swap on its own
   - Phase 2 should continue only through the approved review/pivot path, not by silently promoting this prototype
 
+Current native-Linux pre-swap gate status:
+
+- workflow: [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+- result:
+  - transport `64 env`: `1.3995x`
+  - disabled train `64 env`: `1.0048x`
+  - shared-train scaling `64 vs 16`: `0.9534x`
+- blockers:
+  - `train_signal_too_weak`
+  - `shared_train_scaling_too_weak`
+- decision:
+  - `WC-P2-03` remains blocked
+  - another transport iteration or a justified escalation path is required before the production swap
+
 ## Mandatory Breakdown
 
 Every stage should keep these benchmark breakdowns visible:

@@ -115,7 +115,7 @@ Gate interpretation:
 
 - the clean immutable-baseline comparison passes the approved Phase 1 thresholds
 - the flat path moved the correct boundary on native Linux
-- Phase 2 is now unblocked
+- Phase 2 planning remains active, but the production transport swap is still gated separately by the native-Linux Phase 2 pre-swap packet
 
 ## Phase 2 Local Prototype Preview
 
@@ -140,6 +140,29 @@ Interpretation:
 - the Phase 2 prototype is real and healthy
 - the low-copy data plane helps more at higher env counts than at small env counts on this WSL host
 - the current local gain is still too small to justify a production transport swap by itself
+
+## Phase 2 Native-Linux Pre-Swap Gate
+
+Hosted source-of-truth run:
+
+- [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+
+Current native-Linux gate rows:
+
+| Layer | Result |
+| --- | --- |
+| Transport `64 env` | pipe `7793.12`, `shared_memory_v1` `10906.45` env/s (`1.3995x`) |
+| Disabled train `16 env` | pipe `49.44`, `shared_memory_v1` `50.74` SPS |
+| Disabled train `64 env` | pipe `48.15`, `shared_memory_v1` `48.38` SPS (`1.0048x`) |
+| Shared-train scaling `64 vs 16` | `0.9534x` |
+| Decision | `wc_p2_03_unblocked = false` |
+
+Gate interpretation:
+
+- transport-only signal is strong enough
+- end-to-end training signal is too weak
+- `16 -> 64` shared-transport scaling is still unhealthy
+- `WC-P2-03` remains blocked
 
 ## Measured Rows
 

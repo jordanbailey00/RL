@@ -96,3 +96,41 @@ If this gate fails:
 - do not promote the low-copy path
 - keep `WC-P2-03` blocked
 - continue Phase 2 work only through another transport iteration or a justified escalation path
+
+## Current Source-of-Truth Result
+
+Hosted native-Linux run:
+
+- [fight-caves-RL/actions/runs/22882424149](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22882424149)
+
+Published gate summary:
+
+- [codex/phase2-results latest gate summary](https://github.com/jordanbailey00/fight-caves-RL/blob/codex/phase2-results/phase2-native-linux/latest/gate_summary.json)
+
+Current result:
+
+- benchmark host class: `linux_native`
+- transport `64 env`:
+  - pipe: `7793.12` env/s
+  - `shared_memory_v1`: `10906.45` env/s
+  - speedup: `1.3995x`
+- disabled train `16 env`:
+  - pipe: `49.44` SPS
+  - `shared_memory_v1`: `50.74` SPS
+- disabled train `64 env`:
+  - pipe: `48.15` SPS
+  - `shared_memory_v1`: `48.38` SPS
+  - speedup: `1.0048x`
+- shared-train scaling ratio `64 vs 16`: `0.9534x`
+- gate result: `wc_p2_03_unblocked = false`
+
+Blockers:
+
+- `train_signal_too_weak`
+- `shared_train_scaling_too_weak`
+
+Interpretation:
+
+- the low-copy transport materially improves the transport microbenchmark on native Linux
+- that benefit does not currently survive end-to-end training
+- `WC-P2-03` remains blocked for real performance reasons, not workflow/plumbing reasons

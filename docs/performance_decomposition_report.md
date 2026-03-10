@@ -50,6 +50,28 @@ Interpretation:
 - the clean immutable-baseline comparison clears the approved Phase 1 thresholds
 - Phase 2 is now unblocked
 
+## Native-Linux Phase 2 Pre-Swap Gate
+
+The hosted native-Linux Phase 2 pre-swap gate completed successfully as a workflow and failed only at the decision step, which means the result is diagnostic rather than infrastructural.
+
+Published native-Linux Phase 2 gate summary:
+
+- transport `64 env`: pipe `7793.12`, `shared_memory_v1` `10906.45` env/s, `1.3995x`
+- disabled train `16 env`: pipe `49.44`, `shared_memory_v1` `50.74` SPS
+- disabled train `64 env`: pipe `48.15`, `shared_memory_v1` `48.38` SPS, `1.0048x`
+- shared-train scaling ratio `64 vs 16`: `0.9534x`
+- blockers:
+  - `train_signal_too_weak`
+  - `shared_train_scaling_too_weak`
+- `wc_p2_03_unblocked = false`
+
+Interpretation:
+
+- the low-copy transport improved the transport boundary itself on native Linux
+- that improvement did not survive end-to-end training
+- the current production subprocess path must not be replaced yet
+- the next Phase 2 move is another transport iteration or a justified escalation path, not `WC-P2-03`
+
 ## Topology Used
 
 - Host: WSL2 on Windows, AMD Ryzen 5 5600G, 6 cores / 12 threads, 15 GiB RAM, CPU-only
