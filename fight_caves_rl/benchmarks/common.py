@@ -20,6 +20,7 @@ from typing import Any
 from fight_caves_rl.bridge.launcher import build_bridge_handshake, discover_headless_runtime_paths
 from fight_caves_rl.envs.schema import OFFICIAL_BENCHMARK_PROFILE
 from fight_caves_rl.manifests.versions import resolve_pufferlib_runtime_version
+from fight_caves_rl.utils.java_runtime import resolve_java_executable
 from fight_caves_rl.utils.config import load_bootstrap_config
 
 
@@ -187,12 +188,18 @@ def _resolve_performance_source_of_truth(host_class: str) -> bool:
 
 @lru_cache(maxsize=1)
 def _resolve_java_runtime_profile() -> tuple[str | None, str | None]:
-    result = subprocess.run(
-        ["java", "-XshowSettings:properties", "-version"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    java_executable = resolve_java_executable()
+    if java_executable is None:
+        return None, None
+    try:
+        result = subprocess.run(
+            [str(java_executable), "-XshowSettings:properties", "-version"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None, None
     output = f"{result.stdout}\n{result.stderr}"
     if result.returncode != 0:
         return None, None

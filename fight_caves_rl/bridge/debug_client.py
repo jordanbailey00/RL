@@ -24,6 +24,7 @@ from fight_caves_rl.bridge.launcher import (
 from fight_caves_rl.envs.action_mapping import NormalizedAction, TileCoordinates, normalize_action
 from fight_caves_rl.envs.observation_views import coerce_flat_observation_row
 from fight_caves_rl.envs.observation_mapping import validate_observation_contract
+from fight_caves_rl.utils.java_runtime import resolve_jvm_library_path
 
 
 @dataclass
@@ -350,11 +351,24 @@ def _ensure_jvm(headless_jar: Path, launch_cwd: Path) -> dict[str, Any]:
         ) from exc
 
     if not jpype.isJVMStarted():
-        jpype.startJVM(
-            f"-Duser.dir={launch_cwd.resolve()}",
-            f"-Dlogback.configurationFile={QUIET_LOGBACK_CONFIG.resolve()}",
-            classpath=[str(headless_jar.resolve())],
-        )
+        jvm_library_path = resolve_jvm_library_path()
+        start_jvm_kwargs: dict[str, object] = {
+            "classpath": [str(headless_jar.resolve())],
+        }
+        if jvm_library_path is not None:
+            start_jvm_kwargs["jvmpath"] = str(jvm_library_path)
+        try:
+            jpype.startJVM(
+                f"-Duser.dir={launch_cwd.resolve()}",
+                f"-Dlogback.configurationFile={QUIET_LOGBACK_CONFIG.resolve()}",
+                **start_jvm_kwargs,
+            )
+        except jpype.JVMNotFoundException as exc:
+            raise BridgeJVMStateError(
+                "Could not resolve a Linux JVM runtime for the embedded bridge. "
+                "Set FC_RL_JAVA_HOME or JAVA_HOME to a JDK/JRE home containing "
+                "bin/java and lib/server/libjvm.so."
+            ) from exc
 
     classes = {
         "JInt": JInt,

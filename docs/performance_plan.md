@@ -196,7 +196,7 @@ Required next optimization queue after the 2026-03-08 remediation:
 2. Move multi-slot reset/action/observe work toward truly batched sim-side entrypoints instead of per-slot Python/JVM loops.
 3. Re-profile the headless runtime itself and raise the raw sim ceiling well beyond the current single-digit-thousands tick rate.
 4. Scale out across multiple worker processes/runtimes only after one-worker transport costs are materially lower.
-5. Delay learner-side micro-optimization until environment collection is at least one to two orders of magnitude faster than today.
+5. After the Phase 1 flat-path work, do not assume transport-only work is still dominant; use the learner-ceiling diagnostic to decide when trainer/rollout overhead must become the active Phase 2 target.
 
 Current Phase 2 local prototype status:
 
@@ -228,6 +228,95 @@ Current native-Linux pre-swap gate status:
   - the current blocker is now trainer-bound as well as transport-bound
   - another transport-only iteration is unlikely to clear the gate by itself
   - see [phase2_blocker_diagnosis.md](/home/jordan/code/RL/docs/phase2_blocker_diagnosis.md)
+  - these disabled-train rows are legacy pre-`WC-P2-09` rows; future Phase 2 train comparisons must use the corrected production benchmark contract
+
+Current trainer-bound pivot status:
+
+- repo-owned fake-env learner-ceiling diagnostic now exists:
+  - `scripts/benchmark_train_ceiling.py`
+- current local WSL diagnostic:
+  - `4 env`: `154.45` env-steps/s
+  - `16 env`: `156.20` env-steps/s
+  - `64 env`: `144.43` env-steps/s
+- hosted native-Linux confirmation workflow exists:
+  - [fight-caves-RL/actions/runs/22886069441](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22886069441)
+  - published native-Linux learner ceiling:
+    - `4 env`: `94.97` env-steps/s
+    - `16 env`: `74.67` env-steps/s
+    - `64 env`: `68.43` env-steps/s
+    - `64 vs 16 = 0.9165x`
+- next active Phase 2 work:
+  - the first local prototype gate is complete
+  - local WSL corrected prototype rows after the follow-on trainer-core slice:
+    - `16 env`: `417.36` production SPS
+    - `64 env`: `398.80` production SPS
+    - `64 vs 16 = 0.9555x`
+  - latest local interpretation:
+    - the prototype is now materially faster than the previous local gate and above the old `250` SPS escalation bar
+    - scaling is still flat enough that topology is not yet justified
+  - next active Phase 2 work:
+    - rerun the corrected prototype packet on native Linux
+    - keep the packet fixed to:
+      - production fast-trainer `16 env`
+      - production fast-trainer `64 env`
+      - learner ceiling `16 env`
+      - learner ceiling `64 env`
+    - revisit transport or topology only after that source-of-truth rerun
+
+Current `WC-P2-10` local instrumentation result:
+
+- current dominant named buckets:
+  - `eval_policy_forward`
+  - `eval_env_recv`
+  - `train_backward`
+  - `train_policy_forward`
+- smaller buckets like `eval_info_stats`, `eval_tensor_copy`, and optimizer-step time are currently secondary on the benchmark-safe path
+
+Frozen `WC-P2-11` production fast-trainer target:
+
+- canonical target doc:
+  - [production_fast_trainer_benchmark.md](/home/jordan/code/RL/docs/production_fast_trainer_benchmark.md)
+- canonical production rows:
+  - native-Linux `16 env`, disabled logging, `production_fast_path_v1`
+  - native-Linux `64 env`, disabled logging, `production_fast_path_v1`
+- canonical diagnostic companions:
+  - learner ceiling `16 env`
+  - learner ceiling `64 env`
+- excluded from the primary production throughput target:
+  - `final_evaluate_seconds`
+  - replay export
+  - parity/determinism certification work
+  - W&B and dashboard overhead
+  - hot-path artifact/manifest/checkpoint costs
+
+Current benchmark contract status after `WC-P2-09`:
+
+- production train benchmark:
+  - `metric_contract_id = train_benchmark_production_v1`
+  - primary metric: `production_env_steps_per_second`
+  - excludes `final_evaluate_seconds`
+- learner-ceiling benchmark:
+  - `metric_contract_id = train_ceiling_diagnostic_v1`
+  - primary metric: `diagnostic_env_steps_per_second`
+  - remains diagnostic-only for the shipped synchronous path
+
+Current `WC-P2-07` local status:
+
+- local benchmark-only core runner slice:
+  - strips smoke-run artifact/checkpoint/manifest overhead from the disabled-train benchmark path
+  - WSL live disabled-train rows: `16 env = 56.65`, `64 env = 57.10`
+- local deeper trainer slice:
+  - suppresses profile, utilization, and metric-only logging work in the benchmark-only trainer path
+  - WSL live disabled-train rows: `16 env = 58.12`, `64 env = 57.71`
+- local WSL learner-ceiling rows:
+  - first slice: `119.90 / 146.94 / 144.77`
+  - deeper slice: `123.60 / 149.19 / 142.83`
+
+Interpretation:
+
+- the obvious benchmark/control-plane overhead is no longer the main limiter
+- the deeper trainer slice does not materially raise the learner ceiling locally
+- the next native-Linux rerun should be treated as a review-gated decision point, not an assumed unblock for `WC-P2-03`
 
 ## Mandatory Breakdown
 

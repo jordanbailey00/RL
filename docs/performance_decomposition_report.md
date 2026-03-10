@@ -1,11 +1,11 @@
 # Performance Decomposition Report
 
-Date: 2026-03-09
+Date: 2026-03-10
 
 Repos and SHAs:
-- RL: `cda7ab4104799be40ffe39f77e5a86c2e6f0eea5`
-- fight-caves-RL: `2365506bd3ea5cce515c571f39c24e72a38acc67`
-- RSPS: `ec5f6d0d307fe1072b134693f636e10a22873ce0`
+- RL: `ee4b205277f3638e2983fc6cf3cb8bfb0dc4a6b4`
+- fight-caves-RL: `a433c971a7e24f5bff10fb4e22f740d68e70af73`
+- RSPS: `8ab69d72591030936ae2b4b06372c15fc1653517`
 
 This report decomposes the current stack into separate layers and records the measurements collected in this audit pass. Facts and hypotheses are separated explicitly.
 
@@ -54,6 +54,12 @@ Interpretation:
 
 The hosted native-Linux Phase 2 pre-swap gate completed successfully as a workflow and failed only at the decision step, which means the result is diagnostic rather than infrastructural.
 
+Benchmark-contract note:
+
+- the published Phase 2 disabled-train rows below predate `WC-P2-09`
+- they remain valid as evidence that the first transport-promotion attempt did not survive end-to-end training
+- they are not the frozen production benchmark rows going forward, because `WC-P2-09` now defines production train throughput as `production_fast_path_v1`, excluding `final_evaluate`
+
 Published native-Linux Phase 2 gate summary:
 
 - transport `64 env`: pipe `10868.61`, `shared_memory_v1` `8340.91` env/s, `0.7674x`
@@ -71,7 +77,7 @@ Interpretation:
 - the latest source-of-truth rerun does not show a stable transport gain
 - end-to-end training remains effectively flat even after the info-payload trim
 - the current production subprocess path must not be replaced yet
-- the next Phase 2 move is another transport iteration or a justified escalation path, not `WC-P2-03`
+- the next Phase 2 move is a trainer-bound escalation path, not `WC-P2-03`
 
 ## Learner Ceiling Diagnostic
 
@@ -94,6 +100,204 @@ Interpretation:
 - the current trainer loop is already mostly env-count invariant on a zero-cost vecenv
 - the PPO update path plus rollout/evaluate path now dominate enough wall clock to flatten transport-only wins
 - this is the clearest current explanation for why the transport improvement disappears in end-to-end training
+- this benchmark family is now explicitly diagnostic-only and must not be confused with the corrected production train benchmark
+
+Native-Linux confirmation:
+
+- the repo-owned hosted learner-ceiling workflow completed successfully at [fight-caves-RL/actions/runs/22886069441](https://github.com/jordanbailey00/fight-caves-RL/actions/runs/22886069441)
+- published native-Linux learner-ceiling rows:
+  - `4 env`: `94.97` env-steps/s
+  - `16 env`: `74.67` env-steps/s
+  - `64 env`: `68.43` env-steps/s
+  - `64 vs 16` ratio: `0.9165x`
+  - `64 vs 4` ratio: `0.7206x`
+- `64 env` native-Linux stage split:
+  - evaluate: `28.64s`
+  - PPO train/update: `62.47s`
+  - final evaluate: `28.60s`
+
+Interpretation:
+
+- the source-of-truth host class confirms the same diagnosis as the local WSL fake-env benchmark
+- trainer/rollout overhead is now clearly the active Phase 2 blocker
+- the next implementation batch should target that trainer-bound ceiling directly
+
+## WC-P2-10 Local Trainer Instrumentation
+
+Local instrumented production-fast-path rows:
+
+- `16 env`:
+  - production throughput: `58.73` SPS
+  - wall-clock throughput: `40.88` SPS
+  - runner stage seconds:
+    - evaluate: `11.43s`
+    - train: `5.77s`
+    - final evaluate: `7.61s`
+  - top trainer buckets:
+    - `eval_policy_forward = 15.04s`
+    - `eval_env_recv = 3.78s`
+    - `train_backward = 3.74s`
+    - `train_policy_forward = 1.79s`
+- `64 env`:
+  - production throughput: `60.23` SPS
+  - wall-clock throughput: `45.46` SPS
+  - runner stage seconds:
+    - evaluate: `11.19s`
+    - train: `5.51s`
+    - final evaluate: `5.53s`
+  - top trainer buckets:
+    - `eval_policy_forward = 10.26s`
+    - `eval_env_recv = 6.41s`
+    - `train_backward = 3.40s`
+    - `train_policy_forward = 2.01s`
+
+Local instrumented learner-ceiling rows:
+
+- `16 env` diagnostic ceiling:
+  - `144.22` env-steps/s
+  - top buckets:
+    - `eval_policy_forward = 30.40s`
+    - `train_backward = 15.72s`
+    - `train_policy_forward = 10.34s`
+- `64 env` diagnostic ceiling:
+  - `146.87` env-steps/s
+  - top buckets:
+    - `eval_policy_forward = 31.71s`
+    - `train_backward = 14.80s`
+    - `train_policy_forward = 9.11s`
+
+Interpretation:
+
+- after Phase 1 and the benchmark-validity correction, the dominant named buckets are now inside the current trainer path itself
+- `eval_info_stats`, `eval_tensor_copy`, `eval_rollout_write`, and optimizer-step time are all materially smaller than policy-forward and backward costs on the current benchmark path
+- the next useful spike should target the current rollout/evaluate/update structure, not more small bookkeeping suppressions
+
+## WC-P2-14 Local Prototype Gate
+
+The subprocess worker startup blocker on this host was runtime resolution, not trainer logic.
+The workspace already had a Linux Temurin toolchain at `/home/jordan/code/.workspace-tools/jdk-21`, so the fix was to resolve that toolchain explicitly for both JPype worker startup and benchmark Java-version collection.
+
+Local WSL corrected production-fast-path prototype rows:
+
+- `16 env`:
+  - production throughput: `95.74` SPS
+  - wall-clock throughput: `95.74` SPS
+  - runner stage seconds:
+    - evaluate: `18.79s`
+    - train: `23.83s`
+    - final evaluate: `0.0s`
+  - top trainer buckets:
+    - `rollout_policy_forward = 15.23s`
+    - `update_backward = 14.49s`
+    - `update_policy_forward = 9.22s`
+    - `rollout_env_recv = 3.43s`
+- `64 env`:
+  - production throughput: `93.06` SPS
+  - wall-clock throughput: `93.06` SPS
+  - runner stage seconds:
+    - evaluate: `20.09s`
+    - train: `23.75s`
+    - final evaluate: `0.0s`
+  - top trainer buckets:
+    - `rollout_policy_forward = 15.42s`
+    - `update_backward = 14.26s`
+    - `update_policy_forward = 9.38s`
+    - `rollout_env_recv = 4.64s`
+- production scaling:
+  - `64 vs 16 = 0.9720x`
+
+Local WSL learner-ceiling companion rows:
+
+- `16 env` diagnostic ceiling:
+  - `145.70` env-steps/s
+  - top buckets:
+    - `eval_policy_forward = 31.37s`
+    - `train_backward = 14.87s`
+    - `train_policy_forward = 9.69s`
+- `64 env` diagnostic ceiling:
+  - `144.79` env-steps/s
+  - top buckets:
+    - `eval_policy_forward = 32.98s`
+    - `train_backward = 13.59s`
+    - `train_policy_forward = 9.87s`
+- learner-ceiling scaling:
+  - `64 vs 16 = 0.9937x`
+
+Interpretation:
+
+- the first project-owned synchronous prototype is real and materially faster on the local production benchmark than the earlier local instrumented shipped-path rows (`58.73 / 60.23`)
+- the gain is not coming from improved scaling; `16 -> 64` remains effectively flat
+- the learner-ceiling companion stays in the same `~145` env-steps/s band, which means the shipped synchronous trainer diagnosis is unchanged and transport is still not the next active gate
+- the correct `WC-P2-14` decision is to continue trainer redesign inside the prototype path, targeting deeper rollout/update ownership before transport promotion or topology work is reconsidered
+
+## PR Batch G Follow-On Local Preview
+
+The next local trainer-core slice targeted the remaining padded multi-discrete action sampling/logprob path inside the project-owned prototype.
+The old helper padded every action head up to the largest category count before sampling/logprob, which was especially expensive because two tile heads are `16384`-way categorical outputs.
+
+Local WSL corrected production-fast-path rows after that slice:
+
+- `16 env`:
+  - production throughput: `417.36` SPS
+  - runner stage seconds:
+    - evaluate: `7.44s`
+    - train: `1.96s`
+  - top trainer buckets:
+    - `rollout_policy_forward = 4.13s`
+    - `update_backward = 1.27s`
+    - `update_policy_forward = 0.59s`
+- `64 env`:
+  - production throughput: `398.80` SPS
+  - runner stage seconds:
+    - evaluate: `7.96s`
+    - train: `2.15s`
+  - top trainer buckets:
+    - `rollout_env_recv = 4.12s`
+    - `rollout_policy_forward = 3.81s`
+    - `update_backward = 1.35s`
+    - `update_policy_forward = 0.71s`
+- production scaling:
+  - `64 vs 16 = 0.9555x`
+
+Interpretation:
+
+- the local prototype no longer looks trainer-forward-bound in the same way as the earlier `95.74 / 93.06` gate
+- the production row is now above the old local `250` SPS escalation bar, which is enough to justify a source-of-truth rerun before more local redesign work
+- scaling is still flat enough that transport and topology should remain deferred until the native-Linux rerun confirms whether that flatness persists on the source-of-truth host
+
+## WC-P2-07 Local Trainer-Bound Reduction Preview
+
+The current local `WC-P2-07` batch has two benchmark-only slices:
+
+- remove smoke-run artifact/checkpoint/manifest overhead from the disabled-train benchmark path
+- suppress profile, utilization, and metric-only logging work inside the benchmark-only `PuffeRL` path
+
+Local WSL live disabled-train rows:
+
+- after the core benchmark runner slice:
+  - `16 env`: `56.65` SPS
+  - `64 env`: `57.10` SPS
+- after the deeper disabled-logging trainer slice:
+  - `16 env`: `58.12` SPS
+  - `64 env`: `57.71` SPS
+
+Local WSL learner-ceiling rows:
+
+- after the first slice:
+  - `4 env`: `119.90`
+  - `16 env`: `146.94`
+  - `64 env`: `144.77`
+- after the deeper slice:
+  - `4 env`: `123.60`
+  - `16 env`: `149.19`
+  - `64 env`: `142.83`
+
+Interpretation:
+
+- the first slice removes real benchmark/control-plane overhead from the short live training path
+- the second slice barely changes the learner ceiling
+- the current trainer-bound limit is therefore deeper than the obvious benchmark-only logging/profile/control-plane costs
+- Phase 2 should keep `WC-P2-03` blocked until either a native-Linux rerun proves otherwise or a deeper trainer-path change moves the learner ceiling materially
 
 ## Topology Used
 

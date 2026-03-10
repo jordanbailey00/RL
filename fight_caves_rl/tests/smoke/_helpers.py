@@ -11,12 +11,18 @@ import pytest
 
 from fight_caves_rl.bridge.errors import BridgeError
 from fight_caves_rl.bridge.launcher import assert_sim_runtime_ready, discover_headless_runtime_paths
+from fight_caves_rl.utils.java_runtime import resolve_java_home, resolve_jvm_library_path
 
 
 def require_live_runtime() -> None:
     try:
         paths = discover_headless_runtime_paths()
         assert_sim_runtime_ready(paths)
+        if resolve_jvm_library_path() is None:
+            raise BridgeError(
+                "No Linux JVM runtime resolved. Set FC_RL_JAVA_HOME or JAVA_HOME "
+                "to a JDK/JRE home containing lib/server/libjvm.so."
+            )
     except BridgeError as exc:
         pytest.skip(str(exc))
 
@@ -56,6 +62,10 @@ def run_script(
     process_env.setdefault("HOME", str(Path.home()))
     process_env.setdefault("LANG", "C.UTF-8")
     process_env.setdefault("PATH", os.defpath)
+    java_home = resolve_java_home()
+    if java_home is not None:
+        process_env.setdefault("JAVA_HOME", str(java_home))
+        process_env.setdefault("JDK_HOME", str(java_home))
     if env:
         process_env.update(env)
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout_file:

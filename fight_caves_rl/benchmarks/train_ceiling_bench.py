@@ -24,14 +24,18 @@ from fight_caves_rl.puffer.trainer import ConfigurablePuffeRL
 
 @dataclass(frozen=True)
 class TrainCeilingMeasurement:
+    metric_scope: str
     env_count: int
     total_timesteps: int
     global_step: int
     elapsed_seconds: float
     env_steps_per_second: float
+    diagnostic_env_steps_per_second: float
     evaluate_seconds: float
     train_seconds: float
     final_evaluate_seconds: float
+    runner_stage_seconds: dict[str, float]
+    trainer_bucket_totals: dict[str, dict[str, float | int]]
     evaluate_iterations: int
     train_iterations: int
 
@@ -42,6 +46,7 @@ class TrainCeilingMeasurement:
 @dataclass(frozen=True)
 class TrainCeilingReport:
     created_at: str
+    metric_contract_id: str
     config_id: str
     measurements: tuple[TrainCeilingMeasurement, ...]
     context: BenchmarkContext
@@ -190,6 +195,7 @@ def run_train_ceiling_benchmark(
     )
     return TrainCeilingReport(
         created_at=datetime.now(UTC).isoformat(),
+        metric_contract_id="train_ceiling_diagnostic_v1",
         config_id=str(base_config["config_id"]),
         measurements=measurements,
         context=context,
@@ -207,24 +213,35 @@ def _run_train_ceiling_measurement(
     config.setdefault("logging", {})["dashboard"] = False
     _clamp_train_config_for_benchmark(config, total_timesteps=total_timesteps)
 
+    stage_started = perf_counter()
     vecenv = _FakeVecEnv(int(env_count))
+    vecenv_build_seconds = perf_counter() - stage_started
+    stage_started = perf_counter()
     policy = MultiDiscreteMLPPolicy.from_spaces(
         vecenv.single_observation_space,
         vecenv.single_action_space,
         hidden_size=int(config["policy"]["hidden_size"]),
     )
+    policy_build_seconds = perf_counter() - stage_started
     train_config = build_puffer_train_config(
         config,
         data_dir=Path("/tmp/fc_train_ceiling_bench"),
         total_timesteps=int(total_timesteps),
     )
+    stage_started = perf_counter()
     trainer = ConfigurablePuffeRL(
         train_config,
         vecenv,
         policy,
         _NullLogger(),
         dashboard_enabled=False,
+        checkpointing_enabled=False,
+        profiling_enabled=False,
+        utilization_enabled=False,
+        logging_enabled=False,
+        instrumentation_enabled=True,
     )
+    trainer_init_seconds = perf_counter() - stage_started
 
     evaluate_seconds = 0.0
     train_seconds = 0.0
@@ -248,9 +265,12 @@ def _run_train_ceiling_measurement(
     final_evaluate_seconds = perf_counter() - final_started
     elapsed_seconds = perf_counter() - started
     global_step = int(trainer.global_step)
+    stage_started = perf_counter()
     trainer.close()
+    close_seconds = perf_counter() - stage_started
 
     return TrainCeilingMeasurement(
+        metric_scope="diagnostic_shipped_sync_path_v1",
         env_count=int(env_count),
         total_timesteps=int(total_timesteps),
         global_step=global_step,
@@ -258,9 +278,22 @@ def _run_train_ceiling_measurement(
         env_steps_per_second=(
             0.0 if elapsed_seconds <= 0.0 else float(global_step) / float(elapsed_seconds)
         ),
+        diagnostic_env_steps_per_second=(
+            0.0 if elapsed_seconds <= 0.0 else float(global_step) / float(elapsed_seconds)
+        ),
         evaluate_seconds=float(evaluate_seconds),
         train_seconds=float(train_seconds),
         final_evaluate_seconds=float(final_evaluate_seconds),
+        runner_stage_seconds={
+            "vecenv_build_seconds": float(vecenv_build_seconds),
+            "policy_build_seconds": float(policy_build_seconds),
+            "trainer_init_seconds": float(trainer_init_seconds),
+            "evaluate_seconds": float(evaluate_seconds),
+            "train_seconds": float(train_seconds),
+            "final_evaluate_seconds": float(final_evaluate_seconds),
+            "close_seconds": float(close_seconds),
+        },
+        trainer_bucket_totals=trainer.instrumentation_snapshot(),
         evaluate_iterations=int(evaluate_iterations),
         train_iterations=int(train_iterations),
     )
