@@ -306,6 +306,29 @@
 - Added PR11 performance smoke coverage:
 ## 2026-03-09
 
+- Started Phase 2 transport redesign implementation.
+- Completed `WC-P2-01` and `WC-P2-02`:
+  - approved the low-copy direction as `Pipe` control plane plus file-backed `mmap` data plane
+  - kept the shipped default subprocess transport as `pipe_pickle_v1`
+  - added the opt-in low-copy prototype `shared_memory_v1`
+- Added the Phase 2 prototype and promotion-gate surfaces:
+  - `fight_caves_rl/envs/shared_memory_transport.py`
+  - `fight_caves_rl/benchmarks/subprocess_transport_bench.py`
+  - `fight_caves_rl/benchmarks/phase2_packet.py`
+  - `scripts/benchmark_subprocess_transport.py`
+  - `scripts/refresh_phase2_packet.py`
+  - `docs/phase2_transport_gate.md`
+- Added focused Phase 2 validation:
+  - `fight_caves_rl/tests/unit/test_shared_memory_transport.py`
+  - `fight_caves_rl/tests/unit/test_phase2_packet_gate.py`
+  - `fight_caves_rl/tests/smoke/test_shared_memory_transport_train_smoke.py`
+  - `fight_caves_rl/tests/performance/test_subprocess_transport_benchmark_smoke.py`
+- Recorded the current local WSL Phase 2 prototype result:
+  - transport `64 env`: about `1.29x` speedup for `shared_memory_v1` over `pipe_pickle_v1`
+  - disabled train `16 env`: about `1.03x` speedup
+  - local WSL gate remains blocked, which is expected because native Linux is the source-of-truth promotion path
+- Added the hosted native-Linux Phase 2 packet/gate workflow contract in the docs; `WC-P2-03` remains blocked until that hosted gate clears.
+
 - Started the Phase 1 flat-observation implementation batch and replaced the Production Training Mode hot path with the sim-owned flat schema:
   - added direct flat observation accessors and flat-row helpers in `fight_caves_rl/envs/observation_views.py`
   - extended the bridge/runtime contract to `fight_caves_bridge_v2`
