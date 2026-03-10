@@ -58,7 +58,7 @@ Current measured local baseline gap (2026-03-09 audit packet, Ryzen 5 5600G / WS
   - `docs/benchmark_matrix.md`
   - `docs/python_profiler_report.md`
   - `docs/transport_and_copy_ledger.md`
-- direct-JVM repo artifact in `fight-caves-RL/docs/performance_report.md`:
+- direct-JVM historical repo artifact in `fight-caves-RL/history/performance_report_step11.md`:
   - throughput benchmark: about `8.9k` ticks/sec
   - important caveat: this is a current-repo artifact from a Windows-native context, not a current-host WSL throughput rerun
 - RL local bridge measurements on this workspace host:

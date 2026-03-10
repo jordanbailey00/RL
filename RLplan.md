@@ -58,8 +58,6 @@ RL/
       eval_seedpack_v0.yaml
       replay_eval_v0.yaml
       parity_canary_v0.yaml
-    sweep/
-      ppo_sweep_v0.yaml
     reward/
       reward_sparse_v0.yaml
       reward_shaped_v0.yaml
@@ -1423,7 +1421,7 @@ Mandatory benchmark breakdowns across the stages:
   - the child worker still uses the PR7/PR8 batched bridge semantics
   - embedded direct vecenv remains available for correctness and benchmark tooling
 - Verified local baselines from the remediation pass:
-  - raw sim report in `fight-caves-RL/docs/performance_report.md`: about `8.9k` ticks/sec
+  - raw sim report in `fight-caves-RL/history/performance_report_step11.md`: about `8.9k` ticks/sec
   - RL bridge microbenchmark on this WSL host:
     - `bridge_1env_v0` batch trace: about `18.3k` env steps/sec
     - `bridge_64env_v0` lockstep batch: about `1.33k` env steps/sec total

@@ -29,7 +29,7 @@ def main() -> None:
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    sim_report_path = sim_repo / "docs" / "performance_benchmark.json"
+    sim_report_path = sim_repo / "history" / "performance_benchmark.json"
     if not args.skip_sim:
         _run_command(
             ["./gradlew", "--no-daemon", ":game:headlessPerformanceReport"],

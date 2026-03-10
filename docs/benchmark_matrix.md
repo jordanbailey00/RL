@@ -207,7 +207,7 @@ Interpretation:
 
 | Status | Command | Env count | Goal |
 | --- | --- | ---: | --- |
-| Existing artifact only | `fight-caves-RL/docs/performance_report.md` | 1 | pure-JVM reference |
+| Existing artifact only | `fight-caves-RL/history/performance_report_step11.md` | 1 | pure-JVM reference |
 | Measured | `scripts/benchmark_bridge.py --config configs/benchmark/bridge_1env_v0.yaml` | 1 | best-case bridge trace |
 | Not run in this pass | longer direct-JVM benchmark on current WSL host | 1 | host-local pure-JVM ceiling |
 

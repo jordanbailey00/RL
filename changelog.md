@@ -1,5 +1,13 @@
 ## 2026-03-10
 
+- Added root historical optimization log:
+  - `/home/jordan/code/optimization_history.md`
+- Pruned RL doc/config clutter:
+  - moved `docs/workspace_refactor_audit.md` to `history/workspace_refactor_audit.md`
+  - retired the placeholder sweep config `configs/sweep/ppo_sweep_v0.yaml`
+- Updated RL references to the new archived fight-caves performance artifacts:
+  - historical Step 11 sim report now points at `fight-caves-RL/history/performance_report_step11.md`
+
 - Continued Phase 2 troubleshooting after the first native-Linux transport-promotion rerun still failed.
 - Re-ran the hosted native-Linux Phase 2 gate after Production Training Mode info-payload minimization:
   - latest run `22883118379`

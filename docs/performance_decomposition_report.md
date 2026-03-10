@@ -158,7 +158,7 @@ All rows below are single measured runs unless otherwise noted, so the reported 
 
 | Layer | Benchmark | Command | Config | Env count | Worker topology | Batch / rounds | Throughput | Sample count | p95 |
 | --- | --- | --- | --- | ---: | --- | --- | ---: | ---: | --- |
-| Direct-JVM sim artifact | Existing pure-JVM throughput artifact | repo artifact only, not rerun numerically under WSL in this pass | `fight-caves-RL/docs/performance_report.md` | 1 | direct JVM | artifact only | `8891.93` ticks/s | 1 artifact | not collected |
+| Direct-JVM sim artifact | Existing pure-JVM throughput artifact | repo artifact only, not rerun numerically under WSL in this pass | `fight-caves-RL/history/performance_report_step11.md` | 1 | direct JVM | artifact only | `8891.93` ticks/s | 1 artifact | not collected |
 | Current-host best-case bridge trace | `benchmark_bridge.py` | `uv run python scripts/benchmark_bridge.py --config configs/benchmark/bridge_1env_v0.yaml --rounds 1024 --output /tmp/fc_perf_audit/bridge_1_run1.json` | `bridge_1env_v0` | 1 | embedded JVM, single trace call | `1024 rounds` | `23765.25` env steps/s | 1 | not collected |
 | Bridge lockstep batch | `benchmark_bridge.py` | `uv run python scripts/benchmark_bridge.py --config configs/benchmark/bridge_64env_v0.yaml --rounds 1024 --output /tmp/fc_perf_audit/bridge64_attach_target.json` | `bridge_64env_v0` | 64 | embedded JVM, lockstep batch | `1024 rounds` | `1481.11` env steps/s | 1 | not collected |
 | Embedded vecenv | `benchmark_env.py` | `uv run python scripts/benchmark_env.py --config configs/train/train_baseline_v0.yaml --env-count 4 --rounds 512 --output /tmp/fc_perf_audit/env_baseline4_run1.json` | `train_baseline_v0` | 4 | embedded JVM | `512 rounds` | `906.64` env steps/s | 1 | not collected |
@@ -179,7 +179,7 @@ Purpose:
 - establish the pure sim ceiling without Python transport or learner overhead
 
 Evidence:
-- Current repo artifact at `/home/jordan/code/fight-caves-RL/docs/performance_report.md`
+- Current historical repo artifact at `/home/jordan/code/fight-caves-RL/history/performance_report_step11.md`
 - Throughput benchmark in that artifact: `8891.93` ticks/s
 - Soak benchmark in that artifact: `9186.05` ticks/s
 
