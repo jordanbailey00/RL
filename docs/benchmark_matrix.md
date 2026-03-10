@@ -1,9 +1,9 @@
 # Benchmark Matrix
 
-Date: 2026-03-09
+Date: 2026-03-10
 
 Repos and SHAs:
-- RL: `cda7ab4104799be40ffe39f77e5a86c2e6f0eea5`
+- RL: local Phase 2 prototype on top of `ea2b1e115c3149a2a0769dc094f92368774849bb`
 - fight-caves-RL: `2365506bd3ea5cce515c571f39c24e72a38acc67`
 
 This matrix freezes the benchmark packet used in this audit. It separates measured rows from standard-but-not-yet-run rows.
@@ -116,6 +116,30 @@ Gate interpretation:
 - the clean immutable-baseline comparison passes the approved Phase 1 thresholds
 - the flat path moved the correct boundary on native Linux
 - Phase 2 is now unblocked
+
+## Phase 2 Local Prototype Preview
+
+Local Phase 2 prototype benchmark entrypoint:
+
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/benchmark_subprocess_transport.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 64 --rounds 64 --output /tmp/subprocess_transport_bench_64.json
+```
+
+Current local WSL prototype rows:
+
+| Layer | Command | Env count | Result |
+| --- | --- | ---: | --- |
+| Subprocess transport comparison | `scripts/benchmark_subprocess_transport.py --env-count 16 --rounds 64` | 16 | pipe `7041.99`, low-copy `7202.60` env/s (`1.02x`) |
+| Subprocess transport comparison | `scripts/benchmark_subprocess_transport.py --env-count 64 --rounds 64` | 64 | pipe `8367.57`, low-copy `10765.14` env/s (`1.29x`) |
+| End-to-end train probe | temp `benchmark_train.py` pair, `16 env / 128 timesteps / disabled logging` | 16 | pipe `22.69`, low-copy `23.38` SPS (`1.03x`) |
+
+Interpretation:
+
+- the Phase 2 prototype is real and healthy
+- the low-copy data plane helps more at higher env counts than at small env counts on this WSL host
+- the current local gain is still too small to justify a production transport swap by itself
 
 ## Measured Rows
 

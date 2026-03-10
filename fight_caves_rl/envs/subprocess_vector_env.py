@@ -17,6 +17,13 @@ from fight_caves_rl.envs.puffer_encoding import (
     build_policy_action_space,
     build_policy_observation_space,
 )
+from fight_caves_rl.envs.shared_memory_transport import (
+    PIPE_PICKLE_TRANSPORT_MODE,
+    SHARED_MEMORY_TRANSPORT_MODE,
+    SUBPROCESS_TRANSPORT_MODES,
+    SharedMemoryTransportParent,
+    SharedMemoryTransportWorker,
+)
 from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
 from fight_caves_rl.rewards.registry import resolve_reward_fn
 
@@ -26,6 +33,7 @@ class SubprocessHeadlessBatchVecEnvConfig:
     env_count: int
     reward_config_id: str
     curriculum_config_id: str
+    transport_mode: str = PIPE_PICKLE_TRANSPORT_MODE
     account_name_prefix: str = "rl_vecenv"
     start_wave: int = 1
     ammo: int = 1000
@@ -56,6 +64,12 @@ class SubprocessHeadlessBatchVecEnv:
         self.num_agents = self.agents_per_batch
         self.single_observation_space = build_policy_observation_space()
         self.single_action_space = build_policy_action_space()
+        self.transport_mode = str(config.transport_mode)
+        if self.transport_mode not in SUBPROCESS_TRANSPORT_MODES:
+            raise ValueError(
+                "Unsupported subprocess transport mode: "
+                f"{self.transport_mode!r}. Expected one of {SUBPROCESS_TRANSPORT_MODES!r}."
+            )
         self.action_space = pufferlib.spaces.joint_space(
             self.single_action_space,
             self.agents_per_batch,
@@ -74,11 +88,18 @@ class SubprocessHeadlessBatchVecEnv:
         self.infos: list[dict[str, Any]] = []
         self._closed = False
         self._ctx = multiprocessing.get_context("spawn")
+        self._transport_parent: SharedMemoryTransportParent | None = None
+        if self.transport_mode == SHARED_MEMORY_TRANSPORT_MODE:
+            self._transport_parent = SharedMemoryTransportParent(
+                env_count=self.agents_per_batch,
+                action_dim=len(self.single_action_space.nvec),
+                observation_dim=int(self.single_observation_space.shape[0]),
+            )
         parent_conn, child_conn = self._ctx.Pipe()
         self._conn = parent_conn
         self._process = self._ctx.Process(
             target=_subprocess_vecenv_worker,
-            args=(child_conn, _config_to_payload(config)),
+            args=(child_conn, _config_to_payload(config, transport_parent=self._transport_parent)),
             daemon=True,
         )
         self._process.start()
@@ -96,11 +117,21 @@ class SubprocessHeadlessBatchVecEnv:
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
         checked = pufferlib.vector.send_precheck(self, actions)
+        if self._transport_parent is not None:
+            self._transport_parent.write_actions(np.asarray(checked))
+            self._send_command("step", {})
+            return
         self._send_command("step", {"actions": np.array(checked, copy=True)})
 
     def recv(self):
         pufferlib.vector.recv_precheck(self)
         payload = self._recv_payload()
+        if payload.get("transport_mode") == SHARED_MEMORY_TRANSPORT_MODE:
+            if self._transport_parent is None:
+                raise BridgeError(
+                    "Shared-memory subprocess vecenv response arrived without a parent transport."
+                )
+            payload = self._transport_parent.materialize_transition(payload)
         return (
             payload["observations"],
             payload["rewards"],
@@ -130,6 +161,8 @@ class SubprocessHeadlessBatchVecEnv:
                 self._process.terminate()
             self._process.join(timeout=2.0)
             self._conn.close()
+            if self._transport_parent is not None:
+                self._transport_parent.close(unlink=True)
             self._closed = True
 
     def _send_command(self, command: str, payload: Mapping[str, Any] | None) -> None:
@@ -157,17 +190,26 @@ class SubprocessHeadlessBatchVecEnv:
 
 def _subprocess_vecenv_worker(conn: Connection, payload: dict[str, Any]) -> None:
     vecenv: HeadlessBatchVecEnv | None = None
+    transport_worker: SharedMemoryTransportWorker | None = None
     try:
         vecenv = _build_worker_vecenv(payload)
+        if payload["transport_mode"] == SHARED_MEMORY_TRANSPORT_MODE:
+            transport_worker = SharedMemoryTransportWorker.attach(payload["transport"])
         while True:
             command, data = conn.recv()
             if command == "reset":
                 vecenv.async_reset(seed=data.get("seed"))
-                conn.send(("ok", _serialize_transition(vecenv.recv())))
+                transition = vecenv.recv()
+                conn.send(("ok", _serialize_transition(transition, transport_worker=transport_worker)))
                 continue
             if command == "step":
-                vecenv.send(np.asarray(data["actions"]))
-                conn.send(("ok", _serialize_transition(vecenv.recv())))
+                if transport_worker is None:
+                    actions = np.asarray(data["actions"])
+                else:
+                    actions = transport_worker.read_actions()
+                vecenv.send(actions)
+                transition = vecenv.recv()
+                conn.send(("ok", _serialize_transition(transition, transport_worker=transport_worker)))
                 continue
             if command == "close":
                 vecenv.close()
@@ -190,6 +232,11 @@ def _subprocess_vecenv_worker(conn: Connection, payload: dict[str, Any]) -> None
             pass
         raise
     finally:
+        if transport_worker is not None:
+            try:
+                transport_worker.close()
+            except Exception:
+                pass
         if vecenv is not None:
             try:
                 vecenv.close()
@@ -222,7 +269,13 @@ def _build_worker_vecenv(payload: dict[str, Any]) -> HeadlessBatchVecEnv:
     )
 
 
-def _serialize_transition(transition: tuple[Any, ...]) -> dict[str, Any]:
+def _serialize_transition(
+    transition: tuple[Any, ...],
+    *,
+    transport_worker: SharedMemoryTransportWorker | None,
+) -> dict[str, Any]:
+    if transport_worker is not None:
+        return transport_worker.publish_transition(transition)
     observations, rewards, terminals, truncations, teacher_actions, infos, agent_ids, masks = transition
     return {
         "observations": np.array(observations, copy=True),
@@ -236,11 +289,16 @@ def _serialize_transition(transition: tuple[Any, ...]) -> dict[str, Any]:
     }
 
 
-def _config_to_payload(config: SubprocessHeadlessBatchVecEnvConfig) -> dict[str, Any]:
-    return {
+def _config_to_payload(
+    config: SubprocessHeadlessBatchVecEnvConfig,
+    *,
+    transport_parent: SharedMemoryTransportParent | None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "env_count": int(config.env_count),
         "reward_config_id": str(config.reward_config_id),
         "curriculum_config_id": str(config.curriculum_config_id),
+        "transport_mode": str(config.transport_mode),
         "account_name_prefix": str(config.account_name_prefix),
         "start_wave": int(config.start_wave),
         "ammo": int(config.ammo),
@@ -255,3 +313,10 @@ def _config_to_payload(config: SubprocessHeadlessBatchVecEnvConfig) -> dict[str,
             "settings_overrides": dict(config.bootstrap.settings_overrides),
         },
     }
+    if str(config.transport_mode) == SHARED_MEMORY_TRANSPORT_MODE:
+        if transport_parent is None:
+            raise ValueError(
+                "Shared-memory subprocess transport requires a parent-side shared-memory transport."
+            )
+        payload["transport"] = transport_parent.spec().to_payload()
+    return payload

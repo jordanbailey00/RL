@@ -23,6 +23,7 @@ from fight_caves_rl.envs.subprocess_vector_env import (
     SubprocessHeadlessBatchVecEnv,
     SubprocessHeadlessBatchVecEnvConfig,
 )
+from fight_caves_rl.envs.shared_memory_transport import PIPE_PICKLE_TRANSPORT_MODE
 from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
 from fight_caves_rl.rewards.registry import resolve_reward_fn
 from fight_caves_rl.utils.paths import repo_root
@@ -255,6 +256,9 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
                 env_count=int(config["num_envs"]),
                 reward_config_id=reward_config_id,
                 curriculum_config_id=str(config["curriculum_config"]),
+                transport_mode=str(
+                    env_config.get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
+                ),
                 account_name_prefix=batch_config.account_name_prefix,
                 start_wave=batch_config.start_wave,
                 ammo=batch_config.ammo,

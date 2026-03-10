@@ -4,7 +4,9 @@ This document freezes the staged performance plan for the RL repo.
 
 ## Goal
 
-The repo is planned toward `>= 1,000,000 env steps/sec`, but only through staged gates that keep correctness and reproducibility ahead of optimization.
+The design-center requirement is `>= 100,000 env steps/sec`.
+
+Longer-term `>= 1,000,000 env steps/sec` remains a stretch goal only. It stays in scope, but it is contingent on evidence from the earlier phases and should not drive premature architectural commitments.
 
 ## Official Benchmark Profile v0
 
@@ -195,6 +197,20 @@ Required next optimization queue after the 2026-03-08 remediation:
 3. Re-profile the headless runtime itself and raise the raw sim ceiling well beyond the current single-digit-thousands tick rate.
 4. Scale out across multiple worker processes/runtimes only after one-worker transport costs are materially lower.
 5. Delay learner-side micro-optimization until environment collection is at least one to two orders of magnitude faster than today.
+
+Current Phase 2 local prototype status:
+
+- the first lower-copy prototype now exists as an opt-in subprocess transport mode:
+  - `pipe_pickle_v1` remains the default shipped path
+  - `shared_memory_v1` currently uses a `Pipe` control plane plus file-backed `mmap` data plane
+- local WSL prototype measurements so far:
+  - `16 env / 64 rounds` subprocess transport comparison: about `1.02x`
+  - `64 env / 64 rounds` subprocess transport comparison: about `1.29x`
+  - `16 env / 128 timesteps` end-to-end train probe: about `1.03x`
+- interpretation:
+  - the prototype is healthy and measurable
+  - the benefit is currently too small to justify a production transport swap on its own
+  - Phase 2 should continue only through the approved review/pivot path, not by silently promoting this prototype
 
 ## Mandatory Breakdown
 

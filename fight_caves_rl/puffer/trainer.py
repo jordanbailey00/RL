@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 import pufferlib.pufferl
+from fight_caves_rl.envs.shared_memory_transport import PIPE_PICKLE_TRANSPORT_MODE
 from fight_caves_rl.logging.wandb_client import WandbRunLogger
 from fight_caves_rl.manifests.run_manifest import (
     build_train_run_manifest,
@@ -43,6 +44,7 @@ class ConfigurablePuffeRL(pufferlib.pufferl.PuffeRL):
 @dataclass(frozen=True)
 class TrainRunResult:
     config_id: str
+    transport_mode: str
     checkpoint_path: str
     checkpoint_metadata_path: str
     global_step: int
@@ -94,6 +96,9 @@ def run_smoke_training(
     trace_stage("run_smoke_training:bootstrap_config_loaded")
     config = load_smoke_train_config(config_path)
     trace_stage("run_smoke_training:config_loaded")
+    transport_mode = str(
+        dict(config.get("env", {})).get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
+    )
     output_dir = build_train_output_dir(str(config["config_id"]), data_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -228,6 +233,7 @@ def run_smoke_training(
     trace_stage("run_smoke_training:return")
     return TrainRunResult(
         config_id=str(config["config_id"]),
+        transport_mode=transport_mode,
         checkpoint_path=str(checkpoint_path),
         checkpoint_metadata_path=str(metadata_path),
         global_step=int(trainer.global_step),

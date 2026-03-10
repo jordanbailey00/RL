@@ -1,9 +1,9 @@
 # Transport And Copy Ledger
 
-Date: 2026-03-09
+Date: 2026-03-10
 
 Repo and SHA:
-- RL: `cda7ab4104799be40ffe39f77e5a86c2e6f0eea5`
+- RL: local Phase 2 prototype on top of `ea2b1e115c3149a2a0769dc094f92368774849bb`
 - fight-caves-RL: `2365506bd3ea5cce515c571f39c24e72a38acc67`
 
 This document records what crosses boundaries on reset and step, what format it takes, and how many material copies occur.
@@ -20,6 +20,16 @@ Current shipped train path:
 - IPC serialization: pickle of numpy arrays plus Python `infos` list
 - shared memory: none
 - zero-copy flat buffers: none
+
+Current local Phase 2 prototype path:
+- same parent/worker topology as the shipped train path
+- control plane: Python `multiprocessing.Pipe`
+- data plane: file-backed `mmap` arrays in `fight_caves_rl/envs/shared_memory_transport.py`
+- transport mode id: `shared_memory_v1`
+- status: opt-in only for local review; not the default production training path
+- reason for file-backed `mmap` instead of POSIX shared memory:
+  - the current host rejects `multiprocessing.shared_memory`
+  - file-backed `mmap` remains within the approved "shared-memory or equivalent low-copy IPC" direction
 
 ## Reset Path Ledger
 
@@ -128,7 +138,7 @@ Boundary:
 - Python worker -> Python parent process
 
 Serialized transition shape:
-- `observations`: numpy `float32`, shape `(env_count, 126)`
+- `observations`: numpy `float32`, shape `(env_count, 134)`
 - `rewards`: numpy `float32`, shape `(env_count,)`
 - `terminals`: numpy `bool`, shape `(env_count,)`
 - `truncations`: numpy `bool`, shape `(env_count,)`
@@ -148,6 +158,8 @@ Format:
 Measurement note:
 - step payload sizes came from an inline pickle-size probe on the current subprocess worker payload
 - reset payload sizes were measured from a temporary standalone Python script, because the subprocess worker uses `spawn` and cannot reliably re-import a `<stdin>` main module
+- the byte tables below are still useful directionally, but they were captured before the additive Jad telegraph field increased the flat observation width to `134`
+- treat the exact byte counts as pre-Phase-2 directional evidence rather than current precise totals
 
 Measured reset results:
 

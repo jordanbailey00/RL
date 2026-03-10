@@ -1,3 +1,31 @@
+## 2026-03-10
+
+- Started Phase 2 implementation locally after the clean Phase 1 gate pass.
+- Completed `WC-P2-01` and `WC-P2-02` in local review state:
+  - transport decision: keep the existing subprocess topology, keep `Pipe` as the control plane, and prototype a lower-copy shared data plane first
+  - host-specific implementation detail: the current host rejects POSIX `multiprocessing.shared_memory`, so the first prototype uses file-backed `mmap` as the approved "shared-memory or equivalent low-copy IPC" path
+- Added the first low-copy transport prototype in:
+  - `fight_caves_rl/envs/shared_memory_transport.py`
+  - `fight_caves_rl/envs/subprocess_vector_env.py`
+  - `fight_caves_rl/benchmarks/subprocess_transport_bench.py`
+  - `scripts/benchmark_subprocess_transport.py`
+- Kept the shipped default training path unchanged:
+  - `pipe_pickle_v1` remains the default subprocess transport
+  - the new `shared_memory_v1` path is opt-in through `env.subprocess_transport_mode`
+- Added local validation coverage for the prototype:
+  - unit transport round-trip test
+  - shared-memory train smoke
+  - subprocess transport benchmark smoke
+  - existing default-pipe train smoke revalidation
+- Current local WSL prototype measurements:
+  - subprocess transport benchmark, `16 env / 64 rounds`: pipe `7041.99` env/s vs low-copy `7202.60` env/s (`1.02x`)
+  - subprocess transport benchmark, `64 env / 64 rounds`: pipe `8367.57` env/s vs low-copy `10765.14` env/s (`1.29x`)
+  - end-to-end train probe, `16 env / 128 timesteps / disabled logging`: pipe `22.69` SPS vs low-copy `23.38` SPS (`1.03x`)
+- Recorded the current Phase 2 implication:
+  - the low-copy prototype is real and healthy
+  - the measured local gain is currently too small to justify a production transport swap on its own
+  - `WC-P2-03` remains intentionally blocked pending review of the prototype evidence
+
 ## 2026-03-09
 
 - Closed the remaining `WC-P1-05` blocker and approved continuation to Phase 2.
