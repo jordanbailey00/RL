@@ -45,6 +45,7 @@ DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
         "sharks": 20,
         "tick_cap": 256,
         "include_future_leakage": False,
+        "info_payload_mode": "full",
         "account_name_prefix": "rl_puffer_smoke",
     },
     "train": {
@@ -243,6 +244,7 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
         sharks=int(env_config.get("sharks", 20)),
         tick_cap=int(env_config.get("tick_cap", 20_000)),
         include_future_leakage=bool(env_config.get("include_future_leakage", False)),
+        info_payload_mode=str(env_config.get("info_payload_mode", "full")),
         reset_options_provider=curriculum.reset_overrides,
     )
     if backend == "embedded":
@@ -266,6 +268,7 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
                 sharks=batch_config.sharks,
                 tick_cap=batch_config.tick_cap,
                 include_future_leakage=batch_config.include_future_leakage,
+                info_payload_mode=batch_config.info_payload_mode,
                 bootstrap=batch_config.bootstrap,
             )
         )

@@ -26,6 +26,9 @@ Current local Phase 2 prototype path:
 - control plane: Python `multiprocessing.Pipe`
 - data plane: file-backed `mmap` arrays in `fight_caves_rl/envs/shared_memory_transport.py`
 - transport mode id: `shared_memory_v1`
+- Production Training Mode info payload mode:
+  - `full` for Certification/debug paths
+  - `minimal` for current train/benchmark configs
 - status: opt-in only for local review; not the default production training path
 - reason for file-backed `mmap` instead of POSIX shared memory:
   - the current host rejects `multiprocessing.shared_memory`
@@ -86,6 +89,7 @@ Serialized reset transition shape:
 
 Format:
 - `_serialize_transition(...)` copies every array with `np.array(..., copy=True)`
+- `infos` are omitted entirely when `info_payload_mode = minimal`
 - the resulting payload is then pickled through the pipe
 
 Important implication:
@@ -149,7 +153,8 @@ Serialized transition shape:
 
 Format:
 - `_serialize_transition(...)` copies every array with `np.array(..., copy=True)`
-- the resulting payload is then pickled through the pipe
+- `SharedMemoryTransportWorker.publish_transition(...)` omits `infos` entirely when they are empty
+- the resulting payload is then pickled through the pipe only for control-plane fields
 
 ## Step Path Ledger
 
@@ -195,6 +200,11 @@ Current step path copies or reconstructs data at least here:
 7. multiprocessing pickles the arrays and Python `infos` list.
 8. parent process unpickles those arrays and Python dicts.
 9. PufferLib copies from received arrays into its own buffers.
+
+Current minimal-info Production Training Mode removes one part of that story:
+
+- empty per-step `infos` no longer cross the control plane at all
+- richer per-step metadata stays on the `full` path for Certification/debug use
 
 The current design is therefore low-bytes but high-copy and high-object-churn.
 

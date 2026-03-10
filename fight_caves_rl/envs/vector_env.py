@@ -21,6 +21,11 @@ from fight_caves_rl.envs.puffer_encoding import (
     build_policy_observation_space,
     decode_action_from_policy,
 )
+from fight_caves_rl.envs.shared_memory_transport import (
+    INFO_PAYLOAD_MODE_FULL,
+    INFO_PAYLOAD_MODE_MINIMAL,
+    INFO_PAYLOAD_MODES,
+)
 
 RewardFn = Callable[[dict[str, Any] | None, dict[str, Any], dict[str, Any], bool, bool], float]
 ResetOptionsProvider = Callable[[int, int], Mapping[str, object] | None]
@@ -36,6 +41,7 @@ class HeadlessBatchVecEnvConfig:
     sharks: int = 20
     tick_cap: int = 20_000
     include_future_leakage: bool = False
+    info_payload_mode: str = INFO_PAYLOAD_MODE_FULL
     bootstrap: HeadlessBootstrapConfig = field(default_factory=HeadlessBootstrapConfig)
     reset_options_provider: ResetOptionsProvider | None = None
 
@@ -54,6 +60,11 @@ class HeadlessBatchVecEnv:
             raise ValueError(f"env_count must be > 0, got {config.env_count}.")
 
         self.config = config
+        if str(config.info_payload_mode) not in INFO_PAYLOAD_MODES:
+            raise ValueError(
+                f"Unsupported info_payload_mode: {config.info_payload_mode!r}. "
+                f"Expected one of {INFO_PAYLOAD_MODES!r}."
+            )
         self.client = HeadlessBatchClient.create(
             BatchClientConfig(
                 env_count=int(config.env_count),
@@ -92,6 +103,7 @@ class HeadlessBatchVecEnv:
         self.infos: list[dict[str, Any]] = []
         self._seed_base: int | None = None
         self._episodes_started = np.zeros(self.num_agents, dtype=np.int64)
+        self._minimal_infos = tuple({} for _ in range(self.num_agents))
 
     @property
     def num_envs(self) -> int:
@@ -112,6 +124,9 @@ class HeadlessBatchVecEnv:
         )
         self._apply_reset_response(response.results)
         self._record_episode_starts(slot_indices)
+        if self._use_minimal_infos():
+            self.infos = list(self._minimal_infos)
+            return
         self.infos = [
             self._build_reset_info(result)
             for result in sorted(response.results, key=lambda result: int(result.slot_index))
@@ -122,7 +137,10 @@ class HeadlessBatchVecEnv:
             actions = np.ascontiguousarray(actions)
 
         actions = pufferlib.vector.send_precheck(self, actions)
-        ordered_infos: list[dict[str, Any]] = [{} for _ in range(self.num_agents)]
+        if self._use_minimal_infos():
+            ordered_infos: list[dict[str, Any]] = list(self._minimal_infos)
+        else:
+            ordered_infos = [{} for _ in range(self.num_agents)]
 
         done_indices = tuple(
             int(index) for index in np.flatnonzero(np.logical_or(self.terminals, self.truncations))
@@ -135,8 +153,9 @@ class HeadlessBatchVecEnv:
             )
             self._apply_reset_response(reset_response.results)
             self._record_episode_starts(done_indices)
-            for result in reset_response.results:
-                ordered_infos[int(result.slot_index)] = self._build_reset_info(result)
+            if not self._use_minimal_infos():
+                for result in reset_response.results:
+                    ordered_infos[int(result.slot_index)] = self._build_reset_info(result)
 
         active_indices = tuple(index for index in range(self.num_agents) if index not in done_indices)
         if active_indices:
@@ -149,8 +168,9 @@ class HeadlessBatchVecEnv:
                 slot_indices=active_indices,
             )
             self._apply_step_response(step_response.results, joint_actions=actions)
-            for result in step_response.results:
-                ordered_infos[int(result.slot_index)] = self._build_step_info(result)
+            if not self._use_minimal_infos():
+                for result in step_response.results:
+                    ordered_infos[int(result.slot_index)] = self._build_step_info(result)
 
         self.infos = ordered_infos
 
@@ -227,6 +247,9 @@ class HeadlessBatchVecEnv:
 
     def _decode_joint_action(self, action: np.ndarray) -> NormalizedAction:
         return decode_action_from_policy(np.asarray(action, dtype=np.int64))
+
+    def _use_minimal_infos(self) -> bool:
+        return str(self.config.info_payload_mode) == INFO_PAYLOAD_MODE_MINIMAL
 
     def _build_reset_info(self, result: Any) -> dict[str, Any]:
         observation = result.flat_observation if result.flat_observation is not None else result.observation

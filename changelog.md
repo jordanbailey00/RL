@@ -340,6 +340,23 @@
   - interpretation:
     - the low-copy transport helps the transport boundary itself
     - the benefit does not currently survive end-to-end training
+- Advanced the planned Phase 2 info-payload minimization work early as a troubleshooting iteration:
+  - added `env.info_payload_mode`
+  - Production Training Mode can now use `minimal` per-step infos while Certification/full-info paths keep the existing richer metadata
+  - subprocess transport now omits empty info payloads from the control plane instead of pickling lists of empty dicts
+- Updated production benchmark/train configs to use minimal infos:
+  - `configs/train/train_baseline_v0.yaml`
+  - `configs/benchmark/train_1024env_v0.yaml`
+- Added focused regression coverage:
+  - `fight_caves_rl/tests/unit/test_subprocess_transport_minimal_info.py`
+  - expanded `fight_caves_rl/tests/unit/test_shared_memory_transport.py`
+- Local WSL Phase 2 rerun after the info-trim iteration still failed the gate:
+  - transport `64 env`: `0.9896x`
+  - disabled train `64 env`: `1.0077x`
+  - shared-train scaling `64 vs 16`: `0.8847x`
+- Current interpretation:
+  - the Production Training Mode metadata trim is correct and parity-safe
+  - it is not sufficient to unblock `WC-P2-03`
 
 - Started the Phase 1 flat-observation implementation batch and replaced the Production Training Mode hot path with the sim-owned flat schema:
   - added direct flat observation accessors and flat-row helpers in `fight_caves_rl/envs/observation_views.py`

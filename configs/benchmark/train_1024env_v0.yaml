@@ -13,6 +13,7 @@ env:
   sharks: 20
   tick_cap: 20000
   include_future_leakage: false
+  info_payload_mode: minimal
   account_name_prefix: rl_train_bench
 train:
   seed: 44001

@@ -18,6 +18,9 @@ from fight_caves_rl.envs.puffer_encoding import (
     build_policy_observation_space,
 )
 from fight_caves_rl.envs.shared_memory_transport import (
+    INFO_PAYLOAD_MODE_FULL,
+    INFO_PAYLOAD_MODE_MINIMAL,
+    INFO_PAYLOAD_MODES,
     PIPE_PICKLE_TRANSPORT_MODE,
     SHARED_MEMORY_TRANSPORT_MODE,
     SUBPROCESS_TRANSPORT_MODES,
@@ -41,6 +44,7 @@ class SubprocessHeadlessBatchVecEnvConfig:
     sharks: int = 20
     tick_cap: int = 20_000
     include_future_leakage: bool = False
+    info_payload_mode: str = INFO_PAYLOAD_MODE_FULL
     bootstrap: HeadlessBootstrapConfig = field(default_factory=HeadlessBootstrapConfig)
 
 
@@ -70,6 +74,12 @@ class SubprocessHeadlessBatchVecEnv:
                 "Unsupported subprocess transport mode: "
                 f"{self.transport_mode!r}. Expected one of {SUBPROCESS_TRANSPORT_MODES!r}."
             )
+        self.info_payload_mode = str(config.info_payload_mode)
+        if self.info_payload_mode not in INFO_PAYLOAD_MODES:
+            raise ValueError(
+                "Unsupported subprocess info payload mode: "
+                f"{self.info_payload_mode!r}. Expected one of {INFO_PAYLOAD_MODES!r}."
+            )
         self.action_space = pufferlib.spaces.joint_space(
             self.single_action_space,
             self.agents_per_batch,
@@ -86,6 +96,7 @@ class SubprocessHeadlessBatchVecEnv:
         self.initialized = False
         self.flag = pufferlib.vector.RESET
         self.infos: list[dict[str, Any]] = []
+        self._minimal_infos = tuple({} for _ in range(self.num_agents))
         self._closed = False
         self._ctx = multiprocessing.get_context("spawn")
         self._transport_parent: SharedMemoryTransportParent | None = None
@@ -126,6 +137,8 @@ class SubprocessHeadlessBatchVecEnv:
     def recv(self):
         pufferlib.vector.recv_precheck(self)
         payload = self._recv_payload()
+        if payload.get("info_payload_mode") == INFO_PAYLOAD_MODE_MINIMAL and "infos" not in payload:
+            payload["infos"] = list(self._minimal_infos)
         if payload.get("transport_mode") == SHARED_MEMORY_TRANSPORT_MODE:
             if self._transport_parent is None:
                 raise BridgeError(
@@ -257,6 +270,7 @@ def _build_worker_vecenv(payload: dict[str, Any]) -> HeadlessBatchVecEnv:
             sharks=int(payload["sharks"]),
             tick_cap=int(payload["tick_cap"]),
             include_future_leakage=bool(payload["include_future_leakage"]),
+            info_payload_mode=str(payload["info_payload_mode"]),
             bootstrap=HeadlessBootstrapConfig(
                 load_content_scripts=bool(payload["bootstrap"]["load_content_scripts"]),
                 start_world=bool(payload["bootstrap"]["start_world"]),
@@ -277,15 +291,21 @@ def _serialize_transition(
     if transport_worker is not None:
         return transport_worker.publish_transition(transition)
     observations, rewards, terminals, truncations, teacher_actions, infos, agent_ids, masks = transition
+    info_payload_mode = (
+        INFO_PAYLOAD_MODE_MINIMAL
+        if all(not info for info in infos)
+        else INFO_PAYLOAD_MODE_FULL
+    )
     return {
         "observations": np.array(observations, copy=True),
         "rewards": np.array(rewards, copy=True),
         "terminals": np.array(terminals, copy=True),
         "truncations": np.array(truncations, copy=True),
         "teacher_actions": np.array(teacher_actions, copy=True),
-        "infos": list(infos),
         "agent_ids": np.array(agent_ids, copy=True),
         "masks": np.array(masks, copy=True),
+        "info_payload_mode": info_payload_mode,
+        **({} if info_payload_mode == INFO_PAYLOAD_MODE_MINIMAL else {"infos": list(infos)}),
     }
 
 
@@ -306,6 +326,7 @@ def _config_to_payload(
         "sharks": int(config.sharks),
         "tick_cap": int(config.tick_cap),
         "include_future_leakage": bool(config.include_future_leakage),
+        "info_payload_mode": str(config.info_payload_mode),
         "bootstrap": {
             "load_content_scripts": bool(config.bootstrap.load_content_scripts),
             "start_world": bool(config.bootstrap.start_world),

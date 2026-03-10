@@ -42,3 +42,29 @@ def test_shared_memory_transport_round_trip():
     finally:
         worker.close()
         parent.close(unlink=True)
+
+
+def test_shared_memory_transport_omits_minimal_infos_from_control_plane():
+    parent = SharedMemoryTransportParent(env_count=2, action_dim=6, observation_dim=4)
+    worker = SharedMemoryTransportWorker.attach(parent.spec().to_payload())
+    try:
+        transition = (
+            np.asarray([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]], dtype=np.float32),
+            np.asarray([0.5, 1.5], dtype=np.float32),
+            np.asarray([False, True], dtype=np.bool_),
+            np.asarray([False, False], dtype=np.bool_),
+            np.asarray([0, 0], dtype=np.int32),
+            [{}, {}],
+            np.asarray([0, 1], dtype=np.int64),
+            np.asarray([True, True], dtype=np.bool_),
+        )
+        payload = worker.publish_transition(transition)
+        materialized = parent.materialize_transition(payload)
+
+        assert payload["transport_mode"] == SHARED_MEMORY_TRANSPORT_MODE
+        assert payload["info_payload_mode"] == "minimal"
+        assert "infos" not in payload
+        assert materialized["infos"] == [{}, {}]
+    finally:
+        worker.close()
+        parent.close(unlink=True)

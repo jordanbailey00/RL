@@ -14,6 +14,12 @@ SUBPROCESS_TRANSPORT_MODES = (
     PIPE_PICKLE_TRANSPORT_MODE,
     SHARED_MEMORY_TRANSPORT_MODE,
 )
+INFO_PAYLOAD_MODE_FULL = "full"
+INFO_PAYLOAD_MODE_MINIMAL = "minimal"
+INFO_PAYLOAD_MODES = (
+    INFO_PAYLOAD_MODE_FULL,
+    INFO_PAYLOAD_MODE_MINIMAL,
+)
 DEFAULT_RESPONSE_SLOT_COUNT = 2
 
 
@@ -299,6 +305,7 @@ class SharedMemoryTransportParent:
         observation_dim: int,
         response_slot_count: int = DEFAULT_RESPONSE_SLOT_COUNT,
     ) -> None:
+        self._env_count = int(env_count)
         self.action = SharedNdArray.create(
             shape=(int(env_count), int(action_dim)),
             dtype=np.int32,
@@ -310,6 +317,7 @@ class SharedMemoryTransportParent:
             )
             for _ in range(int(response_slot_count))
         )
+        self._minimal_infos = tuple({} for _ in range(self._env_count))
 
     def spec(self) -> SharedMemoryTransportSpec:
         return SharedMemoryTransportSpec(
@@ -323,6 +331,8 @@ class SharedMemoryTransportParent:
 
     def materialize_transition(self, payload: dict[str, Any]) -> dict[str, Any]:
         slot = self.responses[int(payload["buffer_index"])]
+        if payload.get("info_payload_mode") == INFO_PAYLOAD_MODE_MINIMAL:
+            return slot.materialize_transition(infos=self._minimal_infos)
         return slot.materialize_transition(infos=list(payload["infos"]))
 
     def close(self, *, unlink: bool = False) -> None:
@@ -353,9 +363,16 @@ class SharedMemoryTransportWorker:
         self._next_response_slot = (self._next_response_slot + 1) % len(self.responses)
         slot = self.responses[slot_index]
         slot.write_transition(transition)
+        infos = tuple(transition[5])
+        if all(not info for info in infos):
+            return {
+                "buffer_index": slot_index,
+                "info_payload_mode": INFO_PAYLOAD_MODE_MINIMAL,
+                "transport_mode": SHARED_MEMORY_TRANSPORT_MODE,
+            }
         return {
             "buffer_index": slot_index,
-            "infos": list(transition[5]),
+            "infos": list(infos),
             "transport_mode": SHARED_MEMORY_TRANSPORT_MODE,
         }
 
