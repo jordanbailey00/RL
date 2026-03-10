@@ -90,7 +90,7 @@ Local preview interpretation:
 
 - Phase 1 local rows clear the planning thresholds numerically
 - the flat-path implementation appears to have removed the intended bottleneck
-- the Phase 1 decision is still pending because the hosted native-Linux packet has not yet been reviewed
+- the local packet remains a useful preview, but the native-Linux rerun is the approved decision source
 
 ## Phase 1 Native-Linux Packet
 
@@ -98,18 +98,24 @@ Published Phase 1 native-Linux results now exist at:
 
 - [phase1-results/latest](https://github.com/jordanbailey00/fight-caves-RL/tree/codex/phase1-results/phase1-native-linux/latest)
 
-Current native-Linux gate rows:
+Immutable baseline used for comparison:
+
+- [phase0-results immutable pre-phase1 baseline](https://github.com/jordanbailey00/fight-caves-RL/tree/codex/phase0-results/phase0-native-linux/immutable/pre-phase1/rl-3e557474f3c6b4e44842da82a971c8f97d521b10__sim-216c1fd2ac31f450f8c599f9ec9454330a4e6b3a)
+
+Current final native-Linux gate rows:
 
 | Layer | Result |
 | --- | --- |
-| Bridge `64 env` | `10076.36` env/s |
-| VecEnv `64 env` | `12305.08` env/s |
+| Bridge `64 env` | `9148.80` env/s, `6.64x` over immutable baseline |
+| VecEnv `64 env` | `10961.11` env/s, `8.01x` over immutable baseline |
 | Python profile | `raw_object_conversion_still_dominant = false` |
+| Decision | `phase2_unblocked = true` |
 
-Important gate caveat:
+Gate interpretation:
 
-- the current ratio comparison is invalid because `phase0-results/latest` was republished after the Phase 1 implementation landed
-- that published Phase 0 baseline now references post-Phase-1 commits, so the current ratio failure is a contaminated comparison rather than a trustworthy continue-vs-pivot result
+- the clean immutable-baseline comparison passes the approved Phase 1 thresholds
+- the flat path moved the correct boundary on native Linux
+- Phase 2 is now unblocked
 
 ## Measured Rows
 

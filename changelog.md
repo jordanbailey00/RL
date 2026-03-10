@@ -1,5 +1,22 @@
 ## 2026-03-09
 
+- Closed the remaining `WC-P1-05` blocker and approved continuation to Phase 2.
+- The clean native-Linux comparison now uses an immutable pre-Phase-1 baseline published from:
+  - RL commit `3e557474f3c6b4e44842da82a971c8f97d521b10`
+  - fight-caves-RL commit `216c1fd2ac31f450f8c599f9ec9454330a4e6b3a`
+- The final hosted native-Linux Phase 1 gate now reports:
+  - bridge `64 env = 9148.80` env/s
+  - vecenv `64 env = 10961.11` env/s
+  - bridge ratio `= 6.6397`
+  - vecenv ratio `= 8.0101`
+  - `raw_object_conversion_still_dominant = false`
+  - `phase2_unblocked = true`
+- Updated the active decision docs so the codebase no longer carries stale Phase 1 blocker language:
+  - `docs/phase1_decision_gate.md`
+  - `docs/benchmark_matrix.md`
+  - `docs/performance_decomposition_report.md`
+  - `docs/python_profiler_report.md`
+
 - Completed `WC-P1-04` and `WC-P1-05` from the workspace optimization plan.
 - Added the RL-side Phase 1 decision-gate source of truth:
   - `docs/phase1_decision_gate.md`

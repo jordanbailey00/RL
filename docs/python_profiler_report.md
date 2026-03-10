@@ -205,6 +205,10 @@ Native-Linux confirmation:
   - `flat_observe_cumulative_seconds = 0.0635`
   - `raw_conversion_cumulative_seconds = 0.0322`
   - `raw_object_conversion_still_dominant = false`
+- the final native-Linux Phase 1 gate that used the immutable pre-Phase-1 baseline passed with:
+  - bridge `64 env` ratio `6.6397`
+  - vecenv `64 env` ratio `8.0101`
+  - `phase2_unblocked = true`
 
 So the core Phase 1 profiler conclusion holds on the source-of-truth host class as well as locally.
 

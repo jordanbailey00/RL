@@ -32,19 +32,23 @@ Interpretation:
 
 ## Native-Linux Phase 1 Gate Execution
 
-The hosted native-Linux Phase 1 packet now runs end to end.
+The hosted native-Linux Phase 1 packet now runs end to end against an immutable pre-Phase-1 native baseline.
 
 Published native-Linux packet summary:
 
-- bridge `64 env`: `10076.36` env/s
-- vecenv `64 env`: `12305.08` env/s
+- bridge `64 env`: `9148.80` env/s
+- vecenv `64 env`: `10961.11` env/s
+- bridge improvement ratio: `6.6397`
+- vecenv improvement ratio: `8.0101`
 - `raw_object_conversion_still_dominant = false`
+- `phase2_unblocked = true`
 
 Interpretation:
 
 - the Phase 1 implementation behaves correctly on the source-of-truth host class
 - the dominant Python bottleneck remains removed in the native-Linux steady-state profile
-- the current ratio-based gate result is not yet trustworthy because the published `phase0-results/latest` baseline was republished with post-Phase-1 code during workflow hardening
+- the clean immutable-baseline comparison clears the approved Phase 1 thresholds
+- Phase 2 is now unblocked
 
 ## Topology Used
 
