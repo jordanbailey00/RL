@@ -30,6 +30,22 @@ Interpretation:
 - the bridge and vecenv rows now clear the Phase 1 planning thresholds on WSL
 - the remaining decision-gate blocker is source-of-truth host class, not local measurement quality
 
+## Native-Linux Phase 1 Gate Execution
+
+The hosted native-Linux Phase 1 packet now runs end to end.
+
+Published native-Linux packet summary:
+
+- bridge `64 env`: `10076.36` env/s
+- vecenv `64 env`: `12305.08` env/s
+- `raw_object_conversion_still_dominant = false`
+
+Interpretation:
+
+- the Phase 1 implementation behaves correctly on the source-of-truth host class
+- the dominant Python bottleneck remains removed in the native-Linux steady-state profile
+- the current ratio-based gate result is not yet trustworthy because the published `phase0-results/latest` baseline was republished with post-Phase-1 code during workflow hardening
+
 ## Topology Used
 
 - Host: WSL2 on Windows, AMD Ryzen 5 5600G, 6 cores / 12 threads, 15 GiB RAM, CPU-only

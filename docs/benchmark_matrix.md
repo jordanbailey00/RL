@@ -92,6 +92,25 @@ Local preview interpretation:
 - the flat-path implementation appears to have removed the intended bottleneck
 - the Phase 1 decision is still pending because the hosted native-Linux packet has not yet been reviewed
 
+## Phase 1 Native-Linux Packet
+
+Published Phase 1 native-Linux results now exist at:
+
+- [phase1-results/latest](https://github.com/jordanbailey00/fight-caves-RL/tree/codex/phase1-results/phase1-native-linux/latest)
+
+Current native-Linux gate rows:
+
+| Layer | Result |
+| --- | --- |
+| Bridge `64 env` | `10076.36` env/s |
+| VecEnv `64 env` | `12305.08` env/s |
+| Python profile | `raw_object_conversion_still_dominant = false` |
+
+Important gate caveat:
+
+- the current ratio comparison is invalid because `phase0-results/latest` was republished after the Phase 1 implementation landed
+- that published Phase 0 baseline now references post-Phase-1 commits, so the current ratio failure is a contaminated comparison rather than a trustworthy continue-vs-pivot result
+
 ## Measured Rows
 
 | Layer | Command | Config | Env count | Worker topology | Worker count | Envs / worker | Dashboard | W&B | Replay/artifacts | Result |

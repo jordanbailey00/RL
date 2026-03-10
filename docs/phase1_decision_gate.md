@@ -10,7 +10,8 @@ Current execution status:
 
 - local WSL Phase 1 packet has been executed successfully
 - the local packet shows that raw object conversion is no longer the dominant Python hot-path cost
-- the native-Linux source-of-truth rerun remains the final gate before Phase 2 can be approved
+- the native-Linux source-of-truth rerun has now executed successfully end to end
+- the remaining blocker is not packet health; it is baseline contamination in the published `phase0-results/latest` comparison source
 
 ## Purpose
 
@@ -208,6 +209,51 @@ Interpretation:
 - the local preview already meets the numeric planning thresholds for bridge and vecenv throughput
 - however, the local packet is not the source-of-truth gate because it is WSL and was run without the published native-Linux Phase 0 baseline directory
 - therefore the Phase 1 decision remains pending until the hosted native-Linux packet is reviewed
+
+## Native-Linux Gate Status
+
+The current hosted native-Linux Phase 1 packet at:
+
+- [phase1-results/latest/gate_summary.json](https://github.com/jordanbailey00/fight-caves-RL/blob/codex/phase1-results/phase1-native-linux/latest/gate_summary.json)
+
+reports:
+
+- `benchmark_host_class = linux_native`
+- `bridge_64_env_steps_per_second = 10076.36`
+- `vecenv_64_env_steps_per_second = 12305.08`
+- `raw_object_conversion_still_dominant = false`
+
+Those absolute rows are directionally strong and consistent with the intended Phase 1 outcome.
+
+However, the current gate also reports:
+
+- `bridge_64_improvement_ratio = 0.7487`
+- `vecenv_64_improvement_ratio = 1.1472`
+
+and blocks Phase 2 with:
+
+- `bridge_threshold_not_met`
+- `vecenv_threshold_not_met`
+
+## Current Blocker: Baseline Contamination
+
+The current ratio failure is not a valid pre-vs-post Phase 1 comparison.
+
+Evidence:
+
+- the published `phase0-results/latest` baseline currently points to post-Phase-1 commits:
+  - `rl_commit_sha = 290a99a...`
+  - `sim_commit_sha = 57bd2b5...`
+- those results were republished during Phase 1 infrastructure hardening so the hosted workflow could fetch the full baseline packet files
+- that means the current `phase0-results/latest` packet is not a true pre-Phase-1 baseline and should not be used for the final improvement-ratio decision
+
+## Required Remaining Work Before Phase 2
+
+Before Phase 2 can be approved:
+
+1. publish an immutable native-Linux pre-Phase-1 baseline packet using the last pre-Phase-1 RL and sim commits
+2. rerun the hosted Phase 1 gate against that immutable baseline
+3. record the final continue-vs-pivot decision from that clean comparison
 
 ## Output Of WC-P1-05
 

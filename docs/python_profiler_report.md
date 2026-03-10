@@ -198,6 +198,16 @@ Interpretation:
 - the major remaining Python costs now center around batch collection, flat observation fetch, and downstream flat-row handling
 - this is the intended Phase 1 outcome and is the main reason the local bridge and vecenv rows improved materially
 
+Native-Linux confirmation:
+
+- the hosted native-Linux `python_vec16_steady.prof` summary now reports:
+  - `step_batch_cumulative_seconds = 0.1784`
+  - `flat_observe_cumulative_seconds = 0.0635`
+  - `raw_conversion_cumulative_seconds = 0.0322`
+  - `raw_object_conversion_still_dominant = false`
+
+So the core Phase 1 profiler conclusion holds on the source-of-truth host class as well as locally.
+
 ## Facts
 
 - Observation pythonization is the largest Python hot spot in the pre-Phase-1 steady-state env stepping path.

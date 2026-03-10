@@ -282,4 +282,17 @@
   - vecenv `64 env`: about `7.34k` env/s
   - steady-state raw object conversion is no longer the dominant Python cost center
 - Refreshed the stale parity-canary semantic digest baselines for the Jad-healer and Tz-Kek scenarios after the protected observation cue set expanded.
-- Phase 1 local preview meets the planning thresholds numerically, but the final continue-vs-pivot decision remains blocked on the hosted native-Linux Phase 1 packet review.
+- Executed the hosted native-Linux Phase 1 packet successfully through bridge, vecenv, and steady-state profiling:
+  - bridge `64 env`: about `10.08k` env/s
+  - vecenv `64 env`: about `12.31k` env/s
+  - raw object conversion remains non-dominant on native Linux
+- Found one real hosted-only packet bug in `scripts/refresh_phase1_packet.py`:
+  - `_run_python_profile` loaded `configs/benchmark/vecenv_256env_v0.yaml` with a cwd-relative path
+  - that crashed on hosted native Linux because the workflow invokes the script from the sim repo root, not the RL repo root
+  - fixed by resolving the config path from `repo_root()`
+- Found one real Phase 1 gate invalidation issue:
+  - `phase0-results/latest` had been republished with post-Phase-1 commits while fixing baseline-file publication
+  - the current native-Linux ratio comparison is therefore contaminated and not a valid pre-vs-post Phase 1 decision
+- Remaining pre-Phase-2 work is now explicit:
+  - publish an immutable pre-Phase-1 native-Linux baseline
+  - rerun the hosted Phase 1 gate against that frozen baseline
