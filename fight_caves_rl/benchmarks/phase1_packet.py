@@ -10,6 +10,10 @@ from typing import Any
 
 PHASE1_BRIDGE_ENV_COUNTS = (1, 16, 64)
 PHASE1_VECENV_ENV_COUNTS = (16, 64)
+PHASE1_BRIDGE_RATIO_THRESHOLD = 5.0
+PHASE1_VECENV_RATIO_THRESHOLD = 4.0
+PHASE1_BRIDGE_64_MIN_ENV_STEPS_PER_SECOND = 8_000.0
+PHASE1_VECENV_64_MIN_ENV_STEPS_PER_SECOND = 6_000.0
 
 
 @dataclass(frozen=True)
@@ -28,7 +32,9 @@ class Phase1ProfileSummary:
 @dataclass(frozen=True)
 class Phase1GateStatus:
     benchmark_host_class: str
+    benchmark_source_of_truth: bool
     phase0_baseline_host_class: str | None
+    phase0_baseline_source_of_truth: bool | None
     bridge_rows_complete: bool
     vecenv_rows_complete: bool
     python_profile_present: bool
@@ -114,12 +120,17 @@ def evaluate_phase1_gate(
     python_profile_summary: Phase1ProfileSummary,
 ) -> Phase1GateStatus:
     current_host_class = _detect_host_class(bridge_reports, vecenv_reports)
+    current_source_of_truth = _detect_source_of_truth(bridge_reports, vecenv_reports)
     baseline_host_class: str | None = None
+    baseline_source_of_truth: bool | None = None
     baseline_bridge_64 = None
     baseline_vecenv_64 = None
     if phase0_baseline_dir is not None:
-        gate_summary = load_json(phase0_baseline_dir / "gate_summary.json")
-        baseline_host_class = str(gate_summary.get("benchmark_host_class"))
+        phase0_packet = _load_phase0_gate_status(phase0_baseline_dir)
+        baseline_host_class = str(phase0_packet.get("benchmark_host_class"))
+        baseline_source_of_truth = _optional_bool(
+            phase0_packet.get("benchmark_source_of_truth", phase0_packet.get("performance_source_of_truth"))
+        )
         baseline_bridge_64 = _phase0_bridge_sps(phase0_baseline_dir / "bridge_64env.json")
         baseline_vecenv_64 = _phase0_vecenv_sps(phase0_baseline_dir / "vecenv_64env.json")
 
@@ -136,12 +147,12 @@ def evaluate_phase1_gate(
         vecenv_ratio = float(vecenv_64) / float(baseline_vecenv_64)
 
     blockers: list[str] = []
-    if current_host_class != "linux_native":
-        blockers.append("native_linux_source_of_truth_missing")
+    if not current_source_of_truth:
+        blockers.append("benchmark_source_of_truth_missing")
     if phase0_baseline_dir is None:
         blockers.append("phase0_baseline_missing")
-    if baseline_host_class not in (None, "linux_native"):
-        blockers.append("phase0_baseline_host_class_mismatch")
+    if baseline_source_of_truth is False:
+        blockers.append("phase0_baseline_source_of_truth_missing")
     if not bridge_rows_complete:
         blockers.append("bridge_packet_incomplete")
     if not vecenv_rows_complete:
@@ -162,10 +173,16 @@ def evaluate_phase1_gate(
         blockers.append("vecenv_64_below_reconsider_threshold")
 
     bridge_threshold_met = (
-        bridge_ratio is not None and bridge_ratio >= 5.0 and bridge_64 is not None and 8_000.0 <= bridge_64 <= 15_000.0
+        bridge_ratio is not None
+        and bridge_ratio >= PHASE1_BRIDGE_RATIO_THRESHOLD
+        and bridge_64 is not None
+        and bridge_64 >= PHASE1_BRIDGE_64_MIN_ENV_STEPS_PER_SECOND
     )
     vecenv_threshold_met = (
-        vecenv_ratio is not None and vecenv_ratio >= 4.0 and vecenv_64 is not None and 6_000.0 <= vecenv_64 <= 12_000.0
+        vecenv_ratio is not None
+        and vecenv_ratio >= PHASE1_VECENV_RATIO_THRESHOLD
+        and vecenv_64 is not None
+        and vecenv_64 >= PHASE1_VECENV_64_MIN_ENV_STEPS_PER_SECOND
     )
     if not bridge_threshold_met:
         blockers.append("bridge_threshold_not_met")
@@ -175,7 +192,9 @@ def evaluate_phase1_gate(
     deduped_blockers = tuple(dict.fromkeys(blockers))
     return Phase1GateStatus(
         benchmark_host_class=current_host_class,
+        benchmark_source_of_truth=current_source_of_truth,
         phase0_baseline_host_class=baseline_host_class,
+        phase0_baseline_source_of_truth=baseline_source_of_truth,
         bridge_rows_complete=bridge_rows_complete,
         vecenv_rows_complete=vecenv_rows_complete,
         python_profile_present=True,
@@ -245,6 +264,33 @@ def _detect_host_class(
     return "unknown"
 
 
+def _detect_source_of_truth(
+    bridge_reports: dict[int, dict[str, Any]],
+    vecenv_reports: dict[int, dict[str, Any]],
+) -> bool:
+    for payload in (*bridge_reports.values(), *vecenv_reports.values()):
+        context = payload.get("context", {})
+        hardware = context.get("hardware_profile", {})
+        explicit = _optional_bool(hardware.get("performance_source_of_truth"))
+        if explicit is not None:
+            return explicit
+        host_class = hardware.get("host_class")
+        if host_class:
+            return str(host_class) in {"linux_native", "wsl2"}
+    return False
+
+
+def _load_phase0_gate_status(phase0_baseline_dir: Path) -> dict[str, Any]:
+    phase0_packet_path = phase0_baseline_dir / "phase0_packet.json"
+    if phase0_packet_path.is_file():
+        payload = load_json(phase0_packet_path)
+        gate_status = payload.get("gate_status")
+        if isinstance(gate_status, dict):
+            return dict(gate_status)
+    legacy_gate_summary_path = phase0_baseline_dir / "gate_summary.json"
+    return load_json(legacy_gate_summary_path)
+
+
 def _rows_complete(reports: dict[int, dict[str, Any]], required: tuple[int, ...]) -> bool:
     return all(env_count in reports for env_count in required)
 
@@ -256,6 +302,20 @@ def _optional_float(value: object) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _optional_bool(value: object) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return None
 
 
 def _cumulative_for(stats: pstats.Stats, function_name: str) -> float:

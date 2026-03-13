@@ -7,12 +7,14 @@ reward_config: reward_sparse_v0
 curriculum_config: curriculum_disabled_v0
 num_envs: 1
 env:
+  env_backend: v1_bridge
   start_wave: 1
   ammo: 1000
   prayer_potions: 8
   sharks: 20
   tick_cap: 256
   include_future_leakage: false
+  info_payload_mode: minimal
   account_name_prefix: rl_puffer_smoke
 train:
   seed: 11001

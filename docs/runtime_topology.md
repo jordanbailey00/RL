@@ -1,6 +1,6 @@
 # Runtime Topology
 
-Date: 2026-03-09
+Date: 2026-03-11
 
 Repos and SHAs:
 - RL: `cda7ab4104799be40ffe39f77e5a86c2e6f0eea5`
@@ -12,7 +12,7 @@ Repos and SHAs:
 - OS: `Linux DESKTOP-61IQ04T 6.6.87.2-microsoft-standard-WSL2`
 - Topology: WSL2 guest on Windows host
 - Benchmark host class: `wsl2`
-- Performance source of truth on this host: `false`
+- Performance source of truth on this host: `true`
 - CPU: `AMD Ryzen 5 5600G with Radeon Graphics`
 - Physical cores: `6`
 - Logical CPUs: `12`
@@ -42,6 +42,17 @@ Repos and SHAs:
   - env benchmarks
   - correctness tooling
 
+### Embedded Fast V2 Serial Topology
+
+- processes: `1`
+- Python process embeds the JVM through JPype
+- no IPC between the trainer/env wrapper and the fast kernel
+- batching lives inside one `FastFightCavesKernelRuntime`
+- used for:
+  - serial fast vecenv smoke
+  - early V2 wrapper bring-up
+  - direct kernel bring-up / debug
+
 ### Shipped Training Topology
 
 - parent process:
@@ -62,6 +73,33 @@ Repos and SHAs:
 - affinity / pinning: none configured
 - subprocess start method: `spawn`
 
+### Fast V2 Subprocess Training Topology
+
+- parent process:
+  - PufferLib trainer
+  - policy
+  - logging
+  - artifacts
+- child processes:
+  - `SubprocessHeadlessBatchVecEnv` worker shards
+  - embedded JPype/JVM per worker
+  - worker-local `FastKernelVecEnv`
+  - worker-local `FastFightCavesKernelRuntime`
+- worker count: configurable through `env.subprocess_worker_count`
+- envs per worker: balanced partition of the joint batch
+- IPC mechanism:
+  - control plane via `multiprocessing.Pipe`
+  - actions/results via either pickle or per-worker shared-memory slabs
+- active shared-memory mode:
+  - `shared_memory_v1`
+- subprocess start method: `spawn`
+- benchmark/smoke topology outputs now record:
+  - `backend`
+  - `env_backend`
+  - `transport_mode`
+  - `worker_count`
+  - `worker_env_counts`
+
 ## Current Headless Sim Artifact Boundary
 
 - canonical artifact task: `:game:headlessDistZip`
@@ -74,7 +112,9 @@ Repos and SHAs:
 Facts:
 - this machine is not obviously memory-starved
 - this machine is not using GPU acceleration
-- the current RL worker topology uses only one env worker process
+- the current RL runtime surface now includes both:
+  - single-process embedded bring-up paths
+  - configurable multi-worker subprocess paths
 - the current benchmark metadata now records:
   - `host_class`
   - `is_wsl`
@@ -97,4 +137,4 @@ Reason:
   - bridge `1 / 16 / 64`
   - vecenv `1 / 16 / 64`
   - train `4 / 16 / 64`
-- the remaining Phase 0 blocker is not missing instrumentation; it is that this host class is still `wsl2`, not native Linux
+- WSL is now the approved source-of-truth host class for the active pivot benchmark contract

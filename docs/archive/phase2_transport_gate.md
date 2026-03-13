@@ -1,5 +1,11 @@
 # Phase 2 Transport Promotion Gate
 
+## Documentation Status
+
+- Status: archive candidate under `pivot_documentation_triage.md`.
+- Current authority: `pivot_plan.md` and `pivot_implementation_plan.md`.
+- Retention reason: kept temporarily for historical transport-gate context; do not treat it as an active pivot gate.
+
 Date: 2026-03-10
 
 This document defines the source-of-truth gate used to decide whether `WC-P2-03` may begin.
@@ -16,6 +22,14 @@ Phase 2 currently has two different questions:
 `WC-P2-02` answered the first question locally.
 
 This gate answers the second question on the source-of-truth host class.
+
+After `WC-P2-09`, the train rows consumed by this gate are defined as:
+
+- production benchmark contract: `train_benchmark_production_v1`
+- primary train throughput metric: `production_env_steps_per_second`
+- metric meaning: disabled production-fast-path throughput excluding `final_evaluate_seconds`
+
+Any older Phase 2 train row that predates this contract correction is legacy evidence only and must not be treated as the corrected production benchmark row.
 
 ## Required Packet
 
@@ -43,6 +57,12 @@ The packet must include:
   - `shared_memory_v1`, `16 env`
   - `pipe_pickle_v1`, `64 env`
   - `shared_memory_v1`, `64 env`
+
+For train rows, the gate reads the explicit production metric when present:
+
+- `production_env_steps_per_second`
+
+and falls back to the older `env_steps_per_second` field only for legacy packet compatibility.
 
 ## Gate Meaning
 
@@ -95,7 +115,9 @@ If this gate fails:
 
 - do not promote the low-copy path
 - keep `WC-P2-03` blocked
-- continue Phase 2 work only through another transport iteration or a justified escalation path
+- continue Phase 2 work only through a justified escalation path
+- do not assume another transport-only iteration is the right next move
+- review the learner-ceiling diagnostic before selecting the next implementation batch
 
 ## Current Source-of-Truth Result
 
@@ -108,6 +130,8 @@ Published gate summary:
 - [codex/phase2-results latest gate summary](https://github.com/jordanbailey00/fight-caves-RL/blob/codex/phase2-results/phase2-native-linux/latest/gate_summary.json)
 
 Current result:
+
+- note: these published train rows predate `WC-P2-09`, so they are legacy pre-correction rows rather than the new frozen production-fast-path metric contract
 
 - benchmark host class: `linux_native`
 - transport `64 env`:
@@ -135,4 +159,5 @@ Interpretation:
 - the latest source-of-truth rerun does not show a stable transport win
 - end-to-end training remains effectively unchanged
 - `WC-P2-03` remains blocked for real performance reasons, not workflow/plumbing reasons
-- see also: [phase2_blocker_diagnosis.md](/home/jordan/code/RL/docs/phase2_blocker_diagnosis.md)
+- the hosted native-Linux learner-ceiling benchmark now confirms that trainer-side overhead is the active next blocker
+- the next active Phase 2 work is the trainer-bound escalation path described in [phase2_blocker_diagnosis.md](/home/jordan/code/RL/docs/phase2_blocker_diagnosis.md), not a production transport swap

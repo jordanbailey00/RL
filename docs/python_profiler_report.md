@@ -218,8 +218,65 @@ So the core Phase 1 profiler conclusion holds on the source-of-truth host class 
 - Action decode, reward logic, and observation flattening are secondary in the pre-Phase-1 path.
 - The vecenv shell is not the main embedded-path problem in the pre-Phase-1 path.
 - In the shipped pre-Phase-1 baseline, the learner was not the main bottleneck.
+
+## WC-P2-07 Local Interpretation Update
+
+The current local `WC-P2-07` slices removed several obvious non-semantic trainer costs from the benchmark-only path:
+
+- smoke-run artifact/checkpoint/manifest overhead
+- profile bookkeeping
+- utilization sampling
+- metric-only logging work
+
+Local result:
+
+- short live disabled-train benchmark rows improved only modestly
+- the fake-env learner ceiling remained effectively flat within noise
+
+Interpretation:
+
+- the current trainer-bound bottleneck is deeper than the obvious benchmark/control-plane bookkeeping layers
+- the next useful profiler pass should focus on the steady-state `train()` math / tensor path itself or on the surrounding PufferLib rollout topology, not on logger or artifact plumbing
 - After the Phase 1 flat-path work, the new fake-env Phase 2 learner-ceiling benchmark shows the trainer loop is now a major end-to-end blocker even without live env cost.
 - In the current local Phase 1 preview, raw object conversion is no longer the dominant steady-state Python cost center.
+- Hosted native-Linux confirmation of the learner-ceiling diagnostic now exists and confirms the same trainer-bound diagnosis on the source-of-truth host class.
+
+## WC-P2-10 Instrumentation Update
+
+New benchmark-side trainer instrumentation now exists in the local review state.
+
+The current local bucket ranking is consistent across both the live core benchmark and the fake-env learner ceiling:
+
+- dominant evaluate bucket: `eval_policy_forward`
+- next evaluate bucket: `eval_env_recv`
+- dominant train bucket: `train_backward`
+- next train bucket: `train_policy_forward`
+
+Example local rows:
+
+- live production-fast-path `64 env`:
+  - `eval_policy_forward = 10.26s`
+  - `eval_env_recv = 6.41s`
+  - `train_backward = 3.40s`
+  - `train_policy_forward = 2.01s`
+- learner-ceiling `64 env`:
+  - `eval_policy_forward = 31.71s`
+  - `train_backward = 14.80s`
+  - `train_policy_forward = 9.11s`
+
+Important negative result:
+
+- `eval_info_stats`
+- `eval_tensor_copy`
+- `eval_rollout_write`
+- `train_optimizer_step`
+
+are all much smaller than the four buckets above on the current benchmark path.
+
+Interpretation:
+
+- the next trainer spike should focus on rollout/evaluate topology and the steady-state forward/backward path
+- more small logging/checkpoint/control-plane suppressions are unlikely to move the ceiling materially
 
 ## What This Rules Out
 

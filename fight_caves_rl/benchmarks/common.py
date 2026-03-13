@@ -14,6 +14,7 @@ from platform import (
     system,
     version,
 )
+import resource
 import subprocess
 from typing import Any
 
@@ -129,6 +130,18 @@ def build_benchmark_context(
     )
 
 
+def capture_peak_memory_profile() -> dict[str, int]:
+    self_usage = resource.getrusage(resource.RUSAGE_SELF)
+    child_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+    process_peak_rss_kib = int(getattr(self_usage, "ru_maxrss", 0))
+    children_peak_rss_kib = int(getattr(child_usage, "ru_maxrss", 0))
+    return {
+        "process_peak_rss_kib": process_peak_rss_kib,
+        "children_peak_rss_kib": children_peak_rss_kib,
+        "combined_peak_rss_kib": process_peak_rss_kib + children_peak_rss_kib,
+    }
+
+
 def _build_hardware_profile() -> BenchmarkHardwareProfile:
     system_name = system()
     release_name = release()
@@ -183,7 +196,7 @@ def _resolve_performance_source_of_truth(host_class: str) -> bool:
     override = environ.get("FC_RL_PERF_SOURCE_OF_TRUTH")
     if override is not None:
         return override.strip().lower() in {"1", "true", "yes", "on"}
-    return host_class == "linux_native"
+    return host_class in {"linux_native", "wsl2"}
 
 
 @lru_cache(maxsize=1)

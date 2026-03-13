@@ -5,8 +5,24 @@ Python training and analytics module for the Fight Caves workspace.
 ## Scope
 
 - `fight-caves-RL` remains the golden runtime dependency.
-- `RSPS` remains the oracle/reference for parity and debugging only.
+- `RSPS` now owns the trusted headed demo/replay runtime and still remains the oracle/reference for parity disputes and debugging.
 - `RL` owns Python training, bridge glue, evaluation, replay indexing, analytics, and benchmarking.
+
+## Pivot Authority
+
+Current workspace authority is split across:
+- `/home/jordan/code/pivot_plan.md`
+- `/home/jordan/code/pivot_implementation_plan.md`
+- `/home/jordan/code/RL/RLspec.md`
+
+Under that pivot:
+- the current simulator-backed path is V1 oracle/reference/debug
+- the RSPS-backed headed path is the default demo/replay target
+- `fight-caves-demo-lite` is frozen fallback/reference only
+- V2 fast headless training is the default training path
+- parity is defined as mechanics parity
+- agent-driven implementation and validation assume WSL/Linux as the canonical execution environment
+- Linux paths and shell commands are canonical; do not author active workflows around Windows-native path semantics or PowerShell
 
 ## Bootstrap
 
@@ -72,11 +88,12 @@ Local pre-merge validation owns the live runtime suites:
 Manual or scheduled validation owns:
 
 - `fight_caves_rl/tests/performance`
-- `uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 8 --rounds 16 --output /tmp/fc_vecenv_bench.json`
-- `uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench.json`
+- `uv run python scripts/benchmark_env.py --config configs/benchmark/fast_env_v2.yaml --env-count 8 --rounds 16 --output /tmp/fc_vecenv_bench.json`
+- `uv run python scripts/benchmark_train.py --config configs/benchmark/fast_train_v2.yaml --env-count 2 --total-timesteps 8 --logging-modes disabled,standard --output /tmp/fc_train_bench.json`
 - `uv run python scripts/run_acceptance_gate.py --output-dir /tmp/rl-acceptance`
 - `.github/workflows/benchmarks.yml` on a self-hosted Linux runner with the sibling workspace repos present
 - `.github/workflows/acceptance.yml` on a self-hosted Linux runner with the sibling workspace repos present
+- default backend selection is documented in [docs/default_backend_selection.md](./docs/default_backend_selection.md)
 
 ## PR3 Runtime Prerequisites
 
@@ -84,7 +101,6 @@ The correctness wrapper currently needs both:
 
 - a packaged headless sim artifact under `/home/jordan/code/fight-caves-RL/game/build/distributions/fight-caves-headless*.zip`
 - the checked-out sim workspace root with:
-  - `/home/jordan/code/fight-caves-RL/FCspec.md`
   - `/home/jordan/code/fight-caves-RL/config/headless_data_allowlist.toml`
   - `/home/jordan/code/fight-caves-RL/config/headless_manifest.toml`
   - `/home/jordan/code/fight-caves-RL/config/headless_scripts.txt`
@@ -128,7 +144,7 @@ PR5 established the first end-to-end PufferLib smoke loop on top of the correctn
 source /home/jordan/code/.workspace-env.sh
 cd /home/jordan/code/RL
 uv run python scripts/train.py --output /tmp/fc_train.json
-uv run python scripts/replay_eval.py --checkpoint "$(python - <<'PY'\nimport json\nprint(json.load(open('/tmp/fc_train.json'))['checkpoint_path'])\nPY)" --output /tmp/fc_eval.json
+uv run python scripts/run_demo_backend.py --mode live_inference --checkpoint "$(python - <<'PY'\nimport json\nprint(json.load(open('/tmp/fc_train.json'))['checkpoint_path'])\nPY)"
 uv run pytest fight_caves_rl/tests/smoke -q
 ```
 
@@ -137,15 +153,17 @@ Current training-path facts:
 - RL keeps the raw sim semantics and uses the documented RL-local policy encoding:
   - `puffer_policy_observation_v1`
   - `puffer_policy_action_v0`
-- `scripts/train.py` now defaults to a subprocess-isolated vecenv worker so `PuffeRL` training does not share one process with the embedded JPype/JVM runtime
+- `scripts/train.py` now defaults to the `v2_fast` subprocess-isolated train config so `PuffeRL` training does not share one process with the embedded JPype/JVM runtime
 - the shipped embedded vecenv still lives in `fight_caves_rl/envs/vector_env.py` and remains the direct bridge path for correctness tooling and vecenv microbenchmarks
 - the subprocess training wrapper currently lives in `fight_caves_rl/envs/subprocess_vector_env.py` and preserves the PR7/PR8 batch semantics while paying Python IPC overhead
 - `pufferlib.vector.Serial` is still not used because the stock Serial backend constructs the env twice, and that double-bootstrap is incompatible with the embedded-JVM runtime selected for Mode A
-- `configs/train/train_baseline_v0.yaml` is the first repo-owned multi-env baseline config
-- `configs/benchmark/vecenv_256env_v0.yaml` plus `scripts/benchmark_env.py` are the current PR8 benchmark entrypoints
+- `configs/train/smoke_fast_v2.yaml` is the current default train-entry config
+- `configs/train/train_baseline_v0.yaml` remains the V1 bridge multi-env fallback baseline config and now pins `env_backend = v1_bridge` explicitly
+- `configs/benchmark/fast_env_v2.yaml` plus `scripts/benchmark_env.py` are the current default env benchmark entrypoints
+- `configs/benchmark/fast_train_v2.yaml` plus `scripts/benchmark_train.py` are the current default train benchmark entrypoints
 - local dashboard rendering is TTY-aware; smoke and CI subprocesses suppress terminal painting automatically while still preserving the manifest/logging contract
 - live vecenv-only smoke checks use `scripts/run_vecenv_smoke.py` so each smoke run gets a fresh embedded-JVM process
-- current local WSL performance is still far below the long-term target; see `docs/performance_plan.md` for the measured baseline gap and next optimization queue
+- current local WSL performance is still far below the long-term target; see `/home/jordan/code/pivot_plan.md` for the current hard gates and `docs/performance_decomposition_report.md` for the baseline evidence that motivated the pivot
 
 ## PR6 Run Logging
 
@@ -163,7 +181,7 @@ PR6 adds repo-owned W&B and manifest wiring on top of the PR5 smoke path.
   - a local `run_manifest.json`
   - a `wandb_run_id`
 
-`scripts/eval.py` is still retained as a compatibility alias, but `scripts/replay_eval.py` is now the canonical replay/eval entrypoint.
+`scripts/eval.py` is still retained as a compatibility alias, but `scripts/replay_eval.py` is now the canonical V1 oracle/reference replay/eval entrypoint rather than the default headed demo path.
 
 The bootstrap config now owns the local W&B directories:
 
@@ -201,6 +219,20 @@ Current PR6 implementation note:
   - explicit artifact naming/versioning
   - local-manifest and W&B config synchronization
   - W&B startup settings that suppress console/stat-monitor side effects in WSL smoke tests
+
+## Default Backends
+
+Current default backend choices are:
+
+- training default: `v2_fast`
+- headed demo/replay default: `rsps_headed`
+
+Preserved explicit fallbacks:
+
+- headed fallback/reference: `fight-caves-demo-lite`
+- replay/debug fallback: V1 oracle/reference path
+
+Use [docs/default_backend_selection.md](./docs/default_backend_selection.md) for the exact selector commands.
 
 ## PR7 Batched Bridge
 
@@ -262,7 +294,8 @@ PR10 extends eval from summary-only output into replay-grade artifact generation
 
 Current shipped replay/eval facts:
 
-- `scripts/replay_eval.py` is the canonical entrypoint
+- the default headed demo/replay selector is `scripts/run_demo_backend.py`
+- `scripts/replay_eval.py` remains the canonical V1 oracle/reference replay/eval entrypoint
 - every replay eval writes:
   - `eval_summary.json`
   - `replay_pack.json`

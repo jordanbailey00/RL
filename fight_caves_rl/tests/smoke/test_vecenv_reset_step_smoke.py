@@ -36,8 +36,10 @@ def test_vecenv_reset_step_smoke(tmp_path: Path):
     assert payload["initial_truncation_shape"] == [4]
     assert payload["teacher_action_shape"] == [4]
     assert payload["info_count"] == 4
+    assert payload["initial_nonempty_info_count"] == 0
     assert payload["agent_ids"] == [0, 1, 2, 3]
     assert payload["mask_dtype"] == "bool"
     assert payload["next_observation_shape"][0] == 4
     assert payload["next_info_count"] == 4
-    assert payload["next_events"] == ["step", "step", "step", "step"]
+    assert payload["next_nonempty_info_count"] == 0
+    assert payload["next_events"] == []

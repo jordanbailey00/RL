@@ -56,6 +56,21 @@ class BatchStepBuffers:
     visible_target_counts: np.ndarray
 
 
+@dataclass(frozen=True)
+class VecEnvResetBuffers:
+    slot_indices: np.ndarray
+    policy_observations: np.ndarray
+
+
+@dataclass(frozen=True)
+class VecEnvStepBuffers:
+    slot_indices: np.ndarray
+    policy_observations: np.ndarray
+    rewards: np.ndarray
+    terminated: np.ndarray
+    truncated: np.ndarray
+
+
 def build_reset_buffers(results: Sequence[BatchSlotResetResult]) -> BatchResetBuffers:
     ordered = sorted(results, key=lambda result: result.slot_index)
     observations = [_policy_observation(result) for result in ordered]
@@ -81,6 +96,14 @@ def build_reset_buffers(results: Sequence[BatchSlotResetResult]) -> BatchResetBu
     )
 
 
+def build_vecenv_reset_buffers(results: Sequence[BatchSlotResetResult]) -> VecEnvResetBuffers:
+    observations = [_policy_observation(result) for result in results]
+    return VecEnvResetBuffers(
+        slot_indices=np.asarray([result.slot_index for result in results], dtype=np.int32),
+        policy_observations=np.stack(observations, axis=0).astype(np.float32, copy=False),
+    )
+
+
 def build_step_buffers(results: Sequence[BatchSlotStepResult]) -> BatchStepBuffers:
     ordered = sorted(results, key=lambda result: result.slot_index)
     observations = [_policy_observation(result) for result in ordered]
@@ -92,26 +115,26 @@ def build_step_buffers(results: Sequence[BatchSlotStepResult]) -> BatchStepBuffe
         truncated=np.asarray([bool(result.truncated) for result in ordered], dtype=np.bool_),
         action_ids=np.asarray([int(result.action.action_id) for result in ordered], dtype=np.int32),
         action_applied=np.asarray(
-            [bool(result.info["action_result"]["action_applied"]) for result in ordered],
+            [bool(result.action_result["action_applied"]) for result in ordered],
             dtype=np.bool_,
         ),
         rejection_reason_codes=np.asarray(
             [
-                REJECTION_REASON_TO_CODE[result.info["action_result"]["rejection_reason"]]
+                REJECTION_REASON_TO_CODE[result.action_result["rejection_reason"]]
                 for result in ordered
             ],
             dtype=np.int32,
         ),
         terminal_reason_codes=np.asarray(
-            [TERMINAL_REASON_TO_CODE[result.info["terminal_reason"]] for result in ordered],
+            [TERMINAL_REASON_TO_CODE[result.terminal_reason] for result in ordered],
             dtype=np.int32,
         ),
         episode_steps=np.asarray(
-            [int(result.info["episode_steps"]) for result in ordered],
+            [int(result.episode_steps) for result in ordered],
             dtype=np.int32,
         ),
         episode_returns=np.asarray(
-            [float(result.info["episode_return"]) for result in ordered],
+            [float(result.episode_return) for result in ordered],
             dtype=np.float32,
         ),
         waves=np.asarray(
@@ -123,9 +146,20 @@ def build_step_buffers(results: Sequence[BatchSlotStepResult]) -> BatchStepBuffe
             dtype=np.int32,
         ),
         visible_target_counts=np.asarray(
-            [int(result.info["visible_target_count"]) for result in ordered],
+            [int(result.visible_target_count) for result in ordered],
             dtype=np.int32,
         ),
+    )
+
+
+def build_vecenv_step_buffers(results: Sequence[BatchSlotStepResult]) -> VecEnvStepBuffers:
+    observations = [_policy_observation(result) for result in results]
+    return VecEnvStepBuffers(
+        slot_indices=np.asarray([result.slot_index for result in results], dtype=np.int32),
+        policy_observations=np.stack(observations, axis=0).astype(np.float32, copy=False),
+        rewards=np.asarray([float(result.reward) for result in results], dtype=np.float32),
+        terminated=np.asarray([bool(result.terminated) for result in results], dtype=np.bool_),
+        truncated=np.asarray([bool(result.truncated) for result in results], dtype=np.bool_),
     )
 
 

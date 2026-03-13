@@ -1,5 +1,11 @@
 # Performance Plan
 
+## Documentation Status
+
+- Status: archive candidate under `pivot_documentation_triage.md`.
+- Current authority: `pivot_plan.md` and `pivot_implementation_plan.md`.
+- Retention reason: kept temporarily for historical performance-planning context; its staged plan is superseded by the pivot.
+
 This document freezes the staged performance plan for the RL repo.
 
 ## Goal

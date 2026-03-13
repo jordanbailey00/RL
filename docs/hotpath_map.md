@@ -1,6 +1,6 @@
 # Hot Path Map
 
-Date: 2026-03-09
+Date: 2026-03-10
 
 Repos and SHAs:
 - RL: `cda7ab4104799be40ffe39f77e5a86c2e6f0eea5`
@@ -97,3 +97,47 @@ Strong facts from steady-state Python profiles:
 - nested observation construction and conversion is the primary hot-path cost on the current stack
 - the subprocess transport adds another major layer of cost on top of that
 - the current architecture is stability-first, not throughput-first
+
+## WC-P2-10 Trainer Instrumentation Overlay
+
+The current local Phase 2 trainer instrumentation adds named buckets inside the benchmark-safe trainer path.
+
+Production-fast-path core runner (`16 / 64 env`) now exposes:
+
+- runner stages:
+  - `evaluate_seconds`
+  - `train_seconds`
+  - `final_evaluate_seconds`
+  - `vecenv_build_seconds`
+  - `policy_build_seconds`
+  - `trainer_init_seconds`
+  - `close_seconds`
+- trainer buckets:
+  - `eval_env_recv`
+  - `eval_tensor_copy`
+  - `eval_policy_forward`
+  - `eval_rollout_write`
+  - `eval_action_to_numpy`
+  - `eval_info_stats`
+  - `eval_env_send`
+  - `eval_reset_state`
+  - `train_advantage`
+  - `train_minibatch_prepare`
+  - `train_policy_forward`
+  - `train_loss_compute`
+  - `train_backward`
+  - `train_optimizer_step`
+  - `train_scheduler`
+  - `train_done_cleanup`
+
+Current local ranking:
+
+- biggest evaluate bucket: `eval_policy_forward`
+- second evaluate bucket: `eval_env_recv`
+- biggest train bucket: `train_backward`
+- second train bucket: `train_policy_forward`
+
+Current implication:
+
+- after Phase 1, the hot path has shifted from raw observation conversion to trainer-path forward/backward structure
+- the next trainer redesign spike should target the current evaluate/update loop shape, not `info` aggregation or tensor-copy microtuning first

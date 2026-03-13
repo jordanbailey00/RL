@@ -29,6 +29,9 @@ def test_launcher_discovers_globbed_distribution_and_extracts_jar(tmp_path: Path
 
     handshake = build_bridge_handshake(paths)
     assert handshake.values["sim_artifact_path"].endswith("fight-caves-headless-dev.zip")
+    assert handshake.values["batch_apply_actions_api"] == "applyActionsBatch"
+    assert handshake.values["batch_observe_flat_api"] == "observeFlatBatch"
+    assert handshake.values["batch_flat_observation_layout"] == "env_major_contiguous_float32"
 
 
 def test_launcher_preflight_fails_fast_when_cache_is_missing(tmp_path: Path):
@@ -49,7 +52,6 @@ def _make_sim_repo(root: Path, with_cache: bool) -> Path:
     (sim_repo / "temp" / "data" / "test-saves").mkdir(parents=True)
     (sim_repo / "temp" / "data" / "test-logs").mkdir(parents=True)
     (sim_repo / "temp" / "data" / "test-errors").mkdir(parents=True)
-    (sim_repo / "FCspec.md").write_text("# FCspec", encoding="utf-8")
     for name in (
         "headless_data_allowlist.toml",
         "headless_manifest.toml",

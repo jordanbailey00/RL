@@ -16,7 +16,7 @@ PHASE0_TRAIN_ENV_COUNTS = (4, 16, 64)
 class Phase0GateStatus:
     benchmark_host_class: str
     performance_source_of_truth: bool
-    native_linux_source_of_truth: bool
+    benchmark_source_of_truth: bool
     clean_pure_jvm_artifact_present: bool
     clean_batched_headless_artifact_present: bool
     bridge_rows_complete: bool
@@ -63,7 +63,7 @@ def evaluate_phase0_gate(
     runtime_metadata = dict(sim_report.get("runtime_metadata", {}))
     host_class = str(runtime_metadata.get("host_class", "unknown"))
     performance_source_of_truth = bool(runtime_metadata.get("performance_source_of_truth", False))
-    native_linux_source_of_truth = host_class == "linux_native" and performance_source_of_truth
+    benchmark_source_of_truth = performance_source_of_truth
 
     per_worker_payload = dict(sim_report.get("per_worker_ceiling", {}))
     per_worker_env_steps_per_second = _optional_float(
@@ -84,8 +84,8 @@ def evaluate_phase0_gate(
     train_rows_complete = _rows_complete(train_reports, PHASE0_TRAIN_ENV_COUNTS)
 
     blockers: list[str] = []
-    if not native_linux_source_of_truth:
-        blockers.append("native_linux_source_of_truth_missing")
+    if not benchmark_source_of_truth:
+        blockers.append("benchmark_source_of_truth_missing")
     if not clean_pure_jvm_artifact_present:
         blockers.append("clean_pure_jvm_artifact_missing")
     if not clean_batched_headless_artifact_present:
@@ -100,7 +100,7 @@ def evaluate_phase0_gate(
     return Phase0GateStatus(
         benchmark_host_class=host_class,
         performance_source_of_truth=performance_source_of_truth,
-        native_linux_source_of_truth=native_linux_source_of_truth,
+        benchmark_source_of_truth=benchmark_source_of_truth,
         clean_pure_jvm_artifact_present=clean_pure_jvm_artifact_present,
         clean_batched_headless_artifact_present=clean_batched_headless_artifact_present,
         bridge_rows_complete=bridge_rows_complete,

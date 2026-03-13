@@ -1,14 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 import pufferlib
 import pufferlib.vector
 
+from fight_caves_rl.benchmarks.instrumentation import (
+    BucketInstrumentation,
+    InstrumentationSnapshot,
+)
 from fight_caves_rl.bridge.batch_client import BatchClientConfig, HeadlessBatchClient
-from fight_caves_rl.bridge.buffers import build_reset_buffers, build_step_buffers
+from fight_caves_rl.bridge.buffers import (
+    build_reset_buffers,
+    build_step_buffers,
+    build_vecenv_reset_buffers,
+    build_vecenv_step_buffers,
+)
 from fight_caves_rl.bridge.contracts import HeadlessBootstrapConfig
 from fight_caves_rl.envs.action_mapping import NormalizedAction
 from fight_caves_rl.envs.observation_views import (
@@ -41,7 +51,8 @@ class HeadlessBatchVecEnvConfig:
     sharks: int = 20
     tick_cap: int = 20_000
     include_future_leakage: bool = False
-    info_payload_mode: str = INFO_PAYLOAD_MODE_FULL
+    info_payload_mode: str = INFO_PAYLOAD_MODE_MINIMAL
+    instrumentation_enabled: bool = False
     bootstrap: HeadlessBootstrapConfig = field(default_factory=HeadlessBootstrapConfig)
     reset_options_provider: ResetOptionsProvider | None = None
 
@@ -75,9 +86,14 @@ class HeadlessBatchVecEnv:
                 sharks=int(config.sharks),
                 tick_cap=int(config.tick_cap),
                 include_future_leakage=bool(config.include_future_leakage),
+                info_payload_mode=str(config.info_payload_mode),
+                instrumentation_enabled=bool(config.instrumentation_enabled),
                 bootstrap=config.bootstrap,
             ),
             reward_fn=reward_fn,
+        )
+        self._instrumentation = (
+            BucketInstrumentation() if bool(config.instrumentation_enabled) else None
         )
         self.driver_env = self
         self.agents_per_batch = int(config.env_count)
@@ -113,26 +129,50 @@ class HeadlessBatchVecEnv:
     def episode_counts(self) -> np.ndarray:
         return self._episodes_started.copy()
 
+    def instrumentation_snapshot(self) -> InstrumentationSnapshot:
+        snapshot: InstrumentationSnapshot = {}
+        if self._instrumentation is not None:
+            snapshot.update(self._instrumentation.snapshot())
+        snapshot.update(self.client.instrumentation_snapshot())
+        return snapshot
+
+    def reset_instrumentation(self) -> None:
+        if self._instrumentation is not None:
+            self._instrumentation.clear()
+        self.client.reset_instrumentation()
+
     def async_reset(self, seed: int | None = None) -> None:
+        stage_started = perf_counter()
         self.flag = pufferlib.vector.RECV
         self._seed_base = None if seed is None else int(seed)
         self._episodes_started.fill(0)
         slot_indices = tuple(range(self.num_agents))
+        bucket_started = perf_counter()
         response = self.client.reset_batch(
             seeds=self._allocate_seeds(slot_indices),
             options=self._build_reset_options(slot_indices),
         )
+        self._record_instrumentation("vecenv_reset_batch_call", perf_counter() - bucket_started)
+        bucket_started = perf_counter()
         self._apply_reset_response(response.results)
+        self._record_instrumentation("vecenv_apply_reset_buffers", perf_counter() - bucket_started)
+        bucket_started = perf_counter()
         self._record_episode_starts(slot_indices)
+        self._record_instrumentation("vecenv_record_episode_starts", perf_counter() - bucket_started)
         if self._use_minimal_infos():
             self.infos = list(self._minimal_infos)
+            self._record_instrumentation("vecenv_async_reset_total", perf_counter() - stage_started)
             return
+        bucket_started = perf_counter()
         self.infos = [
             self._build_reset_info(result)
             for result in sorted(response.results, key=lambda result: int(result.slot_index))
         ]
+        self._record_instrumentation("vecenv_build_reset_infos", perf_counter() - bucket_started)
+        self._record_instrumentation("vecenv_async_reset_total", perf_counter() - stage_started)
 
     def send(self, actions: np.ndarray) -> None:
+        stage_started = perf_counter()
         if not actions.flags.contiguous:
             actions = np.ascontiguousarray(actions)
 
@@ -142,41 +182,61 @@ class HeadlessBatchVecEnv:
         else:
             ordered_infos = [{} for _ in range(self.num_agents)]
 
+        bucket_started = perf_counter()
         done_indices = tuple(
             int(index) for index in np.flatnonzero(np.logical_or(self.terminals, self.truncations))
         )
+        self._record_instrumentation("vecenv_done_index_scan", perf_counter() - bucket_started)
         if done_indices:
+            bucket_started = perf_counter()
             reset_response = self.client.reset_batch(
                 slot_indices=done_indices,
                 seeds=self._allocate_seeds(done_indices),
                 options=self._build_reset_options(done_indices),
             )
+            self._record_instrumentation("vecenv_done_reset_batch", perf_counter() - bucket_started)
+            bucket_started = perf_counter()
             self._apply_reset_response(reset_response.results)
+            self._record_instrumentation("vecenv_apply_reset_buffers", perf_counter() - bucket_started)
+            bucket_started = perf_counter()
             self._record_episode_starts(done_indices)
+            self._record_instrumentation("vecenv_record_episode_starts", perf_counter() - bucket_started)
             if not self._use_minimal_infos():
+                bucket_started = perf_counter()
                 for result in reset_response.results:
                     ordered_infos[int(result.slot_index)] = self._build_reset_info(result)
+                self._record_instrumentation("vecenv_build_reset_infos", perf_counter() - bucket_started)
 
         active_indices = tuple(index for index in range(self.num_agents) if index not in done_indices)
         if active_indices:
+            bucket_started = perf_counter()
             normalized_actions = [
                 self._decode_joint_action(actions[int(slot_index)])
                 for slot_index in active_indices
             ]
+            self._record_instrumentation("vecenv_python_action_decode", perf_counter() - bucket_started)
+            bucket_started = perf_counter()
             step_response = self.client.step_batch(
                 normalized_actions,
                 slot_indices=active_indices,
             )
+            self._record_instrumentation("vecenv_step_batch_call", perf_counter() - bucket_started)
+            bucket_started = perf_counter()
             self._apply_step_response(step_response.results, joint_actions=actions)
+            self._record_instrumentation("vecenv_apply_step_buffers", perf_counter() - bucket_started)
             if not self._use_minimal_infos():
+                bucket_started = perf_counter()
                 for result in step_response.results:
                     ordered_infos[int(result.slot_index)] = self._build_step_info(result)
+                self._record_instrumentation("vecenv_build_step_infos", perf_counter() - bucket_started)
 
         self.infos = ordered_infos
+        self._record_instrumentation("vecenv_send_total", perf_counter() - stage_started)
 
     def recv(self):
+        stage_started = perf_counter()
         pufferlib.vector.recv_precheck(self)
-        return (
+        transition = (
             self.observations,
             self.rewards,
             self.terminals,
@@ -186,6 +246,8 @@ class HeadlessBatchVecEnv:
             self.agent_ids,
             self.masks,
         )
+        self._record_instrumentation("vecenv_recv_total", perf_counter() - stage_started)
+        return transition
 
     def notify(self) -> None:
         return None
@@ -223,7 +285,11 @@ class HeadlessBatchVecEnv:
             self._episodes_started[int(slot_index)] += 1
 
     def _apply_reset_response(self, results: Sequence[Any]) -> None:
-        buffers = build_reset_buffers(results)
+        buffers = (
+            build_vecenv_reset_buffers(results)
+            if self._use_minimal_infos()
+            else build_reset_buffers(results)
+        )
         self.observations[buffers.slot_indices] = buffers.policy_observations
         self.rewards[buffers.slot_indices] = 0.0
         self.terminals[buffers.slot_indices] = False
@@ -237,7 +303,11 @@ class HeadlessBatchVecEnv:
         *,
         joint_actions: np.ndarray,
     ) -> None:
-        buffers = build_step_buffers(results)
+        buffers = (
+            build_vecenv_step_buffers(results)
+            if self._use_minimal_infos()
+            else build_step_buffers(results)
+        )
         self.observations[buffers.slot_indices] = buffers.policy_observations
         self.rewards[buffers.slot_indices] = buffers.rewards
         self.terminals[buffers.slot_indices] = buffers.terminated
@@ -246,7 +316,7 @@ class HeadlessBatchVecEnv:
         self.actions[buffers.slot_indices] = joint_actions[buffers.slot_indices]
 
     def _decode_joint_action(self, action: np.ndarray) -> NormalizedAction:
-        return decode_action_from_policy(np.asarray(action, dtype=np.int64))
+        return decode_action_from_policy(action)
 
     def _use_minimal_infos(self) -> bool:
         return str(self.config.info_payload_mode) == INFO_PAYLOAD_MODE_MINIMAL
@@ -263,11 +333,11 @@ class HeadlessBatchVecEnv:
         }
 
     def _build_step_info(self, result: Any) -> dict[str, Any]:
-        action_result = dict(result.info["action_result"])
+        action_result = dict(result.action_result)
         return {
             "slot_index": int(result.slot_index),
             "action_id": int(result.action.action_id),
-            "visible_target_count": int(result.info["visible_target_count"]),
+            "visible_target_count": int(result.visible_target_count),
             "wave": observation_wave(
                 result.flat_observation if result.flat_observation is not None else result.observation
             ),
@@ -277,10 +347,15 @@ class HeadlessBatchVecEnv:
             "reward": float(result.reward),
             "action_applied": int(bool(action_result["action_applied"])),
             "rejection_reason": action_result["rejection_reason"],
-            "terminal_reason": result.info["terminal_reason"],
-            "episode_steps": int(result.info["episode_steps"]),
-            "episode_return": float(result.info["episode_return"]),
+            "terminal_reason": result.terminal_reason,
+            "episode_steps": int(result.episode_steps),
+            "episode_return": float(result.episode_return),
             "terminated": int(bool(result.terminated)),
             "truncated": int(bool(result.truncated)),
             "vecenv_event": "step",
         }
+
+    def _record_instrumentation(self, bucket: str, seconds: float) -> None:
+        if self._instrumentation is None:
+            return
+        self._instrumentation.record(bucket, seconds)

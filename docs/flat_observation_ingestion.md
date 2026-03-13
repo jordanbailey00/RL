@@ -156,7 +156,7 @@ The current hot path therefore removes:
 The current hot path still retains:
 
 - flat row unpacking for a narrow set of reward/terminal/info consumers
-- subprocess transport overhead, which remains the next Phase 2 target
+- subprocess transport overhead, plus the trainer/rollout ceiling that is now the active Phase 2 blocker after the first transport promotion attempt failed
 
 ## Manifest And Provenance Requirements
 

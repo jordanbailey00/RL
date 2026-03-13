@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from fight_caves_rl.defaults import DEFAULT_TRAIN_BENCHMARK_CONFIG_PATH
 from fight_caves_rl.benchmarks.train_bench import (
     parse_logging_modes,
     parse_runner_mode,
@@ -17,7 +18,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/benchmark/train_1024env_v0.yaml"),
+        default=DEFAULT_TRAIN_BENCHMARK_CONFIG_PATH,
     )
     parser.add_argument("--total-timesteps", type=int, default=None)
     parser.add_argument("--env-count", type=int, default=None)

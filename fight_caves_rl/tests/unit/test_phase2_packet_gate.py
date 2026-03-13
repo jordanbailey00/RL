@@ -34,19 +34,39 @@ def _train_reports(
     return {
         (PIPE_PICKLE_TRANSPORT_MODE, 16): {
             "context": {"hardware_profile": {"host_class": "linux_native"}},
-            "measurements": [{"logging_mode": "disabled", "env_steps_per_second": pipe_16}],
+            "measurements": [
+                {
+                    "logging_mode": "disabled",
+                    "production_env_steps_per_second": pipe_16,
+                }
+            ],
         },
         (SHARED_MEMORY_TRANSPORT_MODE, 16): {
             "context": {"hardware_profile": {"host_class": "linux_native"}},
-            "measurements": [{"logging_mode": "disabled", "env_steps_per_second": shared_16}],
+            "measurements": [
+                {
+                    "logging_mode": "disabled",
+                    "production_env_steps_per_second": shared_16,
+                }
+            ],
         },
         (PIPE_PICKLE_TRANSPORT_MODE, 64): {
             "context": {"hardware_profile": {"host_class": "linux_native"}},
-            "measurements": [{"logging_mode": "disabled", "env_steps_per_second": pipe_64}],
+            "measurements": [
+                {
+                    "logging_mode": "disabled",
+                    "production_env_steps_per_second": pipe_64,
+                }
+            ],
         },
         (SHARED_MEMORY_TRANSPORT_MODE, 64): {
             "context": {"hardware_profile": {"host_class": "linux_native"}},
-            "measurements": [{"logging_mode": "disabled", "env_steps_per_second": shared_64}],
+            "measurements": [
+                {
+                    "logging_mode": "disabled",
+                    "production_env_steps_per_second": shared_64,
+                }
+            ],
         },
     }
 
@@ -84,3 +104,30 @@ def test_phase2_gate_unblocks_when_transport_and_train_signals_clear_thresholds(
     assert gate.scaling_signal_strong_enough is True
     assert gate.wc_p2_03_unblocked is True
     assert gate.blockers == ()
+
+
+def test_phase2_gate_accepts_legacy_train_metric_field():
+    gate = evaluate_phase2_gate(
+        transport_reports=_transport_report("linux_native", pipe_64=8000.0, shared_64=10400.0),
+        train_reports={
+            (PIPE_PICKLE_TRANSPORT_MODE, 16): {
+                "context": {"hardware_profile": {"host_class": "linux_native"}},
+                "measurements": [{"logging_mode": "disabled", "env_steps_per_second": 400.0}],
+            },
+            (SHARED_MEMORY_TRANSPORT_MODE, 16): {
+                "context": {"hardware_profile": {"host_class": "linux_native"}},
+                "measurements": [{"logging_mode": "disabled", "env_steps_per_second": 450.0}],
+            },
+            (PIPE_PICKLE_TRANSPORT_MODE, 64): {
+                "context": {"hardware_profile": {"host_class": "linux_native"}},
+                "measurements": [{"logging_mode": "disabled", "env_steps_per_second": 600.0}],
+            },
+            (SHARED_MEMORY_TRANSPORT_MODE, 64): {
+                "context": {"hardware_profile": {"host_class": "linux_native"}},
+                "measurements": [{"logging_mode": "disabled", "env_steps_per_second": 900.0}],
+            },
+        },
+    )
+
+    assert gate.train_signal_strong_enough is True
+    assert gate.scaling_signal_strong_enough is True

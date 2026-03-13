@@ -47,7 +47,10 @@ def collect_trajectory(mode: str, trace_pack: TracePack, seed: int) -> dict[str,
 
 
 def collect_wrapper_trajectory(trace_pack: TracePack, seed: int) -> dict[str, Any]:
-    env = FightCavesCorrectnessEnv(CorrectnessEnvConfig(start_wave=trace_pack.start_wave))
+    tick_cap = int(trace_pack.tick_cap if trace_pack.tick_cap is not None else 20_000)
+    env = FightCavesCorrectnessEnv(
+        CorrectnessEnvConfig(start_wave=trace_pack.start_wave, tick_cap=tick_cap)
+    )
     try:
         initial_observation, reset_info = env.reset(seed=seed)
         episode_start_tick = int(initial_observation["tick"])
@@ -96,6 +99,7 @@ def collect_wrapper_trajectory(trace_pack: TracePack, seed: int) -> dict[str, An
 
 
 def collect_raw_trajectory(trace_pack: TracePack, seed: int) -> dict[str, Any]:
+    tick_cap = int(trace_pack.tick_cap if trace_pack.tick_cap is not None else 20_000)
     client = HeadlessDebugClient.create()
     player = client.create_player_slot(HeadlessPlayerConfig(account_name="rl_raw_trajectory"))
     try:
@@ -113,7 +117,7 @@ def collect_raw_trajectory(trace_pack: TracePack, seed: int) -> dict[str, Any]:
             terminated, truncated, terminal_reason = infer_terminal_state(
                 observation=snapshot.observation,
                 episode_start_tick=episode_start_tick,
-                tick_cap=20_000,
+                tick_cap=tick_cap,
             )
             steps.append(
                 {

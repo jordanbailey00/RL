@@ -12,7 +12,8 @@ from fight_caves_rl.utils.paths import repo_root
 @dataclass(frozen=True)
 class CurriculumStage:
     until_episode: int | None
-    start_wave: int
+    start_wave: int | None = None
+    start_waves: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,10 @@ def load_curriculum_config(config_id: str) -> CurriculumConfig:
     schedule = tuple(
         CurriculumStage(
             until_episode=None if stage.get("until_episode") is None else int(stage["until_episode"]),
-            start_wave=int(stage["start_wave"]),
+            start_wave=(
+                None if stage.get("start_wave") is None else int(stage["start_wave"])
+            ),
+            start_waves=tuple(int(value) for value in stage.get("start_waves", ())),
         )
         for stage in payload.get("schedule", ())
     )
@@ -54,6 +58,10 @@ def build_curriculum(config_id: str) -> CurriculumPolicy:
 
         return build_curriculum(config)
     if config.config_id == "curriculum_wave_progression_v0":
+        from fight_caves_rl.curriculum.curriculum_wave_progression_v0 import build_curriculum
+
+        return build_curriculum(config)
+    if config.config_id == "curriculum_wave_progression_v2":
         from fight_caves_rl.curriculum.curriculum_wave_progression_v0 import build_curriculum
 
         return build_curriculum(config)

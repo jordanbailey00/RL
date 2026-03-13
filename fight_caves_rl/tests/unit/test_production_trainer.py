@@ -131,7 +131,9 @@ def test_run_train_benchmark_supports_prototype_runner(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(
         "fight_caves_rl.benchmarks.train_bench.make_vecenv",
-        lambda cfg, backend="subprocess": _FakeVecEnv(int(cfg["num_envs"])),
+        lambda cfg, backend="subprocess", instrumentation_enabled=False: _FakeVecEnv(
+            int(cfg["num_envs"])
+        ),
     )
     monkeypatch.setattr(
         "fight_caves_rl.benchmarks.train_bench.build_benchmark_context",
@@ -199,3 +201,5 @@ def test_run_train_benchmark_supports_prototype_runner(tmp_path: Path, monkeypat
     assert measurement.production_env_steps_per_second > 0.0
     assert "rollout_policy_forward" in measurement.trainer_bucket_totals
     assert "update_policy_forward" in measurement.trainer_bucket_totals
+    assert measurement.env_hot_path_bucket_totals == {}
+    assert measurement.memory_profile["combined_peak_rss_kib"] >= 0

@@ -12,7 +12,11 @@ from typing import Any
 
 import numpy as np
 
-from fight_caves_rl.benchmarks.common import BenchmarkContext, build_benchmark_context
+from fight_caves_rl.benchmarks.common import (
+    BenchmarkContext,
+    build_benchmark_context,
+    capture_peak_memory_profile,
+)
 from fight_caves_rl.puffer.factory import (
     build_policy_episode_env,
     load_smoke_train_config,
@@ -30,6 +34,10 @@ class EnvBenchmarkMeasurement:
     elapsed_nanos: int
     env_steps_per_second: float
     tick_rounds_per_second: float
+    runner_stage_seconds: dict[str, float]
+    hot_path_bucket_totals: dict[str, dict[str, float | int]]
+    memory_profile: dict[str, int]
+    vecenv_topology: dict[str, Any]
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -144,8 +152,10 @@ def _run_wrapper_measurement(
     try:
         zero_action = np.zeros(len(envs[0].action_space.nvec), dtype=np.int32)
         seed_base = int(config["train"]["seed"])
+        reset_started = perf_counter_ns()
         for slot_index, env in enumerate(envs):
             env.reset(seed=seed_base + slot_index)
+        reset_elapsed_nanos = perf_counter_ns() - reset_started
 
         started = perf_counter_ns()
         for _ in range(rounds):
@@ -161,6 +171,14 @@ def _run_wrapper_measurement(
             rounds=rounds,
             total_env_steps=total_env_steps,
             elapsed_nanos=elapsed_nanos,
+            runner_stage_seconds={
+                "reset_seconds": reset_elapsed_nanos / 1_000_000_000.0,
+                "measurement_seconds": elapsed_nanos / 1_000_000_000.0,
+                "close_seconds": 0.0,
+            },
+            hot_path_bucket_totals={},
+            memory_profile=capture_peak_memory_profile(),
+            vecenv_topology={},
         )
     finally:
         for env in envs:
@@ -173,18 +191,30 @@ def _run_vecenv_measurement(
     rounds: int,
     warmup_rounds: int,
 ) -> EnvBenchmarkMeasurement:
-    vecenv = make_vecenv(config, backend="embedded")
+    benchmark_config = dict(config.get("benchmark", {}))
+    vecenv_backend = str(benchmark_config.get("vecenv_backend", "embedded"))
+    vecenv = make_vecenv(config, backend=vecenv_backend, instrumentation_enabled=True)
     try:
         seed = int(config["train"]["seed"])
+        vecenv_topology = (
+            dict(vecenv.topology_snapshot())
+            if hasattr(vecenv, "topology_snapshot")
+            else {"backend": vecenv_backend}
+        )
         zero_action = np.zeros(
             (int(config["num_envs"]), len(vecenv.single_action_space.nvec)),
             dtype=np.int32,
         )
+        reset_started = perf_counter_ns()
         vecenv.async_reset(seed)
         vecenv.recv()
+        reset_elapsed_nanos = perf_counter_ns() - reset_started
+        warmup_started = perf_counter_ns()
         for _ in range(warmup_rounds):
             vecenv.send(zero_action)
             vecenv.recv()
+        warmup_elapsed_nanos = perf_counter_ns() - warmup_started
+        vecenv.reset_instrumentation()
 
         started = perf_counter_ns()
         for _ in range(rounds):
@@ -198,6 +228,15 @@ def _run_vecenv_measurement(
             rounds=rounds,
             total_env_steps=total_env_steps,
             elapsed_nanos=elapsed_nanos,
+            runner_stage_seconds={
+                "reset_seconds": reset_elapsed_nanos / 1_000_000_000.0,
+                "warmup_seconds": warmup_elapsed_nanos / 1_000_000_000.0,
+                "measurement_seconds": elapsed_nanos / 1_000_000_000.0,
+                "close_seconds": 0.0,
+            },
+            hot_path_bucket_totals=vecenv.instrumentation_snapshot(),
+            memory_profile=capture_peak_memory_profile(),
+            vecenv_topology=vecenv_topology,
         )
     finally:
         vecenv.close()
@@ -210,6 +249,10 @@ def _build_measurement(
     rounds: int,
     total_env_steps: int,
     elapsed_nanos: int,
+    runner_stage_seconds: dict[str, float],
+    hot_path_bucket_totals: dict[str, dict[str, float | int]],
+    memory_profile: dict[str, int],
+    vecenv_topology: dict[str, Any],
 ) -> EnvBenchmarkMeasurement:
     return EnvBenchmarkMeasurement(
         label=label,
@@ -225,6 +268,10 @@ def _build_measurement(
         tick_rounds_per_second=(
             0.0 if elapsed_nanos <= 0 else rounds * 1_000_000_000.0 / float(elapsed_nanos)
         ),
+        runner_stage_seconds=dict(runner_stage_seconds),
+        hot_path_bucket_totals=dict(hot_path_bucket_totals),
+        memory_profile=dict(memory_profile),
+        vecenv_topology=dict(vecenv_topology),
     )
 
 

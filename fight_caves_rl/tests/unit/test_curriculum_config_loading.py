@@ -22,3 +22,19 @@ def test_wave_progression_curriculum_applies_expected_schedule():
     assert curriculum.reset_overrides(slot_index=0, episode_index=8) == {"start_wave": 8}
     assert curriculum.reset_overrides(slot_index=0, episode_index=15) == {"start_wave": 8}
     assert curriculum.reset_overrides(slot_index=0, episode_index=16) == {"start_wave": 31}
+
+
+def test_wave_progression_v2_curriculum_applies_mixed_schedule():
+    config = load_curriculum_config("curriculum_wave_progression_v2")
+    curriculum = build_curriculum("curriculum_wave_progression_v2")
+
+    assert config.enabled is True
+    assert config.mode == "wave_progression"
+    assert len(config.schedule) == 6
+    assert curriculum.reset_overrides(slot_index=0, episode_index=0) == {"start_wave": 1}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=8) == {"start_wave": 16}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=16) == {"start_wave": 31}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=24) == {"start_wave": 62}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=40) == {"start_wave": 1}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=41) == {"start_wave": 62}
+    assert curriculum.reset_overrides(slot_index=0, episode_index=42) == {"start_wave": 1}

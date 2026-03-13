@@ -21,6 +21,22 @@ This is a strict spec:
 Primary acceptance target:
 - a fully functioning RL module that can train against the headless Fight Caves sim through PufferLib, with deterministic evaluation, full experiment analytics, replay artifacts, parity canaries, and a performance path designed to reach **>= 1,000,000 env steps/sec minimum** under the defined performance configuration
 
+## 0.1) Workspace Pivot Authority
+
+Current workspace authority is split across:
+- `/home/jordan/code/pivot_plan.md` for the pivot architecture
+- `/home/jordan/code/pivot_implementation_plan.md` for the phased execution plan
+- `RLspec.md` for the RL module boundary and ownership contract
+
+Under the pivot:
+- the current simulator-backed path is V1 oracle/reference/debug
+- the RSPS-backed headed demo/replay path is the default headed target
+- `fight-caves-demo-lite` is frozen fallback/reference only
+- V2 fast headless training is the default training direction
+- parity is defined as **mechanics parity**, not full engine/runtime parity
+- all agent-driven implementation, scripts, benchmarks, and runtime commands assume WSL/Linux as the canonical execution environment
+- Linux paths are canonical; Windows-native path semantics and PowerShell must not drive active implementation docs
+
 ---
 
 ## 1) Repository Reality and Workspace Layout
@@ -30,7 +46,7 @@ The workspace is intentionally multi-repo. The repositories are peers, not neste
 ### 1.1 Workspace layout
 
 ```text
-\wsl$\Ubuntu\home\jordan\code
+/home/jordan/code
   fight-caves-RL/          # headless simulator (golden runtime)
   RSPS/                    # headed/oracle RSPS
   RL/                      # RL module (this spec)
@@ -302,7 +318,7 @@ Required docs:
 - `docs/action_mapping.md`
 - `docs/reward_configs.md`
 - `docs/eval_and_replay.md`
-- `docs/performance_plan.md`
+- `docs/runtime_topology.md`
 - `docs/wandb_logging_contract.md`
 - `docs/parity_canaries.md`
 - `docs/run_manifest.md`
@@ -887,7 +903,7 @@ Replay generation must be deterministic for fixed:
 
 Current implementation note:
 - the shipped replay/eval path now writes `eval_summary.json`, `replay_pack.json`, `replay_index.json`, and `run_manifest.json`
-- `scripts/replay_eval.py` is the canonical replay/eval entrypoint and `scripts/eval.py` is retained as a compatibility alias
+- `scripts/replay_eval.py` is the canonical V1 oracle/reference replay/eval entrypoint and `scripts/eval.py` is retained as a compatibility alias
 - `replay_step_cadence` is the current repo-owned control for replay payload density and must not change eval semantics
 
 ---
@@ -1089,7 +1105,7 @@ Current implementation note:
 - training benchmark measurements run in fresh child `train.py` subprocesses per logging mode
 - the current PR11 training benchmark keeps replay disabled while isolating bridge, vecenv, trainer, and W&B logging overhead
 - post-MVP stability remediation (2026-03-08) now requires `train.py` itself to use a subprocess-isolated vecenv worker rather than the direct embedded-JVM vecenv
-- current measured local baselines remain far below the target path to `>= 1,000,000 env steps/sec`; see `docs/performance_plan.md` for the recorded gap and required next optimizations
+- current measured local baselines remain far below the target path to `>= 1,000,000 env steps/sec`; see `/home/jordan/code/pivot_plan.md` for the current hard gates and `docs/performance_decomposition_report.md` for the pre-pivot baseline evidence
 
 ---
 
@@ -1392,7 +1408,7 @@ Required action items:
 5. document bottlenecks and improvements
 
 Required artifacts:
-- `docs/performance_plan.md`
+- `docs/performance_decomposition_report.md`
 - benchmark result logs
 - hardware-specific benchmark manifests
 

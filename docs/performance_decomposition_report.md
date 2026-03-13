@@ -9,46 +9,150 @@ Repos and SHAs:
 
 This report decomposes the current stack into separate layers and records the measurements collected in this audit pass. Facts and hypotheses are separated explicitly.
 
-## Phase 1 Implementation Preview
+## Phase 1 Benchmark Contract Refresh
 
-The active Phase 1 implementation batch is no longer design-only.
+Phase 1 now freezes the benchmark output shape needed for the pivot baseline pass.
 
-Current local WSL Phase 1 packet at `/tmp/fc_phase1_packet_local/phase1_packet.json` shows:
+Canonical WSL refresh commands:
 
-- bridge `64 env`: `11936.49` env/s
-- vecenv `64 env`: `7336.43` env/s
+```bash
+source /home/jordan/code/.workspace-env.sh
+cd /home/jordan/code/RL
+uv run python scripts/benchmark_env.py --config configs/benchmark/vecenv_256env_v0.yaml --env-count 64 --rounds 64 --output /tmp/fc_phase1_env_benchmark.json
+uv run python scripts/benchmark_train.py --config configs/benchmark/train_1024env_v0.yaml --env-count 16 --total-timesteps 1024 --logging-modes disabled,standard --output /tmp/fc_phase1_train_benchmark.json
+```
+
+Frozen benchmark fields now expected from this worktree:
+
+- `benchmark_env.py`
+  - `wrapper.env_steps_per_second`
+  - `measurement.env_steps_per_second`
+  - `measurement.runner_stage_seconds`
+  - `measurement.hot_path_bucket_totals`
+  - `measurement.memory_profile`
+- `benchmark_train.py`
+  - `measurements[*].production_env_steps_per_second`
+  - `measurements[*].wall_clock_env_steps_per_second`
+  - `measurements[*].runner_stage_seconds`
+  - `measurements[*].trainer_bucket_totals`
+  - `measurements[*].memory_profile`
+
+Interpretation rule:
+
+- `trainer_bucket_totals` explains trainer-side evaluate/train cost.
+- exact bridge-first env hot-path buckets live in the env-only benchmark output.
+- `memory_profile` is recorded from the active WSL/Linux process tree and is part of the baseline artifact.
+
+Status note:
+
+- The code in this worktree now emits the Phase 1 fields above.
+- WSL is now the approved source-of-truth benchmark host for this workspace pivot.
+- Earlier native-Linux sections below are historical snapshots from the pre-WSL rule and should not be used as the current decision gate.
+
+## Phase 4.2 Async Measurement Surface
+
+The async V2 subprocess path is now benchmark-addressable through:
+
+- `configs/benchmark/fast_env_v2.yaml`
+- `configs/benchmark/fast_train_v2.yaml`
+
+The benchmark outputs now carry a `vecenv_topology` block so the measurement records:
+
+- whether the run used `embedded` or `subprocess`
+- the env backend (`v1_bridge` vs `v2_fast`)
+- the transport mode (`pipe_pickle_v1` vs `shared_memory_v1` or embedded)
+- worker count
+- env partitioning across workers
+
+Interpretation rule:
+
+- PR 4.2 topology metadata exists to make the async fast path auditable
+- settled performance attribution for PR 4.2 should come from the benchmark artifacts and later approval text, not from this section alone
+
+## Active WSL Source-of-Truth Packet Rerun
+
+Captured packet directories:
+
+- Phase 0: `/tmp/fc_phase0_packet_wsl_20260310`
+- Phase 1: `/tmp/fc_phase1_packet_wsl_20260310`
+
+Phase 0 gate status from `/tmp/fc_phase0_packet_wsl_20260310/phase0_packet.json`:
+
+- host class: `wsl2`
+- benchmark source of truth: `true`
+- `phase1_unblocked = true`
+- per-worker sim env steps per second: `592546.38`
+- workers needed for `100k`: `1`
+
+Phase 0 absolute rows:
+
+- standalone sim single-slot: `27416.25` ticks/s
+- standalone sim batched `16 env`: `592546.38` env steps/s
+- bridge batch:
+  - `1 env`: `22695.17` env/s
+  - `16 env`: `11245.97` env/s
+  - `64 env`: `9616.06` env/s
+- vecenv:
+  - `1 env`: `2729.12` env/s
+  - `16 env`: `10032.00` env/s
+  - `64 env`: `13182.86` env/s
+- production train:
+  - `4 env`: `100.94` SPS
+  - `16 env`: `107.95` SPS
+  - `64 env`: `102.30` SPS
+
+Phase 0 `64 env` vecenv hot-path attribution:
+
+- `vecenv_send_total = 1.2373s`
+- `vecenv_step_batch_call = 1.0355s`
+- `client_step_batch_total = 1.0162s`
+- `client_apply_action_jvm = 0.5118s`
+- `client_collect_step_results = 0.4442s`
+- `client_flat_observe = 0.2205s`
+- `vecenv_python_action_decode = 0.0976s`
+- combined peak RSS: `646048 KiB`
+
+Phase 0 `64 env` train stage summary:
+
+- evaluate: `7.3757s`
+- train/update: `5.2481s`
+- final evaluate: `3.8226s`
+- dominant trainer buckets:
+  - `eval_policy_forward = 7.4083s`
+  - `eval_env_recv = 3.7729s`
+  - `eval_total = 11.1982s`
+- combined peak RSS: `3918780 KiB`
+
+Phase 1 packet summary from `/tmp/fc_phase1_packet_wsl_20260310/phase1_packet.json`:
+
+- host class: `wsl2`
+- benchmark source of truth: `true`
+- bridge `64 env`: `11090.51` env/s
+- vecenv `64 env`: `12402.49` env/s
 - steady-state raw object conversion still dominant: `false`
+- profile cumulative totals:
+  - `step_batch = 0.1512s`
+  - `flat_observe = 0.0614s`
+  - `raw_conversion = 0.0228s`
+  - `build_step_buffers = 0.0109s`
 
-Compared with the active Phase 0 WSL packet:
+Phase 1 `64 env` vecenv hot-path attribution:
 
-- bridge `64 env`: `1606.92 -> 11936.49` env/s, about `7.43x`
-- vecenv `64 env`: `1426.81 -> 7336.43` env/s, about `5.14x`
-
-Interpretation:
-
-- the flat-path implementation moved the correct boundary locally
-- the bridge and vecenv rows now clear the Phase 1 planning thresholds on WSL
-- the remaining decision-gate blocker is source-of-truth host class, not local measurement quality
-
-## Native-Linux Phase 1 Gate Execution
-
-The hosted native-Linux Phase 1 packet now runs end to end against an immutable pre-Phase-1 native baseline.
-
-Published native-Linux packet summary:
-
-- bridge `64 env`: `9148.80` env/s
-- vecenv `64 env`: `10961.11` env/s
-- bridge improvement ratio: `6.6397`
-- vecenv improvement ratio: `8.0101`
-- `raw_object_conversion_still_dominant = false`
-- `phase2_unblocked = true`
+- `vecenv_send_total = 1.3153s`
+- `vecenv_step_batch_call = 1.1000s`
+- `client_step_batch_total = 1.0804s`
+- `client_apply_action_jvm = 0.5346s`
+- `client_collect_step_results = 0.4779s`
+- `client_flat_observe = 0.2374s`
+- `vecenv_python_action_decode = 0.1041s`
+- combined peak RSS: `718732 KiB`
 
 Interpretation:
 
-- the Phase 1 implementation behaves correctly on the source-of-truth host class
-- the dominant Python bottleneck remains removed in the native-Linux steady-state profile
-- the clean immutable-baseline comparison clears the approved Phase 1 thresholds
-- Phase 2 is now unblocked
+- the active WSL packet now records the current absolute Phase 0 and Phase 1 baseline numbers on the approved host class
+- `raw_object_conversion_still_dominant = false` still shows that the intended Phase 1 bottleneck was removed
+- the current Phase 1 packet ratios are not decision-quality because the baseline directory was regenerated from the same post-Phase-1 worktree
+- a meaningful numeric Phase 1 gate rerun requires an immutable pre-Phase-1 WSL Phase 0 packet as the comparison baseline
 
 ## Native-Linux Phase 2 Pre-Swap Gate
 
@@ -312,7 +416,45 @@ Interpretation:
 - the next blocker is still trainer-bound, not transport-bound:
   - production scaling regresses at `64 env`
   - the shipped synchronous learner ceiling is low and also regresses at `64 env`
-- the correct post-gate move is to continue trainer redesign and keep Phase 3/topology deferred
+- at that stage, the correct post-gate move was to continue trainer redesign and keep Phase 3/topology deferred
+
+## Phase 3 PR 3.2 WSL Serial Fast-Kernel Decomposition
+
+Decision-quality WSL serial fast-kernel artifact:
+
+- summary: `/home/jordan/code/RL/artifacts/benchmarks/phase3_pr32_wsl_fast_serial_replicates_20260311/serial_replicate_summary.json`
+- comparison: `/home/jordan/code/RL/artifacts/benchmarks/phase3_pr32_wsl_fast_serial_replicates_20260311/comparison_vs_trimmed_v1_serial_baseline.json`
+- trimmed V1 serial baseline: `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr22_wsl_vecenv_serial_replicates_20260311/serial_replicate_summary.json`
+- benchmarked path: `FastFightCavesKernelRuntime.resetBatch + stepBatch + flat buffer`
+- protocol: `64` warmup rounds, `128` measured rounds, `3` serial replicates per env-count row
+
+Quantitative closure:
+
+- `16 env`: `41940.63` env-steps/s versus trimmed V1 `10145.80` (`4.13x`)
+- `64 env`: `66856.26` env-steps/s versus trimmed V1 `12934.54` (`5.17x`)
+
+Fast-kernel median stage totals:
+
+- `16 env`:
+  - `reset = 371.26ms`
+  - `apply_actions = 1.37ms`
+  - `tick = 20.78ms`
+  - `observe_flat = 17.61ms`
+  - `projection = 10.64ms`
+  - `total = 48.83ms`
+- `64 env`:
+  - `reset = 1451.30ms`
+  - `apply_actions = 2.40ms`
+  - `tick = 19.96ms`
+  - `observe_flat = 62.54ms`
+  - `projection = 37.30ms`
+  - `total = 122.53ms`
+
+Interpretation:
+
+- PR 3.2 satisfies the Phase 3 env-only throughput gate relative to the accepted trimmed V1 serial baseline
+- the dominant remaining fast-kernel costs are flat-observation emission and post-step projection work
+- action decode and batch apply are already small relative to `tick`, `observe_flat`, and projection, so the next throughput gains should come from observation/projection reduction rather than reworking the packed-action surface
 
 ## WC-P2-07 Local Trainer-Bound Reduction Preview
 
@@ -388,7 +530,8 @@ Current-host WSL packet refreshed from those entrypoints:
   - `64 env`: disabled `91.62` SPS
 
 Phase 0 gate status now has both:
-- a complete current-host WSL packet at `/tmp/fc_phase0_packet_clean/phase0_packet.json`
+- a frozen immutable pre-Phase-1 WSL packet at `/home/jordan/code/RL/artifacts/benchmarks/phase0_wsl_pre_phase1_immutable_20260309/phase0_packet.json`
+  - reconstructed from the recorded WSL Phase 0 numbers in `docs/performance_decomposition_report.md` and `changelog.md` because the original temp packet directory was not preserved
 - a hosted native-Linux source-of-truth packet published via `codex/phase0-results`
 
 Native-Linux gate summary:
@@ -404,6 +547,126 @@ Interpretation:
 - the old `8.9k` direct-sim artifact was materially under-representing the current headless runtime ceiling because it came from the older Step 11 test-harness path
 - the new clean standalone harness and native-Linux gate both make `100k+` look plausible from the sim-side ceiling perspective
 - the RL outer stack is now even more clearly the dominant current bottleneck because train SPS still sits around `92-97` while the clean batched sim report is in the `473k` env-steps/s range on the same WSL host
+
+## PR 2.1 WSL Rerun Against Frozen Pre-Phase-1 Baseline
+
+Frozen comparison baseline:
+
+- `/home/jordan/code/RL/artifacts/benchmarks/phase0_wsl_pre_phase1_immutable_20260309`
+
+Current PR 2.1 rerun artifact directory:
+
+- `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr21_wsl_rerun_20260310`
+- comparison summary:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr21_wsl_rerun_20260310/comparison_vs_phase0_wsl_pre_phase1_immutable.json`
+
+Measured rows:
+
+- vecenv:
+  - `16 env`: frozen baseline `1459.51`, PR 2.1 rerun `8112.89` env/s, `5.5586x`
+  - `64 env`: frozen baseline `1426.81`, PR 2.1 rerun `8675.26` env/s, `6.0802x`
+- disabled train:
+  - `16 env`: frozen baseline `96.53`, PR 2.1 rerun `106.23` SPS, `1.1005x`
+  - `64 env`: frozen baseline `91.62`, PR 2.1 rerun `96.59` SPS, `1.0543x`
+
+Decision:
+
+- the immutable WSL baseline provenance issue is now closed
+- PR 2.1 clears the restored historical WSL baseline on the measured vecenv and disabled-train rows
+- PR 2.1 still trails the newer current absolute WSL packet rows already recorded elsewhere in this report, especially `vecenv 64`, so the trim is not yet quantitatively closed
+- PR 2.1 was later closed for forward progress with an explicit non-blocking disposition on the remaining small-batch `16 env` residuals
+
+## PR 2.1 Tighter Serial Attribution Set
+
+Serial attribution artifact directory:
+
+- `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr21_wsl_serial_attribution_20260310`
+- summary:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr21_wsl_serial_attribution_20260310/serial_attribution_summary.json`
+
+Method:
+
+- `3` serial replicates per row
+- env rows: `vecenv 16` and `vecenv 64`
+- train rows: disabled `train 16` and disabled `train 64`
+- only serial runs were counted; concurrent rows were treated as invalid diagnostics and excluded
+
+Median results:
+
+- vecenv:
+  - `16 env`: median `8729.40` env/s, range `8454.33 - 11291.75`
+  - `64 env`: median `14898.98` env/s, range `14749.31 - 15402.48`
+- disabled train:
+  - `16 env`: median `106.59` SPS, range `105.75 - 107.51`
+  - `64 env`: median `102.14` SPS, range `101.88 - 102.45`
+
+Stage-bucket attribution highlights:
+
+- `vecenv 64` now shows a stable median win over both current WSL baseline packets
+- the median `vecenv 64` hot-path buckets improved materially relative to the Phase 1 packet:
+  - `client_info_assembly`: `0.07708s -> 0.00171s`
+  - `vecenv_apply_step_buffers`: `0.06603s -> 0.02991s`
+  - `vecenv_python_action_decode`: `0.10407s -> 0.06638s`
+- `vecenv 16` still shows enough spread that its median remains slightly below the refreshed current WSL baseline even though one run cleared it comfortably
+- disabled-train `64 env` is now effectively at parity with the refreshed current WSL Phase 0 row, while disabled-train `16 env` still carries a modest gap
+
+Updated PR 2.1 interpretation:
+
+- the stale Phase 1 gate helper is fixed and current WSL Phase 1 packets can be used as pass/fail evidence again
+- the minimal-info hot-path trims are real and now strongly visible at `64 env`
+- PR 2.1 is retained as a closed no-regret trim: the remaining `16 env` gaps were dispositioned as non-blocking small-batch residuals rather than a reason to delay PR 2.2
+
+## PR 2.2 WSL Batch Bridge Matrix
+
+Artifact directories:
+
+- full matrix:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr22_wsl_rerun_20260311`
+- comparison summary:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr22_wsl_rerun_20260311/comparison_vs_current_wsl_baselines.json`
+- serial vecenv replicate set:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr22_wsl_vecenv_serial_replicates_20260311`
+- serial vecenv replicate summary:
+  - `/home/jordan/code/RL/artifacts/benchmarks/phase2_pr22_wsl_vecenv_serial_replicates_20260311/serial_replicate_summary.json`
+
+Measured full-matrix rows:
+
+- bridge:
+  - `16 env`: `15317.40` env/s, `1.3928x` vs current WSL Phase 1
+  - `64 env`: `21120.11` env/s, `1.9043x` vs current WSL Phase 1
+- vecenv:
+  - `16 env`: `9063.86` env/s, `1.0156x` vs current WSL Phase 1
+  - `64 env`: `9310.34` env/s, `0.7507x` vs current WSL Phase 1
+- disabled train:
+  - `16 env`: `108.22` SPS, `1.0025x` vs refreshed current WSL Phase 0
+  - `64 env`: `101.34` SPS, `0.9906x` vs refreshed current WSL Phase 0
+
+Serial vecenv replicate medians used to disposition the initial env-only outlier:
+
+- `vecenv 16`: median `10145.80` env/s, range `8708.01 - 10560.16`, `1.1368x` vs current WSL Phase 1
+- `vecenv 64`: median `12934.54` env/s, range `12789.66 - 14483.25`, `1.0429x` vs current WSL Phase 1
+
+Median stage-bucket attribution from the serial vecenv replicate set:
+
+- `vecenv 16` median:
+  - `vecenv_send_total = 0.10050s`
+  - `vecenv_step_batch_call = 0.09035s`
+  - `client_apply_actions_batch_jvm = 0.03862s`
+  - `client_flat_observe_batch = 0.02163s`
+- `vecenv 64` median:
+  - `vecenv_send_total = 0.31535s`
+  - `vecenv_step_batch_call = 0.28592s`
+  - `client_apply_actions_batch_jvm = 0.15098s`
+  - `client_flat_observe_batch = 0.05419s`
+  - `vecenv_apply_step_buffers = 0.00815s`
+
+PR 2.2 interpretation:
+
+- the interim batch bridge APIs are live in both the runtime and the RL bridge wrapper
+- the bridge layer now shows a clear overhead reduction at both `16 env` and `64 env`
+- the first full-matrix `vecenv 64` run was an outlier; the follow-up serial replicate set restores the expected env-only gain at both measured env counts
+- disabled-train throughput stayed effectively flat rather than regressing materially: `16 env` is slightly above the refreshed current WSL baseline and `64 env` is only about `0.9%` below it
+- this is enough to close PR 2.2 because its target was the interim bridge/env overhead step, not the final V1 training architecture
 
 ## Summary Table
 

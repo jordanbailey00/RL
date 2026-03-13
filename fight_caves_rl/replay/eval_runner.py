@@ -12,10 +12,11 @@ from fight_caves_rl.logging.metrics import build_eval_summary_metrics
 from fight_caves_rl.logging.wandb_client import WandbRunLogger
 from fight_caves_rl.manifests.run_manifest import build_eval_run_manifest, write_run_manifest
 from fight_caves_rl.policies.checkpointing import (
+    load_checkpoint_metadata,
     load_policy_checkpoint,
     metadata_path_for_checkpoint,
 )
-from fight_caves_rl.policies.mlp import MultiDiscreteMLPPolicy
+from fight_caves_rl.policies.registry import build_policy_from_metadata
 from fight_caves_rl.puffer.factory import (
     build_policy_episode_env,
     load_replay_eval_config,
@@ -47,12 +48,13 @@ def run_replay_eval(
         tags=(str(config["config_id"]), "replay-eval"),
     )
     try:
-        policy = MultiDiscreteMLPPolicy.from_spaces(
+        checkpoint = Path(checkpoint_path)
+        metadata = load_checkpoint_metadata(checkpoint)
+        policy = build_policy_from_metadata(
+            metadata,
             build_policy_observation_space(),
             build_policy_action_space(),
-            hidden_size=128,
         )
-        checkpoint = Path(checkpoint_path)
         metadata = load_policy_checkpoint(checkpoint, policy)
         reward_config_id = (
             metadata.reward_config_id
@@ -61,9 +63,10 @@ def run_replay_eval(
         )
         curriculum_config_id = str(config.get("curriculum_config", "curriculum_disabled_v0"))
         step_cap = int(max_steps if max_steps is not None else config["max_steps"])
+        runtime_reward_config_id = _resolve_eval_runtime_reward_config(reward_config_id)
         env = build_policy_episode_env(
             {"tick_cap": step_cap},
-            reward_config_id,
+            runtime_reward_config_id,
             curriculum_config_id,
         )
         policy.eval()
@@ -92,7 +95,7 @@ def run_replay_eval(
             trajectory: list[dict[str, Any]] = []
 
             while not terminated and not truncated and step_count < step_cap:
-                action = greedy_policy_action(policy, observation)
+                action = greedy_policy_action(policy, observation, reset_state=step_count == 0)
                 observation, reward, terminated, truncated, info = env.step(action)
                 if env.last_raw_observation is None:
                     raise RuntimeError("Expected raw observation after step.")
@@ -196,6 +199,9 @@ def run_replay_eval(
             "seed_pack_version": int(seed_pack.identity.version),
             "policy_mode": str(config["policy_mode"]),
             "max_steps": step_cap,
+            "reward_config_id": reward_config_id,
+            "curriculum_config_id": curriculum_config_id,
+            "runtime_reward_config_id": runtime_reward_config_id,
             "replay_pack_schema_id": replay_pack.schema_id,
             "replay_pack_schema_version": replay_pack.schema_version,
             "replay_index_schema_id": replay_index.schema_id,
@@ -304,14 +310,29 @@ def run_replay_eval(
         logger.finish()
 
 
-def greedy_policy_action(policy: MultiDiscreteMLPPolicy, observation: np.ndarray) -> np.ndarray:
+def greedy_policy_action(policy: torch.nn.Module, observation: np.ndarray, *, reset_state: bool = False) -> np.ndarray:
     obs_tensor = torch.as_tensor(observation, dtype=torch.float32).unsqueeze(0)
+    if reset_state or not hasattr(policy, "_eval_state"):
+        policy._eval_state = None
+    state = getattr(policy, "_eval_state", None)
+    if state is None and getattr(policy, "hidden_size", None) is not None and policy.__class__.__name__.endswith("LSTMPolicy"):
+        state = {"lstm_h": None, "lstm_c": None}
     with torch.no_grad():
-        logits, _values = policy.forward_eval(obs_tensor)
+        logits, _values = policy.forward_eval(obs_tensor, state=state)
+    if state is not None:
+        policy._eval_state = state
     return np.asarray(
         [int(torch.argmax(head, dim=1).item()) for head in logits],
         dtype=np.int64,
     )
+
+
+def _resolve_eval_runtime_reward_config(config_id: str) -> str:
+    if config_id == "reward_sparse_v2":
+        return "reward_sparse_v0"
+    if config_id == "reward_shaped_v2":
+        return "reward_shaped_v0"
+    return str(config_id)
 
 
 def build_eval_output_dir(config_id: str, run_id: str) -> Path:

@@ -3,6 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from math import isclose
 
+import pytest
+
 from fight_caves_rl.rewards.registry import resolve_reward_fn
 
 
@@ -20,6 +22,12 @@ def test_reward_functions_ignore_extra_future_like_payloads():
         baseline = reward_fn(previous, action_result, current, False, False)
         with_future = reward_fn(previous_with_future, action_result, current_with_future, False, False)
         assert isclose(baseline, with_future), config_id
+
+
+def test_v2_reward_configs_do_not_fall_back_to_observation_based_reward_functions():
+    for config_id in ("reward_sparse_v2", "reward_shaped_v2"):
+        with pytest.raises(ValueError, match="env_backend='v2_fast'"):
+            resolve_reward_fn(config_id)
 
 
 def _observation(

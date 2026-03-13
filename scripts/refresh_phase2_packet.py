@@ -67,6 +67,8 @@ def main() -> None:
                         str(root / "scripts" / "benchmark_train.py"),
                         "--config",
                         str(config_path),
+                        "--runner-mode",
+                        "core_inprocess_v1",
                         "--env-count",
                         str(env_count),
                         "--total-timesteps",

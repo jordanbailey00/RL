@@ -4,18 +4,20 @@ import argparse
 import json
 from pathlib import Path
 
+from fight_caves_rl.defaults import DEFAULT_TRAIN_CONFIG_PATH
 from fight_caves_rl.puffer.trainer import run_smoke_training
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the PR5 PufferLib smoke training loop.")
+    parser = argparse.ArgumentParser(description="Run the default Fight Caves training loop.")
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/train/smoke_ppo_v0.yaml"),
+        default=DEFAULT_TRAIN_CONFIG_PATH,
     )
     parser.add_argument("--total-timesteps", type=int, default=None)
     parser.add_argument("--data-dir", type=Path, default=None)
+    parser.add_argument("--benchmark-instrumentation", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -23,6 +25,7 @@ def main() -> None:
         config_path=args.config,
         total_timesteps=args.total_timesteps,
         data_dir=args.data_dir,
+        instrumentation_enabled=bool(args.benchmark_instrumentation),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

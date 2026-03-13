@@ -55,7 +55,7 @@ def collect_trace(*, mode: str, env_count: int) -> dict[str, Any]:
             result.slot_index: {
                 "tick": int(result.observation["tick"]),
                 "tile": dict(result.observation["player"]["tile"]),
-                "episode_state": result.info["episode_state"],
+                "episode_state": result.episode_state,
             }
             for result in reset.results
         }
@@ -80,20 +80,20 @@ def collect_trace(*, mode: str, env_count: int) -> dict[str, Any]:
                     {
                         "slot_index": result.slot_index,
                         "action": serialize_action(result.action),
-                        "action_result": result.info["action_result"],
+                        "action_result": result.action_result,
                         "semantic_observation": project_observation_for_determinism(
                             observation,
                             episode_start_tick=episode_start["tick"],
                             episode_start_tile=episode_start["tile"],
                         ),
                         "semantic_visible_targets": project_visible_targets_for_determinism(
-                            result.info["visible_targets"],
+                            result.visible_targets or [],
                             episode_start_tile=episode_start["tile"],
                         ),
                         "reward": result.reward,
                         "terminated": result.terminated,
                         "truncated": result.truncated,
-                        "terminal_reason": result.info["terminal_reason"],
+                        "terminal_reason": result.terminal_reason,
                     }
                 )
             steps.append(

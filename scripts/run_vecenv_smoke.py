@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from fight_caves_rl.defaults import DEFAULT_VECENV_SMOKE_CONFIG_PATH
 from fight_caves_rl.puffer.factory import load_smoke_train_config, make_vecenv
 
 
@@ -15,12 +16,17 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/train/train_baseline_v0.yaml"),
+        default=DEFAULT_VECENV_SMOKE_CONFIG_PATH,
     )
     parser.add_argument(
         "--mode",
         choices=("reset-step", "long-run"),
         required=True,
+    )
+    parser.add_argument(
+        "--backend",
+        choices=("embedded", "subprocess"),
+        default="embedded",
     )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -31,15 +37,27 @@ def main() -> None:
         config["num_envs"] = 4
         config["env"]["tick_cap"] = 16
 
-    payload = _run_reset_step(config) if args.mode == "reset-step" else _run_long_run(config)
+    payload = (
+        _run_reset_step(config, backend=args.backend)
+        if args.mode == "reset-step"
+        else _run_long_run(config, backend=args.backend)
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _run_reset_step(config: dict[str, object]) -> dict[str, object]:
-    vecenv = make_vecenv(config, backend="embedded")
+def _run_reset_step(config: dict[str, object], *, backend: str) -> dict[str, object]:
+    vecenv = make_vecenv(config, backend=backend)
     try:
         env_count = int(config["num_envs"])
+        topology = (
+            dict(vecenv.topology_snapshot())
+            if hasattr(vecenv, "topology_snapshot")
+            else {
+                "backend": backend,
+                "env_backend": str(dict(config.get("env", {})).get("env_backend", "v1_bridge")),
+            }
+        )
         vecenv.async_reset(seed=int(config["train"]["seed"]))
         observations, rewards, terminals, truncations, teacher_actions, infos, agent_ids, masks = vecenv.recv()
         actions = np.zeros((env_count, len(vecenv.single_action_space.nvec)), dtype=np.int32)
@@ -47,13 +65,16 @@ def _run_reset_step(config: dict[str, object]) -> dict[str, object]:
         next_observations, next_rewards, next_terminals, next_truncations, _ta, next_infos, _ids, _masks = vecenv.recv()
         return {
             "mode": "reset-step",
+            "backend": backend,
             "env_count": env_count,
+            "topology": topology,
             "initial_observation_shape": list(observations.shape),
             "initial_reward_shape": list(rewards.shape),
             "initial_terminal_shape": list(terminals.shape),
             "initial_truncation_shape": list(truncations.shape),
             "teacher_action_shape": list(teacher_actions.shape),
             "info_count": len(infos),
+            "initial_nonempty_info_count": int(sum(1 for info in infos if info)),
             "agent_ids": [int(value) for value in agent_ids.tolist()],
             "mask_dtype": str(masks.dtype),
             "next_observation_shape": list(next_observations.shape),
@@ -61,16 +82,27 @@ def _run_reset_step(config: dict[str, object]) -> dict[str, object]:
             "next_terminal_shape": list(next_terminals.shape),
             "next_truncation_shape": list(next_truncations.shape),
             "next_info_count": len(next_infos),
-            "next_events": [str(info["vecenv_event"]) for info in next_infos],
+            "next_nonempty_info_count": int(sum(1 for info in next_infos if info)),
+            "next_events": [
+                str(info["vecenv_event"]) for info in next_infos if "vecenv_event" in info
+            ],
         }
     finally:
         vecenv.close()
 
 
-def _run_long_run(config: dict[str, object]) -> dict[str, object]:
-    vecenv = make_vecenv(config, backend="embedded")
+def _run_long_run(config: dict[str, object], *, backend: str) -> dict[str, object]:
+    vecenv = make_vecenv(config, backend=backend)
     try:
         env_count = int(config["num_envs"])
+        topology = (
+            dict(vecenv.topology_snapshot())
+            if hasattr(vecenv, "topology_snapshot")
+            else {
+                "backend": backend,
+                "env_backend": str(dict(config.get("env", {})).get("env_backend", "v1_bridge")),
+            }
+        )
         vecenv.async_reset(seed=int(config["train"]["seed"]))
         vecenv.recv()
         actions = np.zeros((env_count, len(vecenv.single_action_space.nvec)), dtype=np.int32)
@@ -89,7 +121,9 @@ def _run_long_run(config: dict[str, object]) -> dict[str, object]:
             last_reward_shape = list(rewards.shape)
         return {
             "mode": "long-run",
+            "backend": backend,
             "env_count": env_count,
+            "topology": topology,
             "episodes_started": [int(value) for value in vecenv.episode_counts.tolist()],
             "last_reward_shape": last_reward_shape,
         }

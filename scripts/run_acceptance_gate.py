@@ -12,6 +12,20 @@ import time
 from typing import Any
 from uuid import uuid4
 
+import yaml
+
+from fight_caves_rl.defaults import (
+    DEFAULT_DEMO_BACKEND,
+    DEFAULT_ENV_BENCHMARK_CONFIG_PATH,
+    DEFAULT_TRAIN_BENCHMARK_CONFIG_PATH,
+    DEFAULT_TRAIN_CONFIG_PATH,
+    DEFAULT_TRAIN_ENV_BACKEND,
+    DEFAULT_VECENV_SMOKE_CONFIG_PATH,
+    DEMO_BACKEND_FIGHT_CAVES_DEMO_LITE,
+    DEMO_BACKEND_ORACLE_V1,
+    DEMO_BACKEND_RSPS_HEADED,
+    backend_selection_registry,
+)
 from fight_caves_rl.utils.paths import repo_root
 
 
@@ -101,9 +115,9 @@ def main() -> None:
                     sys.executable,
                     str(root / "scripts" / "train.py"),
                     "--config",
-                    str(root / "configs" / "train" / "smoke_ppo_v0.yaml"),
+                    str(root / DEFAULT_TRAIN_CONFIG_PATH),
                     "--total-timesteps",
-                    "4",
+                    "16",
                     "--data-dir",
                     str(acceptance_root / "train_data"),
                     "--output",
@@ -125,6 +139,55 @@ def main() -> None:
                     "categories": sorted(_artifact_categories(train_summary)),
                     "checkpoint_path": str(checkpoint_path),
                     "run_manifest_path": str(train_summary["run_manifest_path"]),
+                },
+            )
+        )
+        checks.append(
+            AcceptanceCheck(
+                name="default_backend_selection",
+                passed=(
+                    DEFAULT_TRAIN_ENV_BACKEND == "v2_fast"
+                    and DEFAULT_DEMO_BACKEND == DEMO_BACKEND_RSPS_HEADED
+                    and (root / DEFAULT_TRAIN_CONFIG_PATH).is_file()
+                    and (root / DEFAULT_VECENV_SMOKE_CONFIG_PATH).is_file()
+                    and (root / DEFAULT_ENV_BENCHMARK_CONFIG_PATH).is_file()
+                    and (root / DEFAULT_TRAIN_BENCHMARK_CONFIG_PATH).is_file()
+                    and Path(backend_selection_registry()[DEMO_BACKEND_RSPS_HEADED].entrypoint).is_file()
+                    and Path(backend_selection_registry()[DEMO_BACKEND_ORACLE_V1].entrypoint).is_file()
+                    and (root.parent / "fight-caves-demo-lite" / "README.md").is_file()
+                    and yaml.safe_load(
+                        (root / "configs" / "train" / "smoke_ppo_v0.yaml").read_text(encoding="utf-8")
+                    )["env"]["env_backend"]
+                    == "v1_bridge"
+                    and yaml.safe_load(
+                        (root / "configs" / "train" / "train_baseline_v0.yaml").read_text(encoding="utf-8")
+                    )["env"]["env_backend"]
+                    == "v1_bridge"
+                    and yaml.safe_load(
+                        (root / "configs" / "benchmark" / "vecenv_256env_v0.yaml").read_text(encoding="utf-8")
+                    )["env"]["env_backend"]
+                    == "v1_bridge"
+                    and yaml.safe_load(
+                        (root / "configs" / "benchmark" / "train_1024env_v0.yaml").read_text(encoding="utf-8")
+                    )["env"]["env_backend"]
+                    == "v1_bridge"
+                ),
+                details={
+                    "train_default_config": str(root / DEFAULT_TRAIN_CONFIG_PATH),
+                    "train_default_env_backend": DEFAULT_TRAIN_ENV_BACKEND,
+                    "demo_default_backend": DEFAULT_DEMO_BACKEND,
+                    "preserved_train_fallbacks": {
+                        "smoke_ppo_v0": "v1_bridge",
+                        "train_baseline_v0": "v1_bridge",
+                    },
+                    "preserved_benchmark_fallbacks": {
+                        "vecenv_256env_v0": "v1_bridge",
+                        "train_1024env_v0": "v1_bridge",
+                    },
+                    "fallback_backends": [
+                        DEMO_BACKEND_FIGHT_CAVES_DEMO_LITE,
+                        DEMO_BACKEND_ORACLE_V1,
+                    ],
                 },
             )
         )
@@ -217,6 +280,16 @@ def main() -> None:
                 passed=bool(parity_report["all_passed"]),
                 details={
                     "scenario_count": len(parity_report["scenarios"]),
+                    "mechanics_scenario_count": sum(
+                        1
+                        for scenario in parity_report["scenarios"]
+                        if "oracle_matches_v2_fast" in scenario
+                    ),
+                    "mechanics_failures": [
+                        scenario["scenario_id"]
+                        for scenario in parity_report["scenarios"]
+                        if scenario.get("oracle_matches_v2_fast") is False
+                    ],
                     "parity_report_path": str(parity_report_path),
                 },
             )
@@ -245,7 +318,7 @@ def main() -> None:
                     sys.executable,
                     str(root / "scripts" / "benchmark_env.py"),
                     "--config",
-                    str(root / "configs" / "benchmark" / "vecenv_256env_v0.yaml"),
+                    str(root / DEFAULT_ENV_BENCHMARK_CONFIG_PATH),
                     "--env-count",
                     "8",
                     "--rounds",
@@ -260,7 +333,7 @@ def main() -> None:
                     sys.executable,
                     str(root / "scripts" / "benchmark_train.py"),
                     "--config",
-                    str(root / "configs" / "benchmark" / "train_1024env_v0.yaml"),
+                    str(root / DEFAULT_TRAIN_BENCHMARK_CONFIG_PATH),
                     "--env-count",
                     "2",
                     "--total-timesteps",
@@ -301,6 +374,30 @@ def main() -> None:
                     "bridge_output_path": str(bridge_bench_path),
                     "env_output_path": str(env_bench_path),
                     "train_output_path": str(train_bench_path),
+                },
+            )
+        )
+        checks.append(
+            AcceptanceCheck(
+                name="headed_phase8_proof_available",
+                passed=all(
+                    path.is_file()
+                    for path in (
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_backend_control_validation.md",
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_headed_replay_validation.md",
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_live_checkpoint_validation.md",
+                    )
+                ),
+                details={
+                    "backend_control_validation": str(
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_backend_control_validation.md"
+                    ),
+                    "headed_replay_validation": str(
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_headed_replay_validation.md"
+                    ),
+                    "live_checkpoint_validation": str(
+                        root.parent / "RSPS" / "docs" / "fight_caves_demo_live_checkpoint_validation.md"
+                    ),
                 },
             )
         )

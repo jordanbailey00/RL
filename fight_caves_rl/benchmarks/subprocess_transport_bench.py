@@ -23,6 +23,9 @@ from fight_caves_rl.utils.paths import repo_root
 @dataclass(frozen=True)
 class SubprocessTransportMeasurement:
     transport_mode: str
+    env_backend: str
+    worker_count: int
+    worker_env_counts: tuple[int, ...]
     env_count: int
     rounds: int
     total_env_steps: int
@@ -139,6 +142,15 @@ def _run_transport_measurement(
 
     vecenv = make_vecenv(config, backend="subprocess")
     try:
+        topology = (
+            dict(vecenv.topology_snapshot())
+            if hasattr(vecenv, "topology_snapshot")
+            else {
+                "env_backend": str(dict(config.get("env", {})).get("env_backend", "v1_bridge")),
+                "worker_count": 1,
+                "worker_env_counts": [int(config["num_envs"])],
+            }
+        )
         seed = int(config["train"]["seed"])
         zero_action = np.zeros(
             (int(config["num_envs"]), len(vecenv.single_action_space.nvec)),
@@ -161,6 +173,9 @@ def _run_transport_measurement(
     total_env_steps = int(env_count) * int(rounds)
     return SubprocessTransportMeasurement(
         transport_mode=str(transport_mode),
+        env_backend=str(topology.get("env_backend", "v1_bridge")),
+        worker_count=int(topology.get("worker_count", 1)),
+        worker_env_counts=tuple(int(value) for value in topology.get("worker_env_counts", (env_count,))),
         env_count=int(env_count),
         rounds=int(rounds),
         total_env_steps=int(total_env_steps),

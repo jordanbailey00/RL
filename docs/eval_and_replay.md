@@ -2,6 +2,11 @@
 
 This document freezes the shipped PR10 replay/eval contract.
 
+It also records the PR 8.2 default-switchover boundary:
+
+- headed demo/replay default: RSPS-backed path
+- V1 replay/eval path in this document: preserved oracle/reference/debug fallback
+
 ## Canonical Entry Points
 
 Canonical replay/eval entrypoint:
@@ -13,6 +18,22 @@ Compatibility alias retained for earlier smoke/tests:
 - `scripts/eval.py`
 
 Both entrypoints execute the same `fight_caves_rl/replay/eval_runner.py` path.
+
+This is no longer the default headed demo/replay backend.
+It remains the explicit V1 oracle/reference/debug replay path.
+
+The default headed demo/replay selector now lives at:
+
+- `scripts/run_demo_backend.py`
+
+Default headed replay backend:
+
+- `rsps_headed`
+
+Preserved explicit fallbacks:
+
+- `fight_caves_demo_lite`
+- `oracle_v1`
 
 ## Fixed Inputs
 

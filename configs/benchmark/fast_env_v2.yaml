@@ -1,0 +1,60 @@
+config_id: fast_env_v2
+trainer: pufferlib
+policy:
+  id: mlp_v0
+  hidden_size: 128
+reward_config: reward_sparse_v2
+curriculum_config: curriculum_disabled_v0
+num_envs: 64
+env:
+  env_backend: v2_fast
+  start_wave: 1
+  ammo: 1000
+  prayer_potions: 8
+  sharks: 20
+  tick_cap: 20000
+  include_future_leakage: false
+  info_payload_mode: minimal
+  account_name_prefix: rl_fast_env_bench
+  subprocess_transport_mode: shared_memory_v1
+  subprocess_worker_count: 4
+train:
+  seed: 33001
+  torch_deterministic: true
+  device: cpu
+  cpu_offload: false
+  compile: false
+  compile_mode: default
+  compile_fullgraph: false
+  optimizer: adam
+  learning_rate: 0.0003
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_eps: 0.00001
+  precision: float32
+  bptt_horizon: 4
+  batch_size: 1024
+  minibatch_size: 1024
+  max_minibatch_size: 1024
+  total_timesteps: 1024
+  update_epochs: 1
+  gamma: 0.99
+  gae_lambda: 0.95
+  vtrace_rho_clip: 1.0
+  vtrace_c_clip: 1.0
+  clip_coef: 0.2
+  vf_clip_coef: 0.2
+  vf_coef: 0.5
+  ent_coef: 0.01
+  max_grad_norm: 0.5
+  prio_alpha: 0.0
+  prio_beta0: 1.0
+  anneal_lr: false
+  checkpoint_interval: 1
+  use_rnn: false
+logging:
+  dashboard: false
+benchmark:
+  vecenv_backend: subprocess
+  rounds: 256
+  warmup_rounds: 16

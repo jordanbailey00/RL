@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from fight_caves_rl.defaults import DEFAULT_ENV_BENCHMARK_CONFIG_PATH
 from fight_caves_rl.benchmarks.subprocess_transport_bench import (
     parse_transport_modes,
     run_subprocess_transport_benchmark,
@@ -15,7 +16,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/benchmark/vecenv_256env_v0.yaml"),
+        default=DEFAULT_ENV_BENCHMARK_CONFIG_PATH,
     )
     parser.add_argument("--rounds", type=int, default=None)
     parser.add_argument("--env-count", type=int, default=None)

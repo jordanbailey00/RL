@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from fight_caves_rl.envs.subprocess_vector_env import _serialize_transition
+from fight_caves_rl.envs.subprocess_vector_env import (
+    _partition_worker_env_counts,
+    _serialize_transition,
+)
 from fight_caves_rl.envs.shared_memory_transport import INFO_PAYLOAD_MODE_MINIMAL
 
 
@@ -22,3 +25,9 @@ def test_pipe_transport_omits_minimal_infos_from_payload():
 
     assert payload["info_payload_mode"] == INFO_PAYLOAD_MODE_MINIMAL
     assert "infos" not in payload
+
+
+def test_partition_worker_env_counts_balances_envs_across_workers():
+    assert _partition_worker_env_counts(env_count=4, worker_count=2) == (2, 2)
+    assert _partition_worker_env_counts(env_count=5, worker_count=2) == (3, 2)
+    assert _partition_worker_env_counts(env_count=3, worker_count=5) == (1, 1, 1)

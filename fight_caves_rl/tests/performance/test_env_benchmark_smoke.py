@@ -36,3 +36,7 @@ def test_env_benchmark_smoke(tmp_path: Path):
     assert float(payload["wrapper"]["env_steps_per_second"]) > 0.0
     assert float(payload["measurement"]["env_steps_per_second"]) > 0.0
     assert float(payload["speedup_vs_wrapper"]) > 0.0
+    assert float(payload["measurement"]["runner_stage_seconds"]["measurement_seconds"]) > 0.0
+    assert "vecenv_python_action_decode" in payload["measurement"]["hot_path_bucket_totals"]
+    assert "client_apply_action_jvm" in payload["measurement"]["hot_path_bucket_totals"]
+    assert int(payload["measurement"]["memory_profile"]["combined_peak_rss_kib"]) > 0

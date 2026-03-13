@@ -13,6 +13,7 @@ import numpy as np
 import pufferlib
 import pufferlib.pufferl
 import torch
+from fight_caves_rl.benchmarks.common import capture_peak_memory_profile
 from fight_caves_rl.envs.shared_memory_transport import PIPE_PICKLE_TRANSPORT_MODE
 from fight_caves_rl.logging.wandb_client import WandbRunLogger
 from fight_caves_rl.manifests.run_manifest import (
@@ -23,13 +24,14 @@ from fight_caves_rl.policies.checkpointing import (
     build_checkpoint_metadata,
     write_checkpoint_metadata,
 )
-from fight_caves_rl.policies.mlp import MultiDiscreteMLPPolicy
 from fight_caves_rl.puffer.factory import (
     build_puffer_train_config,
     build_train_output_dir,
     load_smoke_train_config,
     make_vecenv,
+    resolve_train_env_backend,
 )
+from fight_caves_rl.policies.registry import build_policy_from_config
 from fight_caves_rl.replay.eval_runner import run_replay_eval
 from fight_caves_rl.utils.config import load_bootstrap_config
 
@@ -435,6 +437,7 @@ class _NullUtilization:
 class TrainRunResult:
     config_id: str
     transport_mode: str
+    vecenv_topology: dict[str, object]
     checkpoint_path: str
     checkpoint_metadata_path: str
     global_step: int
@@ -443,6 +446,10 @@ class TrainRunResult:
     wandb_run_id: str
     run_manifest_path: str
     artifacts: list[dict[str, object]]
+    runner_stage_seconds: dict[str, float]
+    trainer_bucket_totals: dict[str, dict[str, float | int]]
+    env_hot_path_bucket_totals: dict[str, dict[str, float | int]]
+    memory_profile: dict[str, int]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -480,26 +487,55 @@ def run_smoke_training(
     config_path: str | Path | None = None,
     total_timesteps: int | None = None,
     data_dir: str | Path | None = None,
+    instrumentation_enabled: bool = False,
 ) -> TrainRunResult:
     trace_stage("run_smoke_training:start")
     bootstrap_config = load_bootstrap_config()
     trace_stage("run_smoke_training:bootstrap_config_loaded")
     config = load_smoke_train_config(config_path)
     trace_stage("run_smoke_training:config_loaded")
-    transport_mode = str(
-        dict(config.get("env", {})).get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
+    env_backend = resolve_train_env_backend(config)
+    env_config = dict(config.get("env", {}))
+    requested_transport_mode = str(
+        env_config.get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
+    )
+    transport_mode = (
+        f"v2_fast_subprocess_{requested_transport_mode}"
+        if env_backend == "v2_fast"
+        else requested_transport_mode
+    )
+    manifest_bridge_mode = (
+        "v2_fast_subprocess_isolated_jvm"
+        if env_backend == "v2_fast"
+        else "subprocess_isolated_jvm"
     )
     output_dir = build_train_output_dir(str(config["config_id"]), data_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     trace_stage("run_smoke_training:before_make_vecenv")
+    stage_started = perf_counter()
     vecenv = make_vecenv(config, backend="subprocess")
+    vecenv_build_seconds = perf_counter() - stage_started
+    vecenv_topology = (
+        dict(vecenv.topology_snapshot())
+        if hasattr(vecenv, "topology_snapshot")
+        else {
+            "backend": "subprocess",
+            "env_backend": env_backend,
+            "transport_mode": requested_transport_mode,
+            "worker_count": 1,
+            "worker_env_counts": [int(config["num_envs"])],
+            "info_payload_mode": str(env_config.get("info_payload_mode", "minimal")),
+        }
+    )
     trace_stage("run_smoke_training:vecenv_ready")
-    policy = MultiDiscreteMLPPolicy.from_spaces(
+    stage_started = perf_counter()
+    policy = build_policy_from_config(
+        config,
         vecenv.single_observation_space,
         vecenv.single_action_space,
-        hidden_size=int(config["policy"]["hidden_size"]),
     )
+    policy_build_seconds = perf_counter() - stage_started
     trace_stage("run_smoke_training:policy_ready")
     puffer_train_config = build_puffer_train_config(
         config,
@@ -515,28 +551,48 @@ def run_smoke_training(
         tags=(str(config["config_id"]), "smoke-train"),
     )
     trace_stage("run_smoke_training:logger_ready")
+    stage_started = perf_counter()
     trainer = ConfigurablePuffeRL(
         puffer_train_config,
         vecenv,
         policy,
         logger,
         dashboard_enabled=dashboard_enabled,
+        instrumentation_enabled=bool(instrumentation_enabled),
     )
+    trainer_init_seconds = perf_counter() - stage_started
     trace_stage("run_smoke_training:trainer_ready")
+    evaluate_seconds = 0.0
+    train_seconds = 0.0
+    final_evaluate_seconds = 0.0
+    mean_and_log_seconds = 0.0
+    close_seconds = 0.0
+    trainer_bucket_totals: dict[str, dict[str, float | int]] = {}
 
     try:
         while trainer.global_step < puffer_train_config["total_timesteps"]:
             trace_stage(f"run_smoke_training:loop_eval:{trainer.global_step}")
+            step_started = perf_counter()
             trainer.evaluate()
+            evaluate_seconds += perf_counter() - step_started
             trace_stage(f"run_smoke_training:loop_train:{trainer.global_step}")
+            step_started = perf_counter()
             trainer.train()
+            train_seconds += perf_counter() - step_started
 
         trace_stage("run_smoke_training:final_eval")
+        step_started = perf_counter()
         trainer.evaluate()
+        final_evaluate_seconds += perf_counter() - step_started
         trace_stage("run_smoke_training:mean_and_log")
+        step_started = perf_counter()
         trainer.mean_and_log()
+        mean_and_log_seconds += perf_counter() - step_started
+        trainer_bucket_totals = trainer.instrumentation_snapshot()
         trace_stage("run_smoke_training:close")
+        step_started = perf_counter()
         checkpoint_path = Path(trainer.close())
+        close_seconds += perf_counter() - step_started
         trace_stage("run_smoke_training:closed")
         trainer.logger.close(str(checkpoint_path))
     finally:
@@ -546,11 +602,14 @@ def run_smoke_training(
                 trainer.vecenv.close()
             except Exception:
                 pass
+    memory_profile = capture_peak_memory_profile()
 
     trace_stage("run_smoke_training:metadata")
     metadata = build_checkpoint_metadata(
         train_config_id=str(config["config_id"]),
         policy_id=str(config["policy"]["id"]),
+        policy_hidden_size=int(config["policy"]["hidden_size"]),
+        policy_use_rnn=bool(config["train"]["use_rnn"]),
         reward_config_id=str(config["reward_config"]),
         curriculum_config_id=str(config["curriculum_config"]),
     )
@@ -579,7 +638,7 @@ def run_smoke_training(
         curriculum_config_id=str(config["curriculum_config"]),
         policy_id=str(config["policy"]["id"]),
         env_count=int(config["num_envs"]),
-        bridge_mode="subprocess_isolated_jvm",
+        bridge_mode=manifest_bridge_mode,
         dashboard_enabled=dashboard_enabled,
         wandb_tags=logger.effective_tags,
         checkpoint_metadata=metadata,
@@ -624,6 +683,7 @@ def run_smoke_training(
     return TrainRunResult(
         config_id=str(config["config_id"]),
         transport_mode=transport_mode,
+        vecenv_topology=vecenv_topology,
         checkpoint_path=str(checkpoint_path),
         checkpoint_metadata_path=str(metadata_path),
         global_step=int(trainer.global_step),
@@ -632,6 +692,19 @@ def run_smoke_training(
         wandb_run_id=str(logger.run_id),
         run_manifest_path=str(manifest_path),
         artifacts=[record.to_dict() for record in logger.artifact_records],
+        runner_stage_seconds={
+            "vecenv_build_seconds": float(vecenv_build_seconds),
+            "policy_build_seconds": float(policy_build_seconds),
+            "trainer_init_seconds": float(trainer_init_seconds),
+            "evaluate_seconds": float(evaluate_seconds),
+            "train_seconds": float(train_seconds),
+            "final_evaluate_seconds": float(final_evaluate_seconds),
+            "mean_and_log_seconds": float(mean_and_log_seconds),
+            "close_seconds": float(close_seconds),
+        },
+        trainer_bucket_totals=trainer_bucket_totals if instrumentation_enabled else {},
+        env_hot_path_bucket_totals={},
+        memory_profile=memory_profile,
     )
 
 

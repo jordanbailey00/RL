@@ -13,6 +13,7 @@ PHASE2_PROTOTYPE_ENV_COUNTS = (16, 64)
 @dataclass(frozen=True)
 class Phase2PrototypeGateStatus:
     benchmark_host_class: str
+    benchmark_source_of_truth: bool
     production_rows_complete: bool
     learner_ceiling_rows_complete: bool
     prototype_16_sps: float | None
@@ -52,6 +53,10 @@ def evaluate_phase2_prototype_gate(
     learner_ceiling_report: dict[str, Any],
 ) -> Phase2PrototypeGateStatus:
     host_class = _detect_host_class(production_reports, learner_ceiling_report)
+    benchmark_source_of_truth = _detect_source_of_truth(
+        production_reports,
+        learner_ceiling_report,
+    )
     production_rows_complete = _production_rows_complete(production_reports)
     learner_ceiling_rows_complete = _learner_ceiling_rows_complete(learner_ceiling_report)
 
@@ -64,8 +69,8 @@ def evaluate_phase2_prototype_gate(
     learner_scaling_ratio = _ratio(learner_64_sps, learner_16_sps)
 
     blockers: list[str] = []
-    if host_class != "linux_native":
-        blockers.append("native_linux_source_of_truth_missing")
+    if not benchmark_source_of_truth:
+        blockers.append("benchmark_source_of_truth_missing")
     if not production_rows_complete:
         blockers.append("production_packet_incomplete")
     if not learner_ceiling_rows_complete:
@@ -91,6 +96,7 @@ def evaluate_phase2_prototype_gate(
 
     return Phase2PrototypeGateStatus(
         benchmark_host_class=host_class,
+        benchmark_source_of_truth=benchmark_source_of_truth,
         production_rows_complete=production_rows_complete,
         learner_ceiling_rows_complete=learner_ceiling_rows_complete,
         prototype_16_sps=prototype_16_sps,
@@ -140,6 +146,22 @@ def _detect_host_class(
         if host_class:
             return str(host_class)
     return "unknown"
+
+
+def _detect_source_of_truth(
+    production_reports: dict[int, dict[str, Any]],
+    learner_ceiling_report: dict[str, Any],
+) -> bool:
+    for payload in (*production_reports.values(), learner_ceiling_report):
+        context = payload.get("context", {})
+        hardware = context.get("hardware_profile", {})
+        explicit = hardware.get("performance_source_of_truth")
+        if isinstance(explicit, bool):
+            return explicit
+        host_class = hardware.get("host_class")
+        if host_class:
+            return str(host_class) in {"linux_native", "wsl2"}
+    return False
 
 
 def _production_rows_complete(production_reports: dict[int, dict[str, Any]]) -> bool:

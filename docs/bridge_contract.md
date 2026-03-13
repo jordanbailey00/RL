@@ -2,12 +2,27 @@
 
 This document freezes the early bridge strategy so PR 3 does not build the correctness wrapper on a dead-end transport.
 
+## Pivot Status
+
+Current workspace authority is:
+- `/home/jordan/code/pivot_plan.md`
+- `/home/jordan/code/pivot_implementation_plan.md`
+
+This document remains an active reference for the current V1 bridge/oracle path.
+It is not the source of truth for the future V2 fast kernel contract.
+
+Agent execution environment:
+- WSL/Linux is the canonical environment for bridge development, bootstrap, benchmarking, and runtime commands.
+- Linux paths and shells are canonical; do not author the active bridge path around Windows-native path semantics or PowerShell.
+
 ## Constraints
 
 - `fight-caves-RL` is the golden runtime dependency.
 - The default RL artifact boundary is the packaged headless distribution, not an IDE run config.
 - RSPS is out-of-band for parity/debug only and must stay out of the training hot path.
 - Bridge work must preserve exact simulator semantics and fail fast on contract/version drift.
+- The RL-side V2 wrapper must not reconstruct structured semantics, per-slot rich action objects, or post-step mechanics interpretation in Python.
+- Portable V2 terminal codes are frozen in `fight_caves_rl/contracts/terminal_codes.py`.
 
 ## Selected Artifact Strategy
 
@@ -35,7 +50,6 @@ Current runtime invariant:
 - the packaged distribution is the classpath/artifact boundary for RL
 - the current sim bootstrap still requires the checked-out `fight-caves-RL` workspace root at runtime
 - specifically, PR3 correctness mode requires:
-  - `FCspec.md`
   - `config/headless_data_allowlist.toml`
   - `config/headless_manifest.toml`
   - `config/headless_scripts.txt`

@@ -1,5 +1,11 @@
 # Phase 1 Decision Gate
 
+## Documentation Status
+
+- Status: archive candidate under `pivot_documentation_triage.md`.
+- Current authority: `pivot_plan.md` and `pivot_implementation_plan.md`.
+- Retention reason: kept temporarily for historical optimization-gate context; do not treat it as an active pivot gate.
+
 Date: 2026-03-09
 
 This document defines the exact benchmark and profiling packet that must be rerun after the Phase 1 flat-path implementation lands.

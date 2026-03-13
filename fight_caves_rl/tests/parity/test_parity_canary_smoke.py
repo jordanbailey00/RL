@@ -31,12 +31,27 @@ def test_parity_canary_smoke(tmp_path: Path):
     assert payload["all_passed"] is True
     scenarios = {entry["scenario_id"]: entry for entry in payload["scenarios"]}
     assert set(scenarios) == {
+        "parity_action_rejection",
+        "parity_prayer_toggle_timing",
         "parity_single_wave",
         "parity_jad_healer",
+        "parity_terminal_tick_cap",
         "parity_tzkek_split",
     }
     for scenario in scenarios.values():
         assert scenario["passed"] is True
         assert scenario["wrapper_matches_raw"] is True
-        assert scenario["expected_digest_matches"] is True
-        assert scenario["final_relative_tick_matches"] is True
+        assert scenario["scripted_matches_wrapper"] is True
+        assert scenario["oracle_matches_v2_fast"] is True
+        assert (
+            scenario["oracle_mechanics_digest"]
+            == scenario["v2_fast_mechanics_digest"]
+        )
+        if scenario["expected_digest_matches"] is not None:
+            assert scenario["expected_digest_matches"] is True
+        if scenario["expected_mechanics_digest_matches"] is not None:
+            assert scenario["expected_mechanics_digest_matches"] is True
+        if scenario["final_relative_tick_matches"] is not None:
+            assert scenario["final_relative_tick_matches"] is True
+        assert scenario["mechanics_first_mismatch"] is None
+        assert scenario["mechanics_divergence_artifact"] is None

@@ -39,6 +39,12 @@ def resolve_reward_fn(config_id: str):
         from fight_caves_rl.rewards.reward_shaped_v0 import build_reward_fn
 
         return build_reward_fn(config)
+    if config.config_id in {"reward_sparse_v2", "reward_shaped_v2"}:
+        raise ValueError(
+            f"{config.config_id!r} is a V2 fast-kernel reward config. "
+            "It must be consumed through env_backend='v2_fast' reward-feature weighting, "
+            "not the V1 observation-based reward-function path."
+        )
     raise ValueError(f"Unsupported reward config: {config_id!r}")
 
 

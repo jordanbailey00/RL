@@ -39,6 +39,8 @@ class CheckpointMetadata:
     policy_action_schema_version: int
     pufferlib_distribution: str
     pufferlib_version: str
+    policy_hidden_size: int = 128
+    policy_use_rnn: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -48,6 +50,8 @@ def build_checkpoint_metadata(
     *,
     train_config_id: str,
     policy_id: str,
+    policy_hidden_size: int,
+    policy_use_rnn: bool,
     reward_config_id: str,
     curriculum_config_id: str,
 ) -> CheckpointMetadata:
@@ -71,6 +75,8 @@ def build_checkpoint_metadata(
         policy_action_schema_version=PUFFER_POLICY_ACTION_SCHEMA.version,
         pufferlib_distribution=runtime.distribution_name,
         pufferlib_version=runtime.distribution_version,
+        policy_hidden_size=int(policy_hidden_size),
+        policy_use_rnn=bool(policy_use_rnn),
     )
 
 
@@ -96,4 +102,3 @@ def load_policy_checkpoint(checkpoint_path: Path, policy: torch.nn.Module) -> Ch
     state_dict = torch.load(checkpoint_path, map_location="cpu")
     policy.load_state_dict(state_dict)
     return load_checkpoint_metadata(checkpoint_path)
-

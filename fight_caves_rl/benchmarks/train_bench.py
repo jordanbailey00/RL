@@ -11,8 +11,12 @@ from typing import Any, Sequence
 
 import yaml
 
-from fight_caves_rl.benchmarks.common import BenchmarkContext, build_benchmark_context
-from fight_caves_rl.policies.mlp import MultiDiscreteMLPPolicy
+from fight_caves_rl.benchmarks.common import (
+    BenchmarkContext,
+    build_benchmark_context,
+    capture_peak_memory_profile,
+)
+from fight_caves_rl.policies.registry import build_policy_from_config
 from fight_caves_rl.puffer.factory import (
     build_puffer_train_config,
     load_smoke_train_config,
@@ -46,11 +50,14 @@ class TrainBenchmarkMeasurement:
     final_evaluate_seconds: float
     runner_stage_seconds: dict[str, float]
     trainer_bucket_totals: dict[str, dict[str, float | int]]
+    env_hot_path_bucket_totals: dict[str, dict[str, float | int]]
     log_records: int
     artifact_count: int
     aggressive_log_bursts: int
     checkpoint_path: str
     run_manifest_path: str
+    memory_profile: dict[str, int]
+    vecenv_topology: dict[str, Any]
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -260,10 +267,11 @@ def _run_train_measurement_smoke(
                     str(config_path),
                     "--total-timesteps",
                     str(total_timesteps),
-                    "--data-dir",
-                    str(mode_output_dir / "run_data"),
-                    "--output",
-                    str(output_path),
+                "--data-dir",
+                str(mode_output_dir / "run_data"),
+                "--output",
+                str(output_path),
+                "--benchmark-instrumentation",
                 ],
                 cwd=str(root),
                 env=env,
@@ -307,16 +315,21 @@ def _run_train_measurement_smoke(
         env_steps_per_second=float(production_env_steps_per_second),
         production_env_steps_per_second=float(production_env_steps_per_second),
         wall_clock_env_steps_per_second=float(production_env_steps_per_second),
-        evaluate_seconds=0.0,
-        train_seconds=0.0,
-        final_evaluate_seconds=0.0,
-        runner_stage_seconds={},
-        trainer_bucket_totals={},
+        evaluate_seconds=float(payload.get("runner_stage_seconds", {}).get("evaluate_seconds", 0.0)),
+        train_seconds=float(payload.get("runner_stage_seconds", {}).get("train_seconds", 0.0)),
+        final_evaluate_seconds=float(
+            payload.get("runner_stage_seconds", {}).get("final_evaluate_seconds", 0.0)
+        ),
+        runner_stage_seconds=dict(payload.get("runner_stage_seconds", {})),
+        trainer_bucket_totals=dict(payload.get("trainer_bucket_totals", {})),
+        env_hot_path_bucket_totals=dict(payload.get("env_hot_path_bucket_totals", {})),
         log_records=int(payload["log_records"]),
         artifact_count=len(list(payload["artifacts"])),
         aggressive_log_bursts=int(aggressive_log_bursts if logging_mode == "aggressive" else 0),
         checkpoint_path=str(payload["checkpoint_path"]),
         run_manifest_path=str(payload["run_manifest_path"]),
+        memory_profile=dict(payload.get("memory_profile", {})),
+        vecenv_topology=dict(payload.get("vecenv_topology", {})),
     )
 
 
@@ -356,12 +369,15 @@ def _run_train_measurement_prototype(
     stage_started = perf_counter()
     vecenv = make_vecenv(config, backend="subprocess")
     vecenv_build_seconds = perf_counter() - stage_started
+    vecenv_topology = (
+        dict(vecenv.topology_snapshot()) if hasattr(vecenv, "topology_snapshot") else {}
+    )
 
     stage_started = perf_counter()
-    policy = MultiDiscreteMLPPolicy.from_spaces(
+    policy = build_policy_from_config(
+        config,
         vecenv.single_observation_space,
         vecenv.single_action_space,
-        hidden_size=int(config["policy"]["hidden_size"]),
     )
     policy_build_seconds = perf_counter() - stage_started
     train_config = build_puffer_train_config(
@@ -376,11 +392,11 @@ def _run_train_measurement_prototype(
         policy,
     )
     trainer_init_seconds = perf_counter() - stage_started
-
     evaluate_seconds = 0.0
     train_seconds = 0.0
     final_evaluate_seconds = 0.0
     close_seconds = 0.0
+    global_step = 0
     started = perf_counter_ns()
     try:
         while trainer.global_step < int(train_config["total_timesteps"]):
@@ -430,11 +446,14 @@ def _run_train_measurement_prototype(
             "close_seconds": float(close_seconds),
         },
         trainer_bucket_totals=trainer.instrumentation_snapshot(),
+        env_hot_path_bucket_totals={},
         log_records=0,
         artifact_count=0,
         aggressive_log_bursts=int(aggressive_log_bursts if logging_mode == "aggressive" else 0),
         checkpoint_path="",
         run_manifest_path="",
+        memory_profile=capture_peak_memory_profile(),
+        vecenv_topology=vecenv_topology,
     )
 
 
@@ -476,12 +495,15 @@ def _run_train_measurement_core(
     stage_started = perf_counter()
     vecenv = make_vecenv(config, backend="subprocess")
     vecenv_build_seconds = perf_counter() - stage_started
+    vecenv_topology = (
+        dict(vecenv.topology_snapshot()) if hasattr(vecenv, "topology_snapshot") else {}
+    )
 
     stage_started = perf_counter()
-    policy = MultiDiscreteMLPPolicy.from_spaces(
+    policy = build_policy_from_config(
+        config,
         vecenv.single_observation_space,
         vecenv.single_action_space,
-        hidden_size=int(config["policy"]["hidden_size"]),
     )
     policy_build_seconds = perf_counter() - stage_started
     train_config = build_puffer_train_config(
@@ -503,11 +525,11 @@ def _run_train_measurement_core(
         instrumentation_enabled=True,
     )
     trainer_init_seconds = perf_counter() - stage_started
-
     evaluate_seconds = 0.0
     train_seconds = 0.0
     final_evaluate_seconds = 0.0
     close_seconds = 0.0
+    global_step = 0
     started = perf_counter_ns()
     try:
         while trainer.global_step < int(train_config["total_timesteps"]):
@@ -569,14 +591,15 @@ def _run_train_measurement_core(
             "close_seconds": float(close_seconds),
         },
         trainer_bucket_totals=trainer.instrumentation_snapshot(),
+        env_hot_path_bucket_totals={},
         log_records=0,
         artifact_count=0,
         aggressive_log_bursts=int(aggressive_log_bursts if logging_mode == "aggressive" else 0),
         checkpoint_path="",
         run_manifest_path="",
+        memory_profile=capture_peak_memory_profile(),
+        vecenv_topology=vecenv_topology,
     )
-
-
 def parse_logging_modes(value: str | None) -> tuple[str, ...] | None:
     if value is None:
         return None

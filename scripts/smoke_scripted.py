@@ -24,10 +24,15 @@ def main() -> None:
     args = parser.parse_args()
 
     trace_pack = resolve_trace_pack(args.trace_pack)
+    tick_cap = int(
+        trace_pack.tick_cap
+        if trace_pack.tick_cap is not None
+        else max(args.max_steps or len(trace_pack.steps) + 8, len(trace_pack.steps))
+    )
     env = build_policy_episode_env(
         {
             "start_wave": trace_pack.start_wave,
-            "tick_cap": max(args.max_steps or len(trace_pack.steps) + 8, len(trace_pack.steps)),
+            "tick_cap": tick_cap,
         },
         reward_config_id="reward_sparse_v0",
     )

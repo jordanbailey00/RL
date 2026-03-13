@@ -2,6 +2,8 @@ import numpy as np
 
 from fight_caves_rl.envs.puffer_encoding import (
     POLICY_OBSERVATION_SIZE,
+    decode_action_from_policy,
+    encode_action_for_policy,
     encode_observation_for_policy,
 )
 
@@ -64,3 +66,26 @@ def test_policy_encoding_includes_jad_telegraph_field():
     assert isinstance(encoded, np.ndarray)
     assert encoded.shape == (POLICY_OBSERVATION_SIZE,)
     assert encoded[42] == 1.0
+
+
+def test_policy_action_round_trip_preserves_semantics():
+    walk = decode_action_from_policy(np.asarray((1, 3200, 3201, 0, 0, 0), dtype=np.int32))
+    attack = decode_action_from_policy(np.asarray((2, 0, 0, 0, 3, 0), dtype=np.int32))
+    prayer = decode_action_from_policy(np.asarray((3, 0, 0, 0, 0, 1), dtype=np.int32))
+    idle = decode_action_from_policy(np.asarray((0, 0, 0, 0, 0, 0), dtype=np.int32))
+
+    assert walk.tile is not None
+    assert (walk.tile.x, walk.tile.y, walk.tile.level) == (3200, 3201, 0)
+    assert walk.visible_npc_index is None
+    assert walk.prayer is None
+
+    assert attack.visible_npc_index == 3
+    assert attack.tile is None
+    assert attack.prayer is None
+
+    assert prayer.prayer == "protect_from_missiles"
+    assert prayer.tile is None
+    assert prayer.visible_npc_index is None
+
+    encoded_idle = encode_action_for_policy(idle)
+    np.testing.assert_array_equal(encoded_idle, np.asarray((0, 0, 0, 0, 0, 0), dtype=np.int64))

@@ -122,3 +122,19 @@ Facts:
 Strong conclusion:
 - observability overhead is real but secondary
 - even with observability minimized, the stack is still orders of magnitude too slow
+
+## WC-P2-11 Benchmark-Scope Note
+
+After `WC-P2-11`, this document is no longer part of the canonical production fast-trainer target definition.
+
+It remains useful for:
+
+- certification-mode planning
+- operator-facing observability decisions
+- deciding what should stay out of the benchmark hot path
+
+It does not define the primary throughput rows for the current Phase 2 trainer-redesign batch.
+
+Those rows are now frozen in:
+
+- [production_fast_trainer_benchmark.md](/home/jordan/code/RL/docs/production_fast_trainer_benchmark.md)

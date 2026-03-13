@@ -11,6 +11,7 @@ import yaml
 import pufferlib.emulation
 from fight_caves_rl.curriculum.registry import build_curriculum
 from fight_caves_rl.envs.correctness_env import CorrectnessEnvConfig, FightCavesCorrectnessEnv
+from fight_caves_rl.envs_fast import FastKernelVecEnv, FastKernelVecEnvConfig, FastRewardAdapter
 from fight_caves_rl.envs.puffer_encoding import (
     POLICY_MAX_VISIBLE_NPCS,
     build_policy_action_space,
@@ -24,32 +25,40 @@ from fight_caves_rl.envs.subprocess_vector_env import (
     SubprocessHeadlessBatchVecEnvConfig,
 )
 from fight_caves_rl.envs.shared_memory_transport import PIPE_PICKLE_TRANSPORT_MODE
+from fight_caves_rl.envs.shared_memory_transport import INFO_PAYLOAD_MODE_MINIMAL
 from fight_caves_rl.envs.vector_env import HeadlessBatchVecEnv, HeadlessBatchVecEnvConfig
 from fight_caves_rl.rewards.registry import resolve_reward_fn
 from fight_caves_rl.utils.paths import repo_root
 
+ENV_BACKEND_V1_BRIDGE = "v1_bridge"
+ENV_BACKEND_V2_FAST = "v2_fast"
+SUPPORTED_ENV_BACKENDS = (ENV_BACKEND_V1_BRIDGE, ENV_BACKEND_V2_FAST)
+
 DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
-    "config_id": "smoke_ppo_v0",
+    "config_id": "smoke_fast_v2",
     "trainer": "pufferlib",
     "policy": {
-        "id": "mlp_v0",
+        "id": "lstm_v0",
         "hidden_size": 128,
     },
-    "reward_config": "reward_sparse_v0",
-    "curriculum_config": "curriculum_disabled_v0",
-    "num_envs": 1,
+    "reward_config": "reward_shaped_v2",
+    "curriculum_config": "curriculum_wave_progression_v2",
+    "num_envs": 4,
     "env": {
         "start_wave": 1,
         "ammo": 1000,
         "prayer_potions": 8,
         "sharks": 20,
-        "tick_cap": 256,
+        "tick_cap": 128,
+        "env_backend": ENV_BACKEND_V2_FAST,
         "include_future_leakage": False,
-        "info_payload_mode": "full",
-        "account_name_prefix": "rl_puffer_smoke",
+        "info_payload_mode": INFO_PAYLOAD_MODE_MINIMAL,
+        "account_name_prefix": "rl_fast_smoke",
+        "subprocess_transport_mode": "shared_memory_v1",
+        "subprocess_worker_count": 2,
     },
     "train": {
-        "seed": 11_001,
+        "seed": 22_001,
         "torch_deterministic": True,
         "device": "cpu",
         "cpu_offload": False,
@@ -63,10 +72,10 @@ DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
         "adam_eps": 1.0e-5,
         "precision": "float32",
         "bptt_horizon": 4,
-        "batch_size": 4,
-        "minibatch_size": 4,
-        "max_minibatch_size": 4,
-        "total_timesteps": 8,
+        "batch_size": 16,
+        "minibatch_size": 16,
+        "max_minibatch_size": 16,
+        "total_timesteps": 16,
         "update_epochs": 1,
         "gamma": 0.99,
         "gae_lambda": 0.95,
@@ -81,10 +90,10 @@ DEFAULT_SMOKE_TRAIN_CONFIG: dict[str, Any] = {
         "prio_beta0": 1.0,
         "anneal_lr": False,
         "checkpoint_interval": 1,
-        "use_rnn": False,
+        "use_rnn": True,
     },
     "logging": {
-        "dashboard": True,
+        "dashboard": False,
     },
 }
 
@@ -231,10 +240,16 @@ def load_replay_eval_config(path: str | Path | None = None) -> dict[str, Any]:
     return config
 
 
-def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
-    env_config = dict(config.get("env", {}))
+def make_vecenv(
+    config: Mapping[str, Any],
+    *,
+    backend: str = "embedded",
+    instrumentation_enabled: bool = False,
+):
+    env_config = _resolve_train_vecenv_env_config(config.get("env", {}))
     reward_config_id = str(config["reward_config"])
     curriculum = build_curriculum(str(config["curriculum_config"]))
+    env_backend = str(env_config["env_backend"])
     batch_config = HeadlessBatchVecEnvConfig(
         env_count=int(config["num_envs"]),
         account_name_prefix=str(env_config.get("account_name_prefix", "rl_vecenv")),
@@ -245,8 +260,52 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
         tick_cap=int(env_config.get("tick_cap", 20_000)),
         include_future_leakage=bool(env_config.get("include_future_leakage", False)),
         info_payload_mode=str(env_config.get("info_payload_mode", "full")),
+        instrumentation_enabled=bool(instrumentation_enabled),
         reset_options_provider=curriculum.reset_overrides,
     )
+    if env_backend == ENV_BACKEND_V2_FAST:
+        if backend == "embedded":
+            return FastKernelVecEnv(
+                FastKernelVecEnvConfig(
+                    env_count=int(config["num_envs"]),
+                    account_name_prefix=batch_config.account_name_prefix,
+                    start_wave=batch_config.start_wave,
+                    ammo=batch_config.ammo,
+                    prayer_potions=batch_config.prayer_potions,
+                    sharks=batch_config.sharks,
+                    tick_cap=batch_config.tick_cap,
+                    include_future_leakage=batch_config.include_future_leakage,
+                    info_payload_mode=batch_config.info_payload_mode,
+                    instrumentation_enabled=batch_config.instrumentation_enabled,
+                    bootstrap=batch_config.bootstrap,
+                    reset_options_provider=curriculum.reset_overrides,
+                ),
+                reward_adapter=FastRewardAdapter.from_config_id(reward_config_id),
+            )
+        if backend == "subprocess":
+            return SubprocessHeadlessBatchVecEnv(
+                SubprocessHeadlessBatchVecEnvConfig(
+                    env_count=int(config["num_envs"]),
+                    reward_config_id=reward_config_id,
+                    curriculum_config_id=str(config["curriculum_config"]),
+                    env_backend=env_backend,
+                    transport_mode=str(
+                        env_config.get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
+                    ),
+                    worker_count=int(env_config.get("subprocess_worker_count", 1)),
+                    account_name_prefix=batch_config.account_name_prefix,
+                    start_wave=batch_config.start_wave,
+                    ammo=batch_config.ammo,
+                    prayer_potions=batch_config.prayer_potions,
+                    sharks=batch_config.sharks,
+                    tick_cap=batch_config.tick_cap,
+                    include_future_leakage=batch_config.include_future_leakage,
+                    info_payload_mode=batch_config.info_payload_mode,
+                    instrumentation_enabled=batch_config.instrumentation_enabled,
+                    bootstrap=batch_config.bootstrap,
+                )
+            )
+        raise ValueError(f"Unsupported vecenv backend: {backend!r}")
     if backend == "embedded":
         return HeadlessBatchVecEnv(
             batch_config,
@@ -258,9 +317,11 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
                 env_count=int(config["num_envs"]),
                 reward_config_id=reward_config_id,
                 curriculum_config_id=str(config["curriculum_config"]),
+                env_backend=env_backend,
                 transport_mode=str(
                     env_config.get("subprocess_transport_mode", PIPE_PICKLE_TRANSPORT_MODE)
                 ),
+                worker_count=int(env_config.get("subprocess_worker_count", 1)),
                 account_name_prefix=batch_config.account_name_prefix,
                 start_wave=batch_config.start_wave,
                 ammo=batch_config.ammo,
@@ -269,6 +330,7 @@ def make_vecenv(config: Mapping[str, Any], *, backend: str = "embedded"):
                 tick_cap=batch_config.tick_cap,
                 include_future_leakage=batch_config.include_future_leakage,
                 info_payload_mode=batch_config.info_payload_mode,
+                instrumentation_enabled=batch_config.instrumentation_enabled,
                 bootstrap=batch_config.bootstrap,
             )
         )
@@ -303,6 +365,11 @@ def build_policy_episode_env(
     reward_config_id: str,
     curriculum_config_id: str = "curriculum_disabled_v0",
 ) -> FightCavesPufferGymEnv:
+    if _resolve_env_backend(env_config) == ENV_BACKEND_V2_FAST:
+        raise ValueError(
+            "build_policy_episode_env does not support env_backend='v2_fast' in Phase 4.1. "
+            "Use the vecenv-based trainer path until the single-env fast wrapper lands."
+        )
     return FightCavesPufferGymEnv(
         env_config=env_config,
         reward_config_id=reward_config_id,
@@ -323,3 +390,24 @@ def _deep_merge(base: dict[str, Any], override: Mapping[str, Any]) -> dict[str, 
         else:
             merged[key] = value
     return merged
+
+
+def _resolve_train_vecenv_env_config(env_config: Mapping[str, Any]) -> dict[str, Any]:
+    resolved = dict(env_config)
+    resolved["env_backend"] = _resolve_env_backend(resolved)
+    resolved.setdefault("include_future_leakage", False)
+    resolved.setdefault("info_payload_mode", INFO_PAYLOAD_MODE_MINIMAL)
+    return resolved
+
+
+def resolve_train_env_backend(config: Mapping[str, Any]) -> str:
+    return _resolve_env_backend(dict(config.get("env", {})))
+
+
+def _resolve_env_backend(env_config: Mapping[str, Any]) -> str:
+    backend = str(dict(env_config).get("env_backend", ENV_BACKEND_V1_BRIDGE))
+    if backend not in SUPPORTED_ENV_BACKENDS:
+        raise ValueError(
+            f"Unsupported env_backend: {backend!r}. Expected one of {SUPPORTED_ENV_BACKENDS!r}."
+        )
+    return backend

@@ -5,7 +5,12 @@ from collections.abc import Sequence
 import numpy as np
 from gymnasium import spaces
 
-from fight_caves_rl.envs.action_mapping import NormalizedAction, normalize_action
+from fight_caves_rl.envs.action_mapping import (
+    ACTION_DEFINITION_BY_ID,
+    NormalizedAction,
+    TileCoordinates,
+    normalize_action,
+)
 from fight_caves_rl.envs.observation_mapping import validate_observation_contract
 from fight_caves_rl.envs.schema import (
     HEADLESS_PROTECTION_PRAYER_IDS,
@@ -233,21 +238,36 @@ def encode_action_for_policy(action: int | str | dict[str, object] | NormalizedA
 
 
 def decode_action_from_policy(action: Sequence[int] | np.ndarray) -> NormalizedAction:
-    vector = np.asarray(action, dtype=np.int64).reshape(-1)
+    vector = np.asarray(action)
+    if vector.dtype != np.int64:
+        vector = vector.astype(np.int64, copy=False)
+    vector = vector.reshape(-1)
     _validate_action_vector(vector)
-    prayer = POLICY_INDEX_TO_PRAYER[int(vector[5])]
-    payload: dict[str, object] = {"action_id": int(vector[0])}
-    if int(vector[0]) == 1:
-        payload["tile"] = {
-            "x": int(vector[1]),
-            "y": int(vector[2]),
-            "level": int(vector[3]),
-        }
-    elif int(vector[0]) == 2:
-        payload["visible_npc_index"] = int(vector[4])
-    elif int(vector[0]) == 3:
-        payload["prayer"] = prayer
-    return normalize_action(payload)
+    action_id = int(vector[0])
+    name = ACTION_DEFINITION_BY_ID[action_id].name
+    if action_id == 1:
+        return NormalizedAction(
+            action_id=action_id,
+            name=name,
+            tile=TileCoordinates(
+                x=int(vector[1]),
+                y=int(vector[2]),
+                level=int(vector[3]),
+            ),
+        )
+    if action_id == 2:
+        return NormalizedAction(
+            action_id=action_id,
+            name=name,
+            visible_npc_index=int(vector[4]),
+        )
+    if action_id == 3:
+        return NormalizedAction(
+            action_id=action_id,
+            name=name,
+            prayer=POLICY_INDEX_TO_PRAYER[int(vector[5])],
+        )
+    return NormalizedAction(action_id=action_id, name=name)
 
 
 def _validate_action_vector(vector: np.ndarray) -> None:

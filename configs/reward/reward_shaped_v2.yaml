@@ -1,0 +1,17 @@
+config_id: reward_shaped_v2
+mode: shaped
+coefficients:
+  damage_dealt: 0.02
+  damage_taken: -0.02
+  npc_kill: 0.1
+  wave_clear: 1.0
+  jad_damage_dealt: 0.03
+  cave_complete: 1.0
+  correct_jad_prayer_on_resolve: 0.25
+  wrong_jad_prayer_on_resolve: -0.25
+  invalid_action: -0.02
+  food_used: -0.05
+  prayer_potion_used: -0.05
+  tick_penalty_base: -0.0005
+  player_death: -1.0
+  movement_progress: 0.0

@@ -41,8 +41,10 @@ def test_train_benchmark_smoke(tmp_path: Path):
     assert float(measurements["disabled"]["production_env_steps_per_second"]) > 0.0
     assert float(measurements["standard"]["production_env_steps_per_second"]) > 0.0
     assert float(measurements["disabled"]["wall_clock_env_steps_per_second"]) > 0.0
-    assert measurements["disabled"]["runner_stage_seconds"] == {}
-    assert measurements["disabled"]["trainer_bucket_totals"] == {}
+    assert float(measurements["disabled"]["runner_stage_seconds"]["evaluate_seconds"]) >= 0.0
+    assert "eval_policy_forward" in measurements["disabled"]["trainer_bucket_totals"]
+    assert measurements["disabled"]["env_hot_path_bucket_totals"] == {}
+    assert int(measurements["disabled"]["memory_profile"]["combined_peak_rss_kib"]) > 0
     assert float(payload["sps_ratio_vs_disabled"]["standard"]) > 0.0
 
 
@@ -84,6 +86,8 @@ def test_train_benchmark_core_runner_smoke(tmp_path: Path):
     assert float(measurement["runner_stage_seconds"]["train_seconds"]) >= 0.0
     assert "eval_tensor_copy" in measurement["trainer_bucket_totals"]
     assert "train_policy_forward" in measurement["trainer_bucket_totals"]
+    assert measurement["env_hot_path_bucket_totals"] == {}
+    assert int(measurement["memory_profile"]["combined_peak_rss_kib"]) > 0
     assert int(measurement["artifact_count"]) == 0
     assert str(measurement["checkpoint_path"]) == ""
 
@@ -126,5 +130,7 @@ def test_train_benchmark_prototype_runner_smoke(tmp_path: Path):
     assert float(measurement["runner_stage_seconds"]["train_seconds"]) > 0.0
     assert "rollout_policy_forward" in measurement["trainer_bucket_totals"]
     assert "update_policy_forward" in measurement["trainer_bucket_totals"]
+    assert measurement["env_hot_path_bucket_totals"] == {}
+    assert int(measurement["memory_profile"]["combined_peak_rss_kib"]) > 0
     assert int(measurement["artifact_count"]) == 0
     assert str(measurement["checkpoint_path"]) == ""

@@ -24,20 +24,30 @@ Current PR12 entry surfaces:
 The current config expands the parity matrix across:
 
 - `parity_single_wave_v0` with seed `11001`
+- `parity_action_rejection_v0` with seed `33003`
+- `parity_prayer_toggle_timing_v0` with seed `11001`
 - `parity_jad_healer_v0` with seed `33003`
 - `parity_tzkek_split_v0` with seed `44004`
+- `parity_terminal_tick_cap_v0` with seed `11001`
 
 Each trace pack remains a per-tick RL expansion of the sim-side replay-style parity traces.
+The PR 6.2-only packs pin the new V2 mechanics gate for rejection codes, prayer timing, and
+tick-cap terminal codes on top of the original wave/Jad-era parity scenarios.
 
 ## Current Comparison Surfaces
 
-Each parity scenario currently compares three RL-facing surfaces:
+Each parity scenario now compares three RL-facing semantic surfaces:
 
 - wrapper trace via `scripts/collect_trajectory_trace.py --mode wrapper`
 - raw sim trace via `scripts/collect_trajectory_trace.py --mode raw`
 - trace-pack-driven scripted replay path via `scripts/smoke_scripted.py`
 
-The configured comparison mode remains `semantic_digest`, but the PR12 runner also checks:
+It also compares two mechanics-parity surfaces:
+
+- oracle mechanics trace via `scripts/collect_mechanics_parity_trace.py --mode oracle`
+- V2 fast mechanics trace via `scripts/collect_mechanics_parity_trace.py --mode v2_fast`
+
+The configured comparison mode remains `semantic_digest`, but the parity runner also checks:
 
 - semantic episode-state agreement
 - semantic initial-observation agreement
@@ -45,10 +55,15 @@ The configured comparison mode remains `semantic_digest`, but the PR12 runner al
 - per-step semantic-observation agreement
 - per-step action-result agreement
 - per-step semantic visible-target agreement
+- oracle-vs-`v2_fast` mechanics digest agreement
+- first-mismatch field comparison on the shared mechanics trace schema
 - final relative tick agreement
 - completed-all-steps agreement
 
 The semantic digest intentionally ignores allocator-specific fields such as dynamic instance ids and absolute instance-shifted tiles.
+The mechanics digest is frozen per trace pack and covers the shared parity trace fields from
+`fight_caves_rl/contracts/parity_trace_schema.py`, including action acceptance, rejection codes,
+visible-target ordering, Jad telegraph fields, and terminal codes.
 
 ## Process Model
 
@@ -81,3 +96,12 @@ Parity canaries therefore preserve the PR3 documented inferred-only labels for:
 - `max_tick_cap`
 
 If the sim later exposes direct terminal reasons, the canary digest version must be bumped accordingly.
+
+## Failure Artifacts
+
+When oracle-vs-`v2_fast` mechanics parity fails, the runner writes a first-divergence artifact under:
+
+- `artifacts/parity/pr62_canary_failures/<config_id>/<scenario_id>.json`
+
+Those artifacts store the reference trace, candidate trace, and the first mismatched field so parity
+drift can be debugged without rerunning the full canary matrix immediately.

@@ -44,6 +44,9 @@ class BatchBridgeProtocol:
     action_schema_version: int
     episode_start_contract_id: str
     episode_start_contract_version: int
+    batch_apply_actions_api: str | None = None
+    batch_observe_flat_api: str | None = None
+    batch_flat_observation_layout: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -79,6 +82,7 @@ class BatchSlotResetResult:
     slot_index: int
     observation: dict[str, Any] | None
     flat_observation: Any
+    episode_state: dict[str, Any] | None
     info: dict[str, Any]
 
 
@@ -102,6 +106,12 @@ class BatchSlotStepResult:
     reward: float
     terminated: bool
     truncated: bool
+    action_result: dict[str, Any]
+    visible_target_count: int
+    episode_steps: int
+    episode_return: float
+    terminal_reason: str | None
+    visible_targets: list[dict[str, Any]] | None
     info: dict[str, Any]
 
 
@@ -187,6 +197,9 @@ def build_batch_protocol(handshake: BridgeHandshake) -> BatchBridgeProtocol:
         action_schema_version=int(values["action_schema_version"]),
         episode_start_contract_id=str(values["episode_start_contract_id"]),
         episode_start_contract_version=int(values["episode_start_contract_version"]),
+        batch_apply_actions_api=_optional_str(values.get("batch_apply_actions_api")),
+        batch_observe_flat_api=_optional_str(values.get("batch_observe_flat_api")),
+        batch_flat_observation_layout=_optional_str(values.get("batch_flat_observation_layout")),
     )
 
 
@@ -257,3 +270,7 @@ def _validate_unique_slots(slot_indices: Sequence[int]) -> None:
                 f"Duplicate slot index in batch request: {slot_index}."
             )
         seen.add(int(slot_index))
+
+
+def _optional_str(value: object) -> str | None:
+    return None if value is None else str(value)

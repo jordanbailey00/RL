@@ -2,11 +2,45 @@
 
 This document freezes the RL-side integration contract against the current headless simulator in `/home/jordan/code/fight-caves-RL`.
 
+## Pivot Status
+
+Current workspace authority is:
+- `/home/jordan/code/pivot_plan.md`
+- `/home/jordan/code/pivot_implementation_plan.md`
+
+This document remains an active reference for the current simulator-backed V1 oracle/reference path.
+It does not replace the pivot architecture.
+
+Agent execution environment:
+- WSL/Linux is the canonical environment for RL-side integration work, validation commands, and runtime launch instructions.
+- Linux paths and shells are canonical; do not author the active integration contract around Windows-native path semantics or PowerShell.
+
 ## Authority
 
 - `fight-caves-RL` is authoritative for reset behavior, step semantics, observation contents, target indexing, deterministic replay, and packaging.
 - `RSPS` remains the oracle/reference for parity disputes and headed validation only.
 - `RL` may flatten, batch, and log around the simulator contract, but it must not reinterpret or hide simulator semantics.
+
+## Mechanics Parity Scope
+
+Under the pivot, parity is defined as **mechanics parity** between:
+- the future V2 fast trainer
+- the RSPS-backed headed demo path
+- the oracle/reference path
+
+`fight-caves-demo-lite` remains a frozen headed fallback/reference module only.
+
+It is not defined as full engine/runtime parity.
+
+## Phase 0 V2 Contract Freeze
+
+Phase 0 freezes the portable RL-facing V2 contract surfaces in:
+- `fight_caves_rl/contracts/mechanics_contract.py`
+- `fight_caves_rl/contracts/terminal_codes.py`
+- `fight_caves_rl/contracts/reward_feature_schema.py`
+- `fight_caves_rl/contracts/parity_trace_schema.py`
+
+Those files freeze the mechanics boundary, terminal codes, reward features, and parity trace fields before the fast kernel exists.
 
 ## Canonical Sim Sources
 
@@ -20,7 +54,7 @@ PR 2 is aligned to the current verified simulator sources:
   - `fight-caves-RL/game/src/main/kotlin/HeadlessObservationBuilder.kt`
 - Stable action surface:
   - `fight-caves-RL/game/src/main/kotlin/HeadlessActionAdapter.kt`
-  - `fight-caves-RL/FCplan.md` Step 6 notes
+  - `fight_caves_rl/envs/schema.py` (`HEADLESS_ACTION_SCHEMA` and `HEADLESS_ACTION_DEFINITIONS`)
 - Headless artifact/package boundary:
   - `fight-caves-RL/docs/runtime_pruning.md`
   - `fight-caves-RL/game/build.gradle.kts`
@@ -49,7 +83,6 @@ Current runtime invariant verified during PR 3 bring-up:
 - the current headless bootstrap still locates the checked-out sim repository root dynamically
 - RL therefore needs both the packaged headless distribution and the checked-out sibling sim workspace
 - the current workspace-required files are:
-  - `fight-caves-RL/FCspec.md`
   - `fight-caves-RL/config/headless_data_allowlist.toml`
   - `fight-caves-RL/config/headless_manifest.toml`
   - `fight-caves-RL/config/headless_scripts.txt`
@@ -183,3 +216,4 @@ PR 3 implementation note:
   - `cave_complete`
   - `max_tick_cap`
 - this is tracked as a follow-up validation point before PR 3 can be considered fully complete
+- the portable V2 terminal-code freeze now lives in `fight_caves_rl/contracts/terminal_codes.py`

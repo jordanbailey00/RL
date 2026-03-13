@@ -220,7 +220,6 @@ FIGHT_CAVES_BRIDGE_CONTRACT = BridgeContract(
     sim_headless_jar_name="fight-caves-headless.jar",
     requires_sim_workspace_checkout=True,
     required_sim_workspace_paths=(
-        "FCspec.md",
         "config/headless_data_allowlist.toml",
         "config/headless_manifest.toml",
         "config/headless_scripts.txt",

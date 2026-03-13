@@ -22,7 +22,10 @@ from fight_caves_rl.bridge.launcher import (
     discover_headless_runtime_paths,
 )
 from fight_caves_rl.envs.action_mapping import NormalizedAction, TileCoordinates, normalize_action
-from fight_caves_rl.envs.observation_views import coerce_flat_observation_row
+from fight_caves_rl.envs.observation_views import (
+    coerce_flat_observation_batch,
+    coerce_flat_observation_row,
+)
 from fight_caves_rl.envs.observation_mapping import validate_observation_contract
 from fight_caves_rl.utils.java_runtime import resolve_jvm_library_path
 
@@ -135,6 +138,11 @@ class HeadlessDebugClient:
         observation = self.observe_flat_jvm(player)
         return flat_observation_to_numpy(observation)
 
+    def observe_flat_batch(self, players: list[Any] | tuple[Any, ...]) -> np.ndarray:
+        self._ensure_runtime_open()
+        observation_batch = self.observe_flat_batch_jvm(players)
+        return flat_observation_batch_to_numpy(observation_batch)
+
     def visible_targets(self, player: Any) -> list[dict[str, Any]]:
         self._ensure_runtime_open()
         targets = []
@@ -193,6 +201,32 @@ class HeadlessDebugClient:
         self._ensure_runtime_open()
         return self._runtime.applyFightCaveAction(player, self.build_action(action))
 
+    def apply_actions_batch(
+        self,
+        players: list[Any] | tuple[Any, ...],
+        actions: list[int | str | dict[str, object] | NormalizedAction] | tuple[int | str | dict[str, object] | NormalizedAction, ...],
+    ) -> list[dict[str, Any]]:
+        return [pythonize_action_result(result) for result in self.apply_actions_batch_jvm(players, actions)]
+
+    def apply_actions_batch_jvm(
+        self,
+        players: list[Any] | tuple[Any, ...],
+        actions: list[int | str | dict[str, object] | NormalizedAction] | tuple[int | str | dict[str, object] | NormalizedAction, ...],
+    ) -> list[Any]:
+        self._ensure_runtime_open()
+        if len(players) != len(actions):
+            raise BridgeError(
+                "Batch action application requires player/action parity: "
+                f"{len(players)} != {len(actions)}"
+            )
+        player_list = self._jvm["ArrayList"]()
+        action_list = self._jvm["ArrayList"]()
+        for player in players:
+            player_list.add(player)
+        for action in actions:
+            action_list.add(self._build_jvm_action(normalize_action(action)))
+        return list(self._runtime.applyActionsBatch(player_list, action_list))
+
     def observe_jvm(self, player: Any, include_future_leakage: bool = False) -> Any:
         self._ensure_runtime_open()
         return self._runtime.observeFightCave(player, include_future_leakage)
@@ -200,6 +234,13 @@ class HeadlessDebugClient:
     def observe_flat_jvm(self, player: Any) -> Any:
         self._ensure_runtime_open()
         return self._runtime.observeFightCaveFlat(player)
+
+    def observe_flat_batch_jvm(self, players: list[Any] | tuple[Any, ...]) -> Any:
+        self._ensure_runtime_open()
+        player_list = self._jvm["ArrayList"]()
+        for player in players:
+            player_list.add(player)
+        return self._runtime.observeFlatBatch(player_list)
 
     def run_action_trace(
         self,
@@ -503,3 +544,11 @@ def pythonize_observation(observation: Any) -> dict[str, Any]:
 def flat_observation_to_numpy(observation: Any) -> np.ndarray:
     values = np.asarray(observation.getValues(), dtype=np.float32)
     return coerce_flat_observation_row(values)
+
+
+def flat_observation_batch_to_numpy(observation_batch: Any) -> np.ndarray:
+    env_count = int(observation_batch.getEnvCount())
+    feature_count = int(observation_batch.getFeatureCount())
+    values = np.asarray(observation_batch.getValues(), dtype=np.float32)
+    batch = values.reshape((env_count, feature_count))
+    return coerce_flat_observation_batch(batch)

@@ -1,0 +1,5 @@
+config_id: reward_sparse_v2
+mode: sparse
+coefficients:
+  cave_complete: 1.0
+  player_death: -1.0

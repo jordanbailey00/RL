@@ -1,5 +1,11 @@
 # RLplan.md - RL Module Implementation Plan
 
+## Documentation Status
+
+- Status: superseded for active execution under `pivot_documentation_triage.md`.
+- Current authority: `pivot_plan.md`, `pivot_implementation_plan.md`, and `RLspec.md`.
+- Retention reason: kept for historical RL module context; do not use as the active cross-workspace execution plan.
+
 ## Scope and Source of Truth
 
 This plan is derived from the root `RLspec.md` supplied for the RL module and treats that spec as authoritative.

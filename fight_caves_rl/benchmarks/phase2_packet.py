@@ -19,6 +19,7 @@ PHASE2_TRAIN_ENV_COUNTS = (16, 64)
 @dataclass(frozen=True)
 class Phase2GateStatus:
     benchmark_host_class: str
+    benchmark_source_of_truth: bool
     transport_rows_complete: bool
     train_rows_complete: bool
     transport_64_pipe_env_steps_per_second: float | None
@@ -64,14 +65,23 @@ def evaluate_phase2_gate(
     train_reports: dict[tuple[str, int], dict[str, Any]],
 ) -> Phase2GateStatus:
     host_class = _detect_host_class(transport_reports, train_reports)
+    benchmark_source_of_truth = _detect_source_of_truth(transport_reports, train_reports)
     transport_rows_complete = _transport_rows_complete(transport_reports)
     train_rows_complete = _train_rows_complete(train_reports)
 
     transport_measurements_64 = _transport_measurements(transport_reports.get(64, {}))
-    train_pipe_16 = _train_sps(train_reports.get((PIPE_PICKLE_TRANSPORT_MODE, 16), {}))
-    train_shared_16 = _train_sps(train_reports.get((SHARED_MEMORY_TRANSPORT_MODE, 16), {}))
-    train_pipe_64 = _train_sps(train_reports.get((PIPE_PICKLE_TRANSPORT_MODE, 64), {}))
-    train_shared_64 = _train_sps(train_reports.get((SHARED_MEMORY_TRANSPORT_MODE, 64), {}))
+    train_pipe_16 = _train_production_sps(
+        train_reports.get((PIPE_PICKLE_TRANSPORT_MODE, 16), {})
+    )
+    train_shared_16 = _train_production_sps(
+        train_reports.get((SHARED_MEMORY_TRANSPORT_MODE, 16), {})
+    )
+    train_pipe_64 = _train_production_sps(
+        train_reports.get((PIPE_PICKLE_TRANSPORT_MODE, 64), {})
+    )
+    train_shared_64 = _train_production_sps(
+        train_reports.get((SHARED_MEMORY_TRANSPORT_MODE, 64), {})
+    )
 
     transport_pipe_64 = transport_measurements_64.get(PIPE_PICKLE_TRANSPORT_MODE)
     transport_shared_64 = transport_measurements_64.get(SHARED_MEMORY_TRANSPORT_MODE)
@@ -90,8 +100,8 @@ def evaluate_phase2_gate(
     )
 
     blockers: list[str] = []
-    if host_class != "linux_native":
-        blockers.append("native_linux_source_of_truth_missing")
+    if not benchmark_source_of_truth:
+        blockers.append("benchmark_source_of_truth_missing")
     if not transport_rows_complete:
         blockers.append("transport_packet_incomplete")
     if not train_rows_complete:
@@ -112,6 +122,7 @@ def evaluate_phase2_gate(
     deduped_blockers = tuple(dict.fromkeys(blockers))
     return Phase2GateStatus(
         benchmark_host_class=host_class,
+        benchmark_source_of_truth=benchmark_source_of_truth,
         transport_rows_complete=transport_rows_complete,
         train_rows_complete=train_rows_complete,
         transport_64_pipe_env_steps_per_second=transport_pipe_64,
@@ -168,6 +179,22 @@ def _detect_host_class(
     return "unknown"
 
 
+def _detect_source_of_truth(
+    transport_reports: dict[int, dict[str, Any]],
+    train_reports: dict[tuple[str, int], dict[str, Any]],
+) -> bool:
+    for payload in (*transport_reports.values(), *train_reports.values()):
+        context = payload.get("context", {})
+        hardware = context.get("hardware_profile", {})
+        explicit = hardware.get("performance_source_of_truth")
+        if isinstance(explicit, bool):
+            return explicit
+        host_class = hardware.get("host_class")
+        if host_class:
+            return str(host_class) in {"linux_native", "wsl2"}
+    return False
+
+
 def _transport_rows_complete(reports: dict[int, dict[str, Any]]) -> bool:
     return all(env_count in reports for env_count in PHASE2_TRANSPORT_ENV_COUNTS)
 
@@ -191,9 +218,12 @@ def _transport_measurements(payload: dict[str, Any]) -> dict[str, float]:
     return measurements
 
 
-def _train_sps(payload: dict[str, Any]) -> float | None:
+def _train_production_sps(payload: dict[str, Any]) -> float | None:
     for entry in payload.get("measurements", []):
         if str(entry.get("logging_mode")) == "disabled":
+            explicit = _optional_float(entry.get("production_env_steps_per_second"))
+            if explicit is not None:
+                return explicit
             return _optional_float(entry.get("env_steps_per_second"))
     return None
 
